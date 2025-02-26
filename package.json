@@ -1,0 +1,26 @@
+{
+  "name": "@supercat1337/ui",
+  "version": "1.0.0",
+  "description": "A simple UI library to display RPC responses",
+  "license": "MIT",
+  "author": "SuperCat1337",
+  "type": "module",
+  "main": "index.js",
+  "homepage": "https://github.com/supercat1337/ui",
+  "repository": {
+    "url": "https://github.com/supercat1337/ui"
+  },
+  "scripts": {
+    "preinstall": "npm i -g esbuild && npm i -g rollup",
+    "build": "npm run remove_type_files && npm run build_esm && npm run build_esm_min && npm run create_types",
+    "build_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
+    "build_esm": "rollup ./src/index.js --file ./dist/ui.esm.js --format es",
+    "create_types": "npx -p typescript tsc --project my.tsconfig.types.json",
+    "remove_type_files": "del /q *.d.ts *.d.ts.map && cd dist && del /s /q *.d.ts *.d.ts.map && cd .."
+  },
+  "dependencies": {
+    "@supercat1337/event-emitter": "^1.0.10",
+    "@supercat1337/rpc": "^1.0.5",
+    "dom-scope": "^1.0.17"
+  }
+}
