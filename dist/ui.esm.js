@@ -18,6 +18,21 @@ function DOMReady(callback) {
     }
 }
 
+/**
+ * Escapes the given string from HTML interpolation.
+ * Replaces the characters &, <, ", and ' with their corresponding HTML entities.
+ * @param {string} unsafe - The string to escape.
+ * @returns {string} The escaped string.
+ */
+function escapeHtml(unsafe) {
+    return unsafe.replace(/[&<"']/g, m => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        '"': "&quot;",
+        "'": "&#39;", // ' -> &apos; for XML only
+    }[m]));
+}
+
 // @ts-check
 
 
@@ -108,9 +123,14 @@ class Component {
     /**
      * Renders the layout of the component.
      * This method is called when the component should re-render its layout.
+     * @param {HTMLElement} [root_element] - The root element to render the layout in.
      * @throws {Error} If the root element is not set.
      */
-    renderLayout() {
+    renderLayout(root_element) {
+        if (root_element) {
+            this.setRoot(root_element);
+        }
+
         // @ts-ignore
         if (!this.root_element) {
             throw new Error("Root element is not set");
@@ -144,7 +164,7 @@ class Component {
     */
     isConnected() {
         // @ts-ignore
-        return !!this.refs;
+        return !!this.root_element && !!this.refs;
     }
 }
 
@@ -915,12 +935,20 @@ class TableView extends Component {
 
 // @ts-check
 
-function getHtmlLayout$1() {
+
+/**
+ * Generates an HTML layout string for a paginated item list component.
+ * The layout includes a title, add and update buttons, a section for the list items, and a pagination section.
+ * @param {import('./paginatedItemList.js').PaginatedItemList} paginatedItemList - The paginated item list object used to generate the layout.
+ * @returns {string} The HTML layout string.
+ */
+
+function getHtmlLayout$1(paginatedItemList) {
     return /* html */ `
 <div class="d-flex flex-column" style="min-height: 80vh">
     <div class="flex-grow-1 mt-3">
         <h1 class="display-6">
-            <span ref="title">List</span>
+            <span ref="title">${escapeHtml(paginatedItemList.title)}</span>
             <button class="btn btn-outline-secondary btn-sm ms-2" ref="add_data_button">
                 Add
             </button>
@@ -983,16 +1011,9 @@ class PaginatedItemList extends Component {
 
     this.setLayout(getHtmlLayout$1);
 
-    this.on("refsConnected", () => {
-      this.refs.title.innerText = this.#title;
-
-      this.itemList.setRoot(this.refs.itemList);
-      this.pagination.setRoot(this.refs.pagination_section);
-    });
-
     this.on("renderLayout", () => {
-      this.itemList.renderLayout();
-      this.pagination.renderLayout();
+      this.itemList.renderLayout(this.refs.itemList);
+      this.pagination.renderLayout(this.refs.pagination_section);
     });
   }
 
@@ -1056,12 +1077,20 @@ class PaginatedItemList extends Component {
 
 // @ts-check
 
-function getHtmlLayout() {
+
+/**
+ * Generates an HTML layout string for a paginated table component.
+ * The layout includes a title, add and update buttons, a table, and a pagination section.
+ * @param {import('./paginatedTable.js').PaginatedTable} paginatedTable - The paginated table object used to generate the layout.
+ * @returns {string} The HTML layout string.
+ */
+
+function getHtmlLayout(paginatedTable) {
     return /* html */ `
 <div class="d-flex flex-column" style="min-height: 80vh">
     <div class="flex-grow-1 mt-3">
         <h1 class="display-6">
-            <span ref="title">Table</span>
+            <span ref="title">${escapeHtml(paginatedTable.title)}</span>
             <button class="btn btn-outline-secondary btn-sm ms-2" ref="add_data_button">
                 Add
             </button>
@@ -1122,13 +1151,11 @@ class PaginatedTable extends Component {
 
     this.on("refsConnected", () => {
       this.refs.title.innerText = this.#title;
-      this.tableView.setRoot(this.refs.table);
-      this.pagination.setRoot(this.refs.pagination_section);
     });
 
     this.on("renderLayout", () => {
-      this.tableView.renderLayout();
-      this.pagination.renderLayout();
+      this.tableView.renderLayout(this.refs.table);
+      this.pagination.renderLayout(this.refs.pagination_section);
     });
 
   }
@@ -1191,4 +1218,4 @@ class PaginatedTable extends Component {
   }
 }
 
-export { Component, DOMReady, ItemList, PaginatedItemList, PaginatedTable, Pagination, TableView, Widget };
+export { Component, DOMReady, ItemList, PaginatedItemList, PaginatedTable, Pagination, TableView, Widget, escapeHtml };

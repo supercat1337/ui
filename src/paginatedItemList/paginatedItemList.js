@@ -45,16 +45,9 @@ export class PaginatedItemList extends Component {
 
     this.setLayout(getHtmlLayout);
 
-    this.on("refsConnected", () => {
-      this.refs.title.innerText = this.#title;
-
-      this.itemList.setRoot(this.refs.itemList);
-      this.pagination.setRoot(this.refs.pagination_section);
-    });
-
     this.on("renderLayout", () => {
-      this.itemList.renderLayout();
-      this.pagination.renderLayout();
+      this.itemList.renderLayout(this.refs.itemList);
+      this.pagination.renderLayout(this.refs.pagination_section);
     });
   }
 

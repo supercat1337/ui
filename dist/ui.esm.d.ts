@@ -40,9 +40,10 @@ export class Component {
     /**
      * Renders the layout of the component.
      * This method is called when the component should re-render its layout.
+     * @param {HTMLElement} [root_element] - The root element to render the layout in.
      * @throws {Error} If the root element is not set.
      */
-    renderLayout(): void;
+    renderLayout(root_element?: HTMLElement): void;
     /**
     * Checks if the data view is connected to a root element.
     * @returns {boolean} True if the data view is connected, false otherwise.
@@ -357,3 +358,10 @@ export class Widget extends Component {
     setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
     #private;
 }
+/**
+ * Escapes the given string from HTML interpolation.
+ * Replaces the characters &, <, ", and ' with their corresponding HTML entities.
+ * @param {string} unsafe - The string to escape.
+ * @returns {string} The escaped string.
+ */
+export function escapeHtml(unsafe: string): string;

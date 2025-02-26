@@ -1,5 +1,5 @@
 // @ts-check
-export { DOMReady } from "./utils.js";
+export * from "./utils.js";
 export { Component } from "./component/component.js";
 export { Widget } from "./widget/widget.js";
 export { Pagination } from "./pagination/pagination.js";

@@ -43,13 +43,11 @@ export class PaginatedTable extends Component {
 
     this.on("refsConnected", () => {
       this.refs.title.innerText = this.#title;
-      this.tableView.setRoot(this.refs.table);
-      this.pagination.setRoot(this.refs.pagination_section);
     });
 
     this.on("renderLayout", () => {
-      this.tableView.renderLayout();
-      this.pagination.renderLayout();
+      this.tableView.renderLayout(this.refs.table);
+      this.pagination.renderLayout(this.refs.pagination_section);
     });
 
   }

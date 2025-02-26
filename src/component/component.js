@@ -90,9 +90,14 @@ export class Component {
     /**
      * Renders the layout of the component.
      * This method is called when the component should re-render its layout.
+     * @param {HTMLElement} [root_element] - The root element to render the layout in.
      * @throws {Error} If the root element is not set.
      */
-    renderLayout() {
+    renderLayout(root_element) {
+        if (root_element) {
+            this.setRoot(root_element);
+        }
+
         // @ts-ignore
         if (!this.root_element) {
             throw new Error("Root element is not set");
@@ -126,6 +131,6 @@ export class Component {
     */
     isConnected() {
         // @ts-ignore
-        return !!this.refs;
+        return !!this.root_element && !!this.refs;
     }
 }
