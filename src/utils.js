@@ -7,11 +7,9 @@
  * @param {() => void} callback - The function to be executed when the DOM is ready.
  */
 export function DOMReady(callback) {
-    if (document.readyState === "complete") {
-        callback();
-    } else {
-        document.addEventListener("DOMContentLoaded", callback);
-    }
+  document.readyState === "interactive" || document.readyState === "complete"
+    ? callback()
+    : document.addEventListener("DOMContentLoaded", callback);
 }
 
 /**
@@ -21,14 +19,17 @@ export function DOMReady(callback) {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe) {
-    return unsafe.replace(/[&<"']/g, m => ({
+  return unsafe.replace(
+    /[&<"']/g,
+    (m) =>
+      ({
         "&": "&amp;",
         "<": "&lt;",
         '"': "&quot;",
         "'": "&#39;", // ' -> &apos; for XML only
-    }[m]));
+      }[m])
+  );
 }
-
 
 /**
  * Sets the status of the button to "waiting" (i.e. disabled and showing a spinner).
@@ -36,10 +37,11 @@ export function escapeHtml(unsafe) {
  * @param {string} text - The text to be shown in the button while it is waiting.
  */
 export function ui_button_status_waiting_on(el, text) {
-    el.disabled = true;
-    el.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' + escapeHtml(text);
+  el.disabled = true;
+  el.innerHTML =
+    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' +
+    escapeHtml(text);
 }
-
 
 /**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
@@ -47,10 +49,9 @@ export function ui_button_status_waiting_on(el, text) {
  * @param {string} text - The text to be shown in the button.
  */
 export function ui_button_status_waiting_off(el, text) {
-    el.disabled = false;
-    el.innerText = text;
+  el.disabled = false;
+  el.innerText = text;
 }
-
 
 /**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner)
@@ -59,6 +60,6 @@ export function ui_button_status_waiting_off(el, text) {
  * @param {string} html - The HTML string to be set as the button's innerHTML.
  */
 export function ui_button_status_waiting_off_html(el, html) {
-    el.disabled = false;
-    el.innerHTML = html;
+  el.disabled = false;
+  el.innerHTML = html;
 }

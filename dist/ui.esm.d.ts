@@ -365,3 +365,22 @@ export class Widget extends Component {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe: string): string;
+/**
+ * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
+ * @param {HTMLButtonElement} el - The button element to set the status for.
+ * @param {string} text - The text to be shown in the button.
+ */
+export function ui_button_status_waiting_off(el: HTMLButtonElement, text: string): void;
+/**
+ * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner)
+ * and sets its innerHTML to the given HTML string.
+ * @param {HTMLButtonElement} el - The button element to set the status for.
+ * @param {string} html - The HTML string to be set as the button's innerHTML.
+ */
+export function ui_button_status_waiting_off_html(el: HTMLButtonElement, html: string): void;
+/**
+ * Sets the status of the button to "waiting" (i.e. disabled and showing a spinner).
+ * @param {HTMLButtonElement} el - The button element to set the status for.
+ * @param {string} text - The text to be shown in the button while it is waiting.
+ */
+export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string): void;
