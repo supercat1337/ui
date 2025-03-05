@@ -1122,9 +1122,9 @@ class PaginatedItemList extends Component {
 
 function getHtmlLayout(paginatedTable) {
     return /* html */ `
-<div class="d-flex flex-column" style="min-height: 80vh">
+<div class="d-flex flex-column" style="min-height: 75vh">
     <div class="flex-grow-1 mt-3">
-        <h1 class="display-6">
+        <h1 class="display-6 mb-3">
             <span ref="title">${escapeHtml(paginatedTable.title)}</span>
             <button class="btn btn-outline-secondary btn-sm ms-2" ref="add_data_button">
                 Add
