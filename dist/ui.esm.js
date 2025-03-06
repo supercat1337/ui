@@ -1,4 +1,4 @@
-import { Modal } from 'node_modules/bootstrap/dist/js/bootstrap.bundle.js';
+import Modal from 'bootstrap/js/src/modal.js';
 import { EventEmitter } from '@supercat1337/event-emitter';
 import { selectRefs } from 'dom-scope';
 import { extractRPCResponse, RPCPagedResponse, RPCErrorResponse } from '@supercat1337/rpc';
@@ -171,6 +171,7 @@ function hideModal(modal_element) {
  * @param {Element} modal_element - The modal element to be displayed.
  */
 function showModal(modal_element) {
+  // @ts-ignore
   let modal = Modal.getOrCreateInstance(modal_element);
   modal.show();
 }

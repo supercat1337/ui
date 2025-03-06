@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Modal } from "node_modules/bootstrap/dist/js/bootstrap.bundle.js";
+import  Modal  from "bootstrap/js/src/modal.js";
 
 /**
  * Executes the provided callback function when the DOM is fully loaded.
@@ -167,6 +167,7 @@ export function hideModal(modal_element) {
  * @param {Element} modal_element - The modal element to be displayed.
  */
 export function showModal(modal_element) {
+  // @ts-ignore
   let modal = Modal.getOrCreateInstance(modal_element);
   modal.show();
 }
