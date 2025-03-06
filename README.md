@@ -31,6 +31,13 @@ The following functions are included in this library:
 *   `removeSpinnerFromButton`: A function that removes a spinner from a button.
 *   `showModal`: A function that shows a modal on the page.
 *   `hideModal`: A function that hides a modal on the page.
+*   `unixtime`: A function that returns the current Unix timestamp.
+*   `isDarkMode`: A function that returns true if the user is in dark mode, false otherwise.
+*   `getDefaultLanguage`: A function that returns the default language of the user.
+*   `formatBytes`: A function that formats a number of bytes into a human-readable string.
+*   `copyToClipboard`: A function that copies a string to the clipboard.
+*   `formatDateTime`: A function that formats a Unix timestamp into a human-readable date and time.
+*   `formatDate`: A function that formats a Unix timestamp into a human-readable date.
 
 ## Example
 

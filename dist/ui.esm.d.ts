@@ -359,12 +359,49 @@ export class Widget extends Component {
     #private;
 }
 /**
+ * Copies the given text to the clipboard using the Clipboard API.
+ * @param {string} text - The text to be copied to the clipboard.
+ * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
+ */
+export function copyToClipboard(text: string): Promise<void>;
+/**
  * Escapes the given string from HTML interpolation.
  * Replaces the characters &, <, ", and ' with their corresponding HTML entities.
  * @param {string} unsafe - The string to escape.
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe: string): string;
+/**
+ * Formats the given number of bytes into a human-readable string.
+ *
+ * @param {number} bytes - The number of bytes to be formatted.
+ * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
+ * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language.
+ * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
+ * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
+ */
+export function formatBytes(bytes: number, decimals?: number, lang?: string, sizes?: any): string;
+/**
+ * Formats the given timestamp into a human-readable string representation of
+ * a date. The date is formatted according to the user's locale.
+ * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
+ */
+export function formatDate(timestamp: number): string;
+/**
+ * Formats the given timestamp into a human-readable string representation of
+ * a date and time. The date is formatted according to the user's locale, and
+ * the time is formatted according to the user's locale with a 24-hour clock.
+ * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
+ */
+export function formatDateTime(timestamp: number): string;
+/**
+ * Returns the user's default language, or "en" if none can be determined.
+ * @returns {string} The user's default language, in the form of a two-letter
+ *   language code (e.g. "en" for English, "fr" for French, etc.).
+ */
+export function getDefaultLanguage(): string;
 /**
  * Adds the "d-none" class to the given elements, hiding them from view.
  * @param {...HTMLElement} elements - The elements to hide.
@@ -375,6 +412,13 @@ export function hideElements(...elements: HTMLElement[]): void;
  * @param {Element} modal_element - The modal element to hide.
  */
 export function hideModal(modal_element: Element): void;
+/**
+ * Checks if the user prefers a dark color scheme.
+ * Utilizes the `window.matchMedia` API to determine if the user's
+ * system is set to a dark mode preference.
+ * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
+ */
+export function isDarkMode(): boolean;
 /**
  * Removes the spinner from the given button.
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
@@ -432,3 +476,8 @@ export function ui_button_status_waiting_off_html(el: HTMLButtonElement, html: s
  * @param {string} text - The text to be shown in the button while it is waiting.
  */
 export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string): void;
+/**
+ * Returns the current Unix time in seconds.
+ * @returns {number}
+ */
+export function unixtime(): number;

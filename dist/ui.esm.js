@@ -176,6 +176,105 @@ function showModal(modal_element) {
   modal.show();
 }
 
+/**
+ * Returns the current Unix time in seconds.
+ * @returns {number}
+ */
+function unixtime() {
+  return Math.floor((new Date).getTime() / 1000);
+}
+
+/**
+ * Checks if the user prefers a dark color scheme.
+ * Utilizes the `window.matchMedia` API to determine if the user's
+ * system is set to a dark mode preference.
+ * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
+ */
+function isDarkMode() {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns the user's default language, or "en" if none can be determined.
+ * @returns {string} The user's default language, in the form of a two-letter
+ *   language code (e.g. "en" for English, "fr" for French, etc.).
+ */
+function getDefaultLanguage() {
+  let m = (navigator.language).match(/^[a-z]+/);
+  let lang = m ? m[0] : "en";
+  return lang;
+}
+
+/**
+ * Formats the given number of bytes into a human-readable string.
+ *
+ * @param {number} bytes - The number of bytes to be formatted.
+ * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
+ * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language. 
+ * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
+ * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
+ */
+function formatBytes(bytes, decimals = 2, lang, sizes) {
+  lang = lang || "en";
+
+  sizes = sizes || {
+      "en": ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+  };
+
+  const get_size = sizes[lang] ? sizes[lang] : sizes["en"];
+
+  if (bytes === 0) {
+      return '0 ' + get_size[0];
+  }
+
+  let minus_str = bytes < 0 ? "-" : "";
+  bytes = Math.abs(bytes);
+
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return minus_str + parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + get_size[i];
+}
+
+/**
+ * Copies the given text to the clipboard using the Clipboard API.
+ * @param {string} text - The text to be copied to the clipboard.
+ * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
+ */
+function copyToClipboard(text) {
+  return navigator.clipboard.writeText(text);
+}
+
+/**
+ * Formats the given timestamp into a human-readable string representation of
+ * a date and time. The date is formatted according to the user's locale, and
+ * the time is formatted according to the user's locale with a 24-hour clock.
+ * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
+ */
+function formatDateTime(timestamp) {
+  var t = new Date(timestamp * 1000);
+  return `${t.toLocaleDateString('en-GB')} ${t.toLocaleTimeString('en-GB')}`;
+}
+
+
+/**
+ * Formats the given timestamp into a human-readable string representation of
+ * a date. The date is formatted according to the user's locale.
+ * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
+ */
+function formatDate(timestamp) {
+  var t = new Date(timestamp * 1000);
+  return `${t.toLocaleDateString('en-GB')}`;
+}
+
 // @ts-check
 
 
@@ -1361,4 +1460,4 @@ class PaginatedTable extends Component {
   }
 }
 
-export { Component, DOMReady, ItemList, PaginatedItemList, PaginatedTable, Pagination, TableView, Widget, escapeHtml, hideElements, hideModal, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showModal, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on };
+export { Component, DOMReady, ItemList, PaginatedItemList, PaginatedTable, Pagination, TableView, Widget, copyToClipboard, escapeHtml, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, hideModal, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showModal, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };
