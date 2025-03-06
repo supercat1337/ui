@@ -1,7 +1,7 @@
 {
   "name": "@supercat1337/ui",
-  "version": "1.0.2",
-  "description": "A simple UI library to display RPC responses",
+  "version": "1.0.3",
+  "description": "A lightweight, modern JavaScript library for displaying RPC responses and managing the DOM.",
   "license": "MIT",
   "author": "SuperCat1337",
   "type": "module",
