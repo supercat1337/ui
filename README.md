@@ -14,6 +14,16 @@ The following components are included in this library:
 
 All components retrieve and display data from an RPC response.
 
+## Functions
+
+The following functions are included in this library:
+
+*   `DOMReady`: A function that returns a promise that resolves when the DOM is ready.
+*   `escapeHtml`: A function that escapes HTML characters in a string.
+*   `ui_button_status_waiting_on`: A function that returns the HTML for a waiting button.
+*   `ui_button_status_waiting_off`: A function that returns the HTML for a non-waiting button.
+*   `ui_button_status_waiting_off_html`: A function that returns the HTML for a non-waiting button.
+
 ## Example
 
 ```js
