@@ -366,6 +366,54 @@ export class Widget extends Component {
  */
 export function escapeHtml(unsafe: string): string;
 /**
+ * Adds the "d-none" class to the given elements, hiding them from view.
+ * @param {...HTMLElement} elements - The elements to hide.
+ */
+export function hideElements(...elements: HTMLElement[]): void;
+/**
+ * Hides the given modal element.
+ * @param {Element} modal_element - The modal element to hide.
+ */
+export function hideModal(modal_element: Element): void;
+/**
+ * Removes the spinner from the given button.
+ * @param {HTMLButtonElement} button - The button which should have its spinner removed.
+ */
+export function removeSpinnerFromButton(button: HTMLButtonElement): void;
+/**
+ * Scrolls the specified element to the bottom.
+ * Sets the scrollTop property to the element's scrollHeight,
+ * effectively scrolling to the bottom of the content.
+ * @param {HTMLElement} element - The element to scroll to the bottom.
+ */
+export function scrollToBottom(element: HTMLElement): void;
+/**
+ * Scrolls the specified element to the top.
+ * Sets the scrollTop property to 0, effectively
+ * scrolling to the top of the content.
+ * @param {HTMLElement} element - The element to scroll to the top.
+ */
+export function scrollToTop(element: HTMLElement): void;
+/**
+ * Removes the "d-none" class from the given elements, making them visible.
+ * @param {...HTMLElement} elements - The elements to show.
+ */
+export function showElements(...elements: HTMLElement[]): void;
+/**
+ * Displays the given modal element by creating or retrieving its instance
+ * and calling the show method on it.
+ * @param {Element} modal_element - The modal element to be displayed.
+ */
+export function showModal(modal_element: Element): void;
+/**
+ * Adds a spinner to the button (if it doesn't already have one).
+ * The spinner is prepended to the button's contents.
+ * @param {HTMLButtonElement} button - The button to add the spinner to.
+ * @param {string} [customClassName] - The class name to use for the spinner.
+ *                                      If not provided, 'spinner-border spinner-border-sm' is used.
+ */
+export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string): void;
+/**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
  * @param {HTMLButtonElement} el - The button element to set the status for.
  * @param {string} text - The text to be shown in the button.

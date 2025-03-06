@@ -23,6 +23,14 @@ The following functions are included in this library:
 *   `ui_button_status_waiting_on`: A function that returns the HTML for a waiting button.
 *   `ui_button_status_waiting_off`: A function that returns the HTML for a non-waiting button.
 *   `ui_button_status_waiting_off_html`: A function that returns the HTML for a non-waiting button.
+*   `scrollToTop`: A function that scrolls the window to the top of the page.
+*   `scrollToBottom`: A function that scrolls the window to the bottom of the page.
+*   `hideElements`: A function that hides elements on the page.
+*   `showElements`: A function that shows elements on the page.
+*   `showSpinnerInButton`: A function that shows a spinner in a button.
+*   `removeSpinnerFromButton`: A function that removes a spinner from a button.
+*   `showModal`: A function that shows a modal on the page.
+*   `hideModal`: A function that hides a modal on the page.
 
 ## Example
 
