@@ -1,6 +1,6 @@
 // @ts-check
 
-import  Modal  from "bootstrap/js/src/modal.js";
+import Modal from "bootstrap/js/src/modal.js";
 
 /**
  * Executes the provided callback function when the DOM is fully loaded.
@@ -9,9 +9,9 @@ import  Modal  from "bootstrap/js/src/modal.js";
  * @param {() => void} callback - The function to be executed when the DOM is ready.
  */
 export function DOMReady(callback) {
-  document.readyState === "interactive" || document.readyState === "complete"
-    ? callback()
-    : document.addEventListener("DOMContentLoaded", callback);
+    document.readyState === "interactive" || document.readyState === "complete"
+        ? callback()
+        : document.addEventListener("DOMContentLoaded", callback);
 }
 
 /**
@@ -21,16 +21,16 @@ export function DOMReady(callback) {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe) {
-  return unsafe.replace(
-    /[&<"']/g,
-    (m) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        '"': "&quot;",
-        "'": "&#39;", // ' -> &apos; for XML only
-      }[m])
-  );
+    return unsafe.replace(
+        /[&<"']/g,
+        (m) =>
+            ({
+                "&": "&amp;",
+                "<": "&lt;",
+                '"': "&quot;",
+                "'": "&#39;", // ' -> &apos; for XML only
+            }[m])
+    );
 }
 
 /**
@@ -39,10 +39,10 @@ export function escapeHtml(unsafe) {
  * @param {string} text - The text to be shown in the button while it is waiting.
  */
 export function ui_button_status_waiting_on(el, text) {
-  el.disabled = true;
-  el.innerHTML =
-    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' +
-    escapeHtml(text);
+    el.disabled = true;
+    el.innerHTML =
+        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' +
+        escapeHtml(text);
 }
 
 /**
@@ -51,8 +51,8 @@ export function ui_button_status_waiting_on(el, text) {
  * @param {string} text - The text to be shown in the button.
  */
 export function ui_button_status_waiting_off(el, text) {
-  el.disabled = false;
-  el.innerText = text;
+    el.disabled = false;
+    el.innerText = text;
 }
 
 /**
@@ -62,8 +62,8 @@ export function ui_button_status_waiting_off(el, text) {
  * @param {string} html - The HTML string to be set as the button's innerHTML.
  */
 export function ui_button_status_waiting_off_html(el, html) {
-  el.disabled = false;
-  el.innerHTML = html;
+    el.disabled = false;
+    el.innerHTML = html;
 }
 
 /**
@@ -73,7 +73,7 @@ export function ui_button_status_waiting_off_html(el, html) {
  * @param {HTMLElement} element - The element to scroll to the top.
  */
 export function scrollToTop(element) {
-  element.scrollTop = 0;
+    element.scrollTop = 0;
 }
 
 /**
@@ -83,7 +83,7 @@ export function scrollToTop(element) {
  * @param {HTMLElement} element - The element to scroll to the bottom.
  */
 export function scrollToBottom(element) {
-  element.scrollTop = element.scrollHeight;
+    element.scrollTop = element.scrollHeight;
 }
 
 /**
@@ -91,10 +91,10 @@ export function scrollToBottom(element) {
  * @param {...HTMLElement} elements - The elements to hide.
  */
 export function hideElements(...elements) {
-  for (let i = 0; i < elements.length; i++) {
-    let element = elements[i];
-    element.classList.add("d-none");
-  }
+    for (let i = 0; i < elements.length; i++) {
+        let element = elements[i];
+        element.classList.add("d-none");
+    }
 }
 
 /**
@@ -102,10 +102,10 @@ export function hideElements(...elements) {
  * @param {...HTMLElement} elements - The elements to show.
  */
 export function showElements(...elements) {
-  for (let i = 0; i < elements.length; i++) {
-    let element = elements[i];
-    element.classList.remove("d-none");
-  }
+    for (let i = 0; i < elements.length; i++) {
+        let element = elements[i];
+        element.classList.remove("d-none");
+    }
 }
 
 /**
@@ -116,17 +116,17 @@ export function showElements(...elements) {
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
  */
 export function showSpinnerInButton(button, customClassName = null) {
-  if (button.getElementsByClassName("spinner-border")[0]) return;
+    if (button.getElementsByClassName("spinner-border")[0]) return;
 
-  let spinner = document.createElement("span");
+    let spinner = document.createElement("span");
 
-  if (customClassName) {
-    spinner.className = customClassName;
-  } else {
-    spinner.className = "spinner-border spinner-border-sm";
-  }
+    if (customClassName) {
+        spinner.className = customClassName;
+    } else {
+        spinner.className = "spinner-border spinner-border-sm";
+    }
 
-  button.prepend(spinner);
+    button.prepend(spinner);
 }
 
 /**
@@ -134,8 +134,8 @@ export function showSpinnerInButton(button, customClassName = null) {
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button) {
-  let spinner = button.querySelector(".spinner-border");
-  if (spinner) spinner.remove();
+    let spinner = button.querySelector(".spinner-border");
+    if (spinner) spinner.remove();
 }
 
 /**
@@ -143,7 +143,7 @@ export function removeSpinnerFromButton(button) {
  * @param {Element} modal_element - The modal element to hide.
  */
 export function hideModal(modal_element) {
-  /*
+    /*
   let modal = Modal.getOrCreateInstance(modal_element);
   modal.hide();
   let modal_backdrop = document.querySelector(".modal-backdrop");
@@ -155,10 +155,10 @@ export function hideModal(modal_element) {
       }, 500);
   }*/
 
-  let close_button = /** @type {HTMLButtonElement} */ (
-    modal_element.querySelector('[data-bs-dismiss="modal"]')
-  );
-  close_button?.click();
+    let close_button = /** @type {HTMLButtonElement} */ (
+        modal_element.querySelector('[data-bs-dismiss="modal"]')
+    );
+    close_button?.click();
 }
 
 /**
@@ -167,9 +167,9 @@ export function hideModal(modal_element) {
  * @param {Element} modal_element - The modal element to be displayed.
  */
 export function showModal(modal_element) {
-  // @ts-ignore
-  let modal = Modal.getOrCreateInstance(modal_element);
-  modal.show();
+    // @ts-ignore
+    let modal = Modal.getOrCreateInstance(modal_element);
+    modal.show();
 }
 
 /**
@@ -177,7 +177,7 @@ export function showModal(modal_element) {
  * @returns {number}
  */
 export function unixtime() {
-  return Math.floor((new Date).getTime() / 1000);
+    return Math.floor(new Date().getTime() / 1000);
 }
 
 /**
@@ -187,11 +187,14 @@ export function unixtime() {
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
 export function isDarkMode() {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return true;
-  }
+    if (
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+        return true;
+    }
 
-  return false;
+    return false;
 }
 
 /**
@@ -200,9 +203,9 @@ export function isDarkMode() {
  *   language code (e.g. "en" for English, "fr" for French, etc.).
  */
 export function getDefaultLanguage() {
-  let m = (navigator.language).match(/^[a-z]+/);
-  let lang = m ? m[0] : "en";
-  return lang;
+    let m = navigator.language.match(/^[a-z]+/);
+    let lang = m ? m[0] : "en";
+    return lang;
 }
 
 /**
@@ -210,32 +213,36 @@ export function getDefaultLanguage() {
  *
  * @param {number} bytes - The number of bytes to be formatted.
  * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
- * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language. 
+ * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language.
  * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
  * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
  */
 export function formatBytes(bytes, decimals = 2, lang, sizes) {
-  lang = lang || "en";
+    lang = lang || "en";
 
-  sizes = sizes || {
-      "en": ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-  };
+    sizes = sizes || {
+        en: ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+    };
 
-  const get_size = sizes[lang] ? sizes[lang] : sizes["en"];
+    const get_size = sizes[lang] ? sizes[lang] : sizes["en"];
 
-  if (bytes === 0) {
-      return '0 ' + get_size[0];
-  }
+    if (bytes === 0) {
+        return "0 " + get_size[0];
+    }
 
-  let minus_str = bytes < 0 ? "-" : "";
-  bytes = Math.abs(bytes);
+    let minus_str = bytes < 0 ? "-" : "";
+    bytes = Math.abs(bytes);
 
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return minus_str + parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + get_size[i];
+    return (
+        minus_str +
+        parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) +
+        " " +
+        get_size[i]
+    );
 }
 
 /**
@@ -244,7 +251,7 @@ export function formatBytes(bytes, decimals = 2, lang, sizes) {
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
 export function copyToClipboard(text) {
-  return navigator.clipboard.writeText(text);
+    return navigator.clipboard.writeText(text);
 }
 
 /**
@@ -255,10 +262,9 @@ export function copyToClipboard(text) {
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
  */
 export function formatDateTime(timestamp) {
-  var t = new Date(timestamp * 1000);
-  return `${t.toLocaleDateString('en-GB')} ${t.toLocaleTimeString('en-GB')}`;
+    var t = new Date(timestamp * 1000);
+    return `${t.toLocaleDateString("en-GB")} ${t.toLocaleTimeString("en-GB")}`;
 }
-
 
 /**
  * Formats the given timestamp into a human-readable string representation of
@@ -267,6 +273,6 @@ export function formatDateTime(timestamp) {
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
  */
 export function formatDate(timestamp) {
-  var t = new Date(timestamp * 1000);
-  return `${t.toLocaleDateString('en-GB')}`;
+    var t = new Date(timestamp * 1000);
+    return `${t.toLocaleDateString("en-GB")}`;
 }

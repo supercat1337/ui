@@ -4,12 +4,11 @@ import { EventEmitter } from "@supercat1337/event-emitter";
 import { selectRefs } from "dom-scope";
 
 export class Component {
-
     /**
      * Property that holds the layout function of the component.
-     * @type {(this:ThisType)=>string|Node} 
+     * @type {(this:ThisType)=>string|Node}
      */
-    layout
+    layout;
 
     /**
      * Emits an event with the given arguments.
@@ -18,7 +17,7 @@ export class Component {
      */
     emit(event, ...data) {
         // @ts-ignore
-        if (!this.eventEmitter) this["event" + "Emitter"] = new EventEmitter; 
+        if (!this.eventEmitter) this["event" + "Emitter"] = new EventEmitter();
 
         // @ts-ignore
         this.eventEmitter.emit(event, ...data);
@@ -32,7 +31,7 @@ export class Component {
      */
     on(event, callback) {
         // @ts-ignore
-        if (!this.eventEmitter) this["event" + "Emitter"] = new EventEmitter; 
+        if (!this.eventEmitter) this["event" + "Emitter"] = new EventEmitter();
 
         // @ts-ignore
         return this.eventEmitter.on(event, callback);
@@ -45,14 +44,13 @@ export class Component {
     setRoot(root_element) {
         this["root_" + "element"] = root_element;
     }
- 
+
     /**
      * Connects the component to the specified root_element element.
      * @param {HTMLElement} [root_element] - The root_element element to connect the component to.
      * @throws {Error} If the root element is not set.
      */
     connect(root_element) {
-
         if (root_element) {
             this.setRoot(root_element);
         }
@@ -126,9 +124,9 @@ export class Component {
     }
 
     /**
-    * Checks if the data view is connected to a root element.
-    * @returns {boolean} True if the data view is connected, false otherwise.
-    */
+     * Checks if the data view is connected to a root element.
+     * @returns {boolean} True if the data view is connected, false otherwise.
+     */
     isConnected() {
         // @ts-ignore
         return !!this.root_element && !!this.refs;

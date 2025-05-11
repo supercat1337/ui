@@ -1,6 +1,6 @@
 // @ts-check
 
-import { escapeHtml } from '../utils.js';
+import { escapeHtml } from "../utils.js";
 
 /**
  * Generates an HTML layout string for a paginated table component.

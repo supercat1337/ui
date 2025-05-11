@@ -1,8 +1,7 @@
 // @ts-check
 
-
 export function getHtmlLayout() {
-    let html = /* html */`
+    let html = /* html */ `
 <table class="table table-striped">
     <thead>
         <tr ref="header_row">

@@ -2,9 +2,8 @@
 import { Component } from "../component/component.js";
 
 export class Widget extends Component {
-
     /** @type {typeof this.refsAnnotation} */
-    refs
+    refs;
 
     refsAnnotation = {
         section_with_content: HTMLElement.prototype,
@@ -13,11 +12,11 @@ export class Widget extends Component {
         section_loading: HTMLElement.prototype,
         error_text: HTMLElement.prototype,
         loading_text: HTMLElement.prototype,
-        no_content_text: HTMLElement.prototype
+        no_content_text: HTMLElement.prototype,
     };
 
     /** @type {"content"|"no_content"|"error"|"loading"} */
-    #status = "loading"
+    #status = "loading";
 
     constructor() {
         super();
@@ -37,9 +36,14 @@ export class Widget extends Component {
 
         switch (this.#status) {
             case "content":
-
-                this.refs.section_with_content.classList.toggle("d-none", false);
-                this.refs.section_without_content.classList.toggle("d-none", true);
+                this.refs.section_with_content.classList.toggle(
+                    "d-none",
+                    false
+                );
+                this.refs.section_without_content.classList.toggle(
+                    "d-none",
+                    true
+                );
                 this.refs.section_error.classList.toggle("d-none", true);
                 this.refs.section_loading.classList.toggle("d-none", true);
                 break;
@@ -49,7 +53,10 @@ export class Widget extends Component {
                 }
 
                 this.refs.section_with_content.classList.toggle("d-none", true);
-                this.refs.section_without_content.classList.toggle("d-none", false);
+                this.refs.section_without_content.classList.toggle(
+                    "d-none",
+                    false
+                );
                 this.refs.section_error.classList.toggle("d-none", true);
                 this.refs.section_loading.classList.toggle("d-none", true);
                 break;
@@ -59,7 +66,10 @@ export class Widget extends Component {
                 }
 
                 this.refs.section_with_content.classList.toggle("d-none", true);
-                this.refs.section_without_content.classList.toggle("d-none", true);
+                this.refs.section_without_content.classList.toggle(
+                    "d-none",
+                    true
+                );
                 this.refs.section_error.classList.toggle("d-none", false);
                 this.refs.section_loading.classList.toggle("d-none", true);
                 break;
@@ -69,11 +79,13 @@ export class Widget extends Component {
                 }
 
                 this.refs.section_with_content.classList.toggle("d-none", true);
-                this.refs.section_without_content.classList.toggle("d-none", true);
+                this.refs.section_without_content.classList.toggle(
+                    "d-none",
+                    true
+                );
                 this.refs.section_error.classList.toggle("d-none", true);
                 this.refs.section_loading.classList.toggle("d-none", false);
                 break;
         }
     }
-
 }
