@@ -1,9 +1,6 @@
 // @ts-check
 export * from "./utils.js";
-export { Component } from "./component/component.js";
-export { Widget } from "./widget/widget.js";
+export { Component, SlotToggler } from "./component/component.js";
 export { Pagination } from "./pagination/pagination.js";
-export { ItemList } from "./itemList/itemList.js";
-export { TableView } from "./table/tableView.js";
-export { PaginatedItemList } from "./paginatedItemList/paginatedItemList.js";
+export { Table } from "./table/table.js";
 export { PaginatedTable } from "./paginatedTable/paginatedTable.js";

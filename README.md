@@ -2,17 +2,70 @@
 
 A simple UI library. This library contains a set of UI components that can be used to build web applications.
 
-## Components
+## Usage
 
-The following components are included in this library:
+Create user interface components effortlessly using the versatile `Component` class.
 
--   `Pagination`: A pagination component that can be used to navigate through a list of items.
--   `ItemList`: A component that can be used to display a list of items.
--   `Table`: A component that can be used to display a table of data.
--   `PaginatedTable`: A component that can be used to display a table of data with pagination.
--   `PaginatedItemList`: A component that can be used to display a list of items with pagination.
+```js
+import { createFromHTML } from "@supercat1337/dom-scope";
+import { Component } from "@supercat1337/ui";
 
-All components retrieve and display data from an RPC response.
+// 1. Parent component (has a slot `slot1`)
+class ParentComponent extends Component {
+    refsAnnotation = {
+        title: HTMLHeadingElement,
+    };
+
+    get refs() {
+        return this.getRefs();
+    }
+
+    constructor() {
+        super();
+        this.setLayout(/* html */ `
+            <div class="parent">
+                <h1 ref="title">Parent Component</h1>
+                <div scope-ref="slot1"><!-- The child components will be inserted here --></div>
+            </div>
+        `);
+        this.defineSlots("slot1"); // Defines the slot
+    }
+}
+
+// 2. Child component (also has a slot `slot1`)
+class ChildComponent extends Component {
+    constructor() {
+        super();
+        this.setLayout(/* html */ `
+            <div class="child">
+                <p>This is a child component</p>
+                <div scope-ref="slot1"><!-- The nested slot --></div>
+            </div>
+        `);
+        this.defineSlots("slot1");
+    }
+}
+
+// 3. Simple components for insertion
+const LeafComponentA = new Component();
+LeafComponentA.setLayout(`<span>🍃 Leaf A</span>`);
+
+const LeafComponentB = new Component();
+LeafComponentB.setLayout(`<span>🍂 Leaf B</span>`);
+
+// 4. Assemble the structure:
+const parent = new ParentComponent();
+const child = new ChildComponent();
+
+// Insert Leaf components into ChildComponent
+child.addChildComponent("slot1", LeafComponentA, LeafComponentB);
+
+// Insert ChildComponent into ParentComponent
+parent.addChildComponent("slot1", child);
+
+// 5. Mount everything in DOM
+parent.mount(document.body);
+```
 
 ## Functions
 
@@ -38,6 +91,17 @@ The following functions are included in this library:
 -   `copyToClipboard`: A function that copies a string to the clipboard.
 -   `formatDateTime`: A function that formats a Unix timestamp into a human-readable date and time.
 -   `formatDate`: A function that formats a Unix timestamp into a human-readable date.
+-   `Toggler`: A class that represents a toggler. A toggler is a collection of items that can be toggled on and off.
+
+## Components for displaying RPC responses
+
+This library includes the following components for displaying RPC responses:
+
+-   `Pagination`: A component for navigating through paginated lists.
+-   `Table`: A component for rendering tabular data.
+-   `PaginatedTable`: A component that combines table and pagination functionalities for RPC data.
+
+All components are designed to handle and present data from RPC responses.
 
 ## Example
 
@@ -86,25 +150,26 @@ function sleep(ms) {
 DOMReady(() => {
     let paginatedTable = new PaginatedTable();
 
-    if (document.body.firstElementChild)
-        paginatedTable.setRoot(
-            /** @type {HTMLElement} */ (document.body.firstElementChild)
-        );
+    paginatedTable.onPageChanged(async (index) => {
+        paginatedTable.setLoading();
+        // in a real application, you would fetch new data here
 
-    paginatedTable.pagination.on("page-changed", async (index) => {
-        paginatedTable.setStatus("loading");
         await sleep(1000);
         dataResponse.result.current_page = index;
-        paginatedTable.render(dataResponse);
+
+        paginatedTable.setData(dataResponse);
     });
 
     paginatedTable.title = "Data";
-    paginatedTable.tableView.setConfig({
-        table_row_header_string:
+    paginatedTable.table.setConfig({
+        headerHTML:
             "<th>#</th> <th>id</th>  <th>Column 1</th> <th>Column 2</th> <th>Column 3</th>",
     });
+    paginatedTable.setData(dataResponse);
 
-    paginatedTable.renderLayout();
-    paginatedTable.render(dataResponse);
+    if (!document.body.firstElementChild)
+        throw new Error("No root element found.");
+
+    paginatedTable.mount(document.body.firstElementChild);
 });
 ```

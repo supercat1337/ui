@@ -1,6 +1,6 @@
 // @ts-check
 
-import { TableView } from "../table/tableView.js";
+import { Table } from "../table/table.js";
 import { Pagination } from "../pagination/pagination.js";
 import { getHtmlLayout } from "./layout.js";
 import { Component } from "../component/component.js";
@@ -9,14 +9,11 @@ import { Component } from "../component/component.js";
  * @template T
  */
 export class PaginatedTable extends Component {
-    /** @type {TableView<T>} */
+    /** @type {Table<T>} */
     tableView;
 
     /** @type {Pagination} */
     pagination;
-
-    /** @type {HTMLElement|null} */
-    root_element;
 
     refsAnnotation = {
         title: HTMLSpanElement.prototype,
@@ -26,61 +23,93 @@ export class PaginatedTable extends Component {
         pagination_section: HTMLElement.prototype,
     };
 
-    /** @type {typeof this.refsAnnotation} */
-    refs;
-
-    eventsDeclaration = /** @type {const} */ ([
-        "connect",
-        "refsConnected",
-        "renderLayout",
-    ]);
-
     #title = "";
 
     constructor() {
         super();
 
-        this.tableView = new TableView();
-        this.pagination = new Pagination();
-
+        this.defineSlots("table", "pagination");
         this.setLayout(getHtmlLayout);
 
-        this.on("refsConnected", () => {
-            this.refs.title.innerText = this.#title;
-        });
+        this.table = new Table();
+        this.pagination = new Pagination();
 
-        this.on("renderLayout", () => {
-            this.tableView.renderLayout(this.refs.table);
-            this.pagination.renderLayout(this.refs.pagination_section);
+        this.addChildComponent("table", this.table);
+        this.addChildComponent("pagination", this.pagination);
+
+        let that = this;
+        this.onConnect(() => {
+            that.refs.title.innerText = that.#title;
         });
     }
 
-    /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
-     */
-    on(event, listener) {
-        return super.on(event, listener);
+    /** @returns {typeof this.refsAnnotation} */
+    get refs() {
+        return this.getRefs();
     }
 
     /**
      * Gets the current status of the table view.
      * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the table view
      */
-    get status() {
-        return this.tableView.status;
+    get state() {
+        return this.table.state;
     }
 
     /**
-     * Sets the status of the table view.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the table view
-     * @param {string} [text] - the text to be shown in the table view when the status is "error"
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message.
      */
-    setStatus(status, text) {
-        if (this.isConnected()) {
-            this.tableView.setStatus(status, text);
-        }
+    setLoading() {
+        this.table.setLoading();
+    }
+
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
+    setContent() {
+        this.table.setContent();
+    }
+
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will show an error message.
+     */
+    setError() {
+        this.table.setError();
+    }
+
+    /**
+     * Sets the table view to its "no_content" state.
+     * The table view will show a no content message.
+     */
+    setNoContent() {
+        this.table.setNoContent();
+    }
+
+    /**
+     * Sets the text of the loading message in the table view.
+     * @param {string} text - The text to be shown as the loading message.
+     */
+    setLoadingText(text) {
+        this.table.setLoadingText(text);
+    }
+
+    /**
+     * Sets the text of the error message in the table view.
+     * @param {string} text - The text to be shown as the error message.
+     */
+    setErrorText(text) {
+        this.table.setErrorText(text);
+    }
+
+    /**
+     * Sets the text of the no content message in the table view.
+     * @param {string} text - The text to be shown as the no content message.
+     */
+    setNoContentText(text) {
+        this.table.setNoContentText(text);
     }
 
     /**
@@ -89,9 +118,9 @@ export class PaginatedTable extends Component {
      */
     set title(text) {
         this.#title = text;
-        if (this.isConnected()) {
-            this.refs.title.innerText = this.#title;
-        }
+        if (!this.isConnected) return;
+
+        this.refs.title.innerText = this.#title;
     }
 
     /**
@@ -107,8 +136,20 @@ export class PaginatedTable extends Component {
      * @param {Object} resp - The response to be rendered in the data view.
      * If undefined, the table view and pagination will be set to their "loading" states.
      */
-    render(resp) {
-        this.tableView.render(resp);
-        this.pagination.render(resp);
+    setData(resp) {
+        this.table.setData(resp);
+        this.pagination.setData(resp);
+    }
+
+    /**
+     * Subscribes to the "page-changed" event of the pagination component.
+     * The event is triggered when the user changes the page by clicking on a page number or
+     * by clicking on the previous or next buttons.
+     * @param {(index: number)=>void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the index of the new page as the first argument.
+     * @returns {Function} A function that removes the event listener.
+     */
+    onPageChanged(callback) {
+        return this.pagination.onPageChanged(callback);
     }
 }

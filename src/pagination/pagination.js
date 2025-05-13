@@ -2,93 +2,95 @@
 
 import { RPCPagedResponse, extractRPCResponse } from "@supercat1337/rpc";
 import { Component } from "../component/component.js";
-import { getHtmlLayout } from "./layout.js";
+import { renderPagination, renderPaginationItems } from "./layout.js";
 
 export class Pagination extends Component {
-    /** @type {HTMLElement|null} */
-    root_element;
-
-    eventsDeclaration = /** @type {const} */ (["page-changed"]);
-
     /** @type {import("./layout.js").TypePageUrlRenderer|null} */
-    page_url_rendrer;
+    pageUrlRenderer = null;
 
-    #current_page = 0;
-
-    pages_count = 0;
+    #currentPage = 0;
+    #totalPages = 0;
 
     constructor() {
         super();
 
-        this.setLayout(getHtmlLayout);
+        let that = this;
+        this.setLayout(() => {
+            return renderPagination(
+                that.#currentPage,
+                that.#totalPages,
+                that.pageUrlRenderer
+            );
+        });
+
+        this.onConnect(() => this.#render());
     }
 
     /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
+     * Subscribes to the "page-changed" event of the pagination component.
+     * The event is triggered when the user changes the page by clicking on a page number or
+     * by clicking on the previous or next buttons.
+     * @param {(index: number)=>void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the index of the new page as the first argument.
+     * @returns {Function} A function that removes the event listener.
      */
-    on(event, listener) {
-        return super.on(event, listener);
+    onPageChanged(callback) {
+        return this.$internals.eventEmitter.on("page-changed", callback);
     }
 
     /**
      * Sets the config of the pagination component.
-     * @param {{page_url_rendrer:import("./layout.js").TypePageUrlRenderer}} config - The config object to be set.
+     * @param {{pageUrlRenderer:import("./layout.js").TypePageUrlRenderer}} config - The config object to be set.
      * The config object should contain the following properties:
-     * - page_url_rendrer {TypePageUrlRenderer} - The page url renderer function.
+     * - pageUrlRenderer {TypePageUrlRenderer} - The page url renderer function.
      */
     setConfig(config) {
-        this.page_url_rendrer = config.page_url_rendrer;
+        this.pageUrlRenderer = config.pageUrlRenderer;
     }
 
     /**
      * Sets the current page of the pagination component.
-     * If the root_element element is set, the component will be re-rendered.
+     * If the component is mounted, the component will be re-rendered.
      * @param {number} value - the new current page value
      */
-    set current_page(value) {
-        this.#current_page = value;
+    set currentPage(value) {
+        this.#currentPage = value;
 
-        if (this.root_element) {
-            this.render();
-        }
+        this.#render();
     }
 
     /**
      * Gets the current page value.
      * @returns {number} - the current page value
      */
-    get current_page() {
-        return this.#current_page;
+    get currentPage() {
+        return this.#currentPage;
     }
 
     /**
-     * Renders the pagination component with the given current page and total pages count.
-     * @param {number} [current_page]
-     * @param {number} [pages_count] - if not provided, uses the existing value of pages_count
+     * Gets the total number of pages.
+     * @returns {number} - the total number of pages
      */
-    #render(current_page, pages_count) {
-        if (!this.root_element) {
-            throw new Error("Pagination root_element element is not set");
-        }
+    get totalPages() {
+        return this.#totalPages;
+    }
 
-        if (typeof pages_count != "undefined") {
-            this.pages_count = pages_count;
-        }
+    #render() {
+        if (!this.isConnected) return;
+        let root_element = this.$internals.root;
 
-        if (typeof current_page != "undefined") {
-            this.#current_page = current_page;
-        }
+        root_element.innerHTML = renderPaginationItems(
+            this.#currentPage,
+            this.#totalPages,
+            this.pageUrlRenderer
+        );
 
-        this.root_element.innerHTML = getHtmlLayout(this);
-
-        let page_items = this.root_element.querySelectorAll(".page-item");
+        let page_items = root_element.querySelectorAll(".page-item");
 
         let that = this;
 
         for (let i = 0; i < page_items.length; i++) {
-            page_items[i].addEventListener("click", (e) => {
+            that.$on(page_items[i], "click", (e) => {
                 e.preventDefault();
 
                 if (!(e.target instanceof Element)) return;
@@ -103,10 +105,10 @@ export class Pagination extends Component {
                 let pageValue = element.getAttribute("page-value");
                 if (!pageValue) return;
 
-                that.#current_page = parseInt(pageValue);
+                that.#currentPage = parseInt(pageValue);
                 that.#render();
 
-                super.emit("page-changed", that.#current_page);
+                that.emit("page-changed", that.#currentPage);
             });
         }
     }
@@ -114,17 +116,14 @@ export class Pagination extends Component {
     /**
      * @param {Object} [resp] - response object
      */
-    render(resp) {
+    setData(resp) {
         let response = extractRPCResponse(resp);
 
         if (response && response instanceof RPCPagedResponse) {
-            this.#render(
-                response.result.current_page,
-                response.result.total_pages
-            );
-            return;
-        } else {
-            this.#render(this.#current_page, this.pages_count);
+            this.#currentPage = response.result.current_page;
+            this.#totalPages = response.result.total_pages;
         }
+
+        this.#render();
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@supercat1337/ui",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A lightweight, modern JavaScript library for displaying RPC responses and managing the DOM.",
   "license": "MIT",
   "author": "SuperCat1337",
@@ -12,8 +12,9 @@
   },
   "scripts": {
     "preinstall": "npm i -g esbuild && npm i -g rollup",
-    "build": "npm run remove_type_files && npm run build_esm && npm run build_esm_min && npm run create_types",
-    "build_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
+    "build": "npm run remove_type_files && npm run build_esm && npm run build_bundle_esm && npm run build_bundle_esm_min && npm run create_types",
+    "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
+    "build_bundle_esm": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.js",
     "build_esm": "rollup ./src/index.js --file ./dist/ui.esm.js --format es",
     "create_types": "npx -p typescript tsc --project my.tsconfig.types.json",
     "remove_type_files": "del /q *.d.ts *.d.ts.map && cd dist && del /s /q *.d.ts *.d.ts.map && cd .."

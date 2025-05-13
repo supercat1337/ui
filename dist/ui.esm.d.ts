@@ -1,54 +1,148 @@
 export type TypePageUrlRenderer = (page: string) => string;
-export type ListItemRenderer<T> = (row: T, index: number) => HTMLDivElement;
+export type LayoutFunction = (component: any) => Node | string;
 export type TableRowRenderer<T> = (row: T, index: number) => HTMLTableRowElement;
+/**
+ * @typedef {(component: any) => Node|string} LayoutFunction
+ */
 export class Component {
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null}} */
+    $internals: {
+        eventEmitter: EventEmitter<any>;
+        disconnectController: AbortController;
+        root: HTMLElement | null;
+    };
+    slots: SlotManager;
+    refsAnnotation: any;
     /**
-     * Property that holds the layout function of the component.
-     * @type {(this:ThisType)=>string|Node}
+     * Sets the layout of the component by assigning the template content.
+     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [refsAnnotation] - An array of strings representing the names of the refs.
+     * The function is called with the component instance as the this value.
      */
-    layout: (this: ThisType<any>) => string | Node;
+    setLayout(layout: LayoutFunction | string, refsAnnotation?: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation): void;
     /**
-     * Emits an event with the given arguments.
-     * @param {string} event - The name of the event to emit.
-     * @param {...any} data - The arguments to be passed to the event handlers.
+     * Returns the refs object.
+     * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
+     * The refs object is only available after the component has been connected to the DOM.
+     * @returns {any} The refs object.
      */
-    emit(event: string, ...data: any[]): void;
+    getRefs(): any;
     /**
-     * Subscribes to an event.
+     * Subscribes to a specified event.
      * @param {string} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     on(event: string, callback: Function): () => void;
     /**
-     * Sets the root element of the component.
-     * @param {HTMLElement} root_element - The root element to set.
+     * Emits an event with the given arguments.
+     * @param {string} event - The name of the event to emit.
+     * @param {...any} args - The arguments to be passed to the event handlers.
      */
-    setRoot(root_element: HTMLElement): void;
+    emit(event: string, ...args: any[]): void;
     /**
-     * Connects the component to the specified root_element element.
-     * @param {HTMLElement} [root_element] - The root_element element to connect the component to.
-     * @throws {Error} If the root element is not set.
+     * Emits the "beforeConnect" event.
+     * This event is emitted just before the component is connected to the DOM.
+     * @param {(component: this, clonedTemplate: Node) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback is called with the component instance as the this value. The second argument is the clonedTemplate - the cloned template node.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    connect(root_element?: HTMLElement): void;
+    onBeforeConnect(callback: (component: this, clonedTemplate: Node) => void): () => void;
     /**
-     * Sets the layout of the component.
-     * @param {(component: this) => string|Node} layout - The layout string to be used for the component.
-     * The layout string will be called with the component instance as the this value.
+     * Subscribes to the "connect" event.
+     * This event is emitted just after the component is connected to the DOM.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback is called with the component instance as the this value.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    setLayout(layout: (component: this) => string | Node): void;
+    onConnect(callback: (component: this) => void): () => void;
     /**
-     * Renders the layout of the component.
-     * This method is called when the component should re-render its layout.
-     * @param {HTMLElement} [root_element] - The root element to render the layout in.
-     * @throws {Error} If the root element is not set.
+     * Subscribes to the "mount" event.
+     * This event is emitted after the component is mounted to the DOM.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    renderLayout(root_element?: HTMLElement): void;
+    onMount(callback: (component: this) => void): () => void;
     /**
-    * Checks if the data view is connected to a root element.
-    * @returns {boolean} True if the data view is connected, false otherwise.
-    */
-    isConnected(): boolean;
+     * Subscribes to the "beforeUnmount" event.
+     * This event is emitted just before the component is unmounted from the DOM.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onBeforeUnmount(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "unmount" event.
+     * This event is emitted after the component is unmounted from the DOM.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onUnmount(callback: (component: this) => void): () => void;
+    /**
+     * Checks if the component is connected to a root element.
+     * @returns {boolean} True if the component is connected, false otherwise.
+     */
+    get isConnected(): boolean;
+    /**
+     * Connects the component to the specified componentRoot element.
+     * Initializes the refs object and sets the component's root element.
+     * Emits "connect" event through the event emitter.
+     * @param {HTMLElement} componentRoot - The root element to connect the component to.
+     */
+    connect(componentRoot: HTMLElement): void;
+    /**
+     * Disconnects the component from the DOM.
+     * Sets the component's #connected flag to false.
+     * This method does not emit any events.
+     */
+    disconnect(): void;
+    /**
+     * Mounts the component to the specified container.
+     * @param {Element} container - The container to mount the component to.
+     * @param {"replace"|"append"|"prepend"} [mode="replace"] - The mode to use to mount the component.
+     * If "replace", the container's content is replaced.
+     * If "append", the component is appended to the container.
+     * If "prepend", the component is prepended to the container.
+     */
+    mount(container: Element, mode?: "replace" | "append" | "prepend"): void;
+    /**
+     * Unmounts the component from the DOM.
+     * Emits "beforeUnmount" and "unmount" events through the event emitter.
+     * Disconnects the component from the DOM and removes the root element.
+     */
+    unmount(): void;
+    /**
+     * Attaches an event listener to the specified element.
+     * The event listener is automatically removed when the component is unmounted.
+     * @param {HTMLElement|Element} element - The element to attach the event listener to.
+     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+     * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
+     * @returns {() => void} A function that can be called to remove the event listener.
+     */
+    $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
+    /**
+     * Defines the names of the slots in the component.
+     * The slots are declared in the component's template using the "data-slot" attribute.
+     * The slot names are used to access the children components of the component.
+     * @param {...string} slotNames - The names of the slots.
+     */
+    defineSlots(...slotNames: string[]): void;
+    /**
+     * Adds a child component to a slot.
+     * @param {string} slotName - The name of the slot to add the component to.
+     * @param {...Component} components - The component to add to the slot.
+     * @throws {Error} If the slot does not exist.
+     */
+    addChildComponent(slotName: string, ...components: Component[]): void;
+    /**
+     * Removes the specified child component from all slots.
+     * Delegates the removal to the SlotManager instance.
+     * @param {Component} childComponent - The child component to be removed.
+     */
+    removeChildComponent(childComponent: Component): void;
+    #private;
 }
 /**
  * Executes the provided callback function when the DOM is fully loaded.
@@ -59,139 +153,13 @@ export class Component {
 export function DOMReady(callback: () => void): void;
 /**
  * @template T
- * @typedef {(row:T, index:number)=>HTMLDivElement} ListItemRenderer
- */
-/**
- * @template T
- */
-export class ItemList<T> extends Component {
-    constructor();
-    /** @type {HTMLElement|null} */
-    root_element: HTMLElement | null;
-    eventsDeclaration: readonly ["connect"];
-    /** @type {typeof this.refsAnnotation} */
-    refs: typeof this.refsAnnotation;
-    refsAnnotation: {
-        section_with_content: HTMLDivElement;
-        section_without_content: HTMLDivElement;
-        section_error: HTMLDivElement;
-        section_loading: HTMLDivElement;
-        header_row: HTMLDivElement;
-        error_text: HTMLElement;
-        loading_text: HTMLElement;
-        no_content_text: HTMLElement;
-    };
-    list_row_header_string: string;
-    widget: Widget;
-    /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
-     */
-    on(event: (typeof this.eventsDeclaration)[number], listener: Function): () => void;
-    /**
-     * @param {Object} [config] - config
-     * @param {HTMLElement} [config.root_element] - the list element to render the list view into
-     * @param {ListItemRenderer<T>} [config.listItemRenderer] - the list item renderer function
-     * @param {string} [config.list_row_header_string] - the list item header string
-     */
-    setConfig(config?: {
-        root_element?: HTMLElement;
-        listItemRenderer?: ListItemRenderer<T>;
-        list_row_header_string?: string;
-    }): void;
-    /**
-     * Gets the current status of the list view.
-     * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the list view
-     */
-    get status(): "content" | "no_content" | "error" | "loading";
-    /**
-     * Sets the header string for the list items.
-     * @param {string} string - The header string to be set for the list items.
-     */
-    setListItemHeaderString(string: string): void;
-    /**
-     * Sets the status of the list view.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the list view
-     * @param {string} [text] - the text to be shown in the list view when the status is "error"
-     */
-    setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
-    /**
-     * Renders the list view by setting its inner HTML and connecting its elements.
-     * If a response is provided, it will be rendered in the list view.
-     * @param {Object} resp - The response to be rendered in the list view.
-     * If undefined, the list view will be set to the "loading" status.
-     */
-    render(resp: any): void;
-    #private;
-}
-/**
- * @template T
- */
-export class PaginatedItemList<T> extends Component {
-    constructor();
-    /** @type {ItemList<T>} */
-    itemList: ItemList<T>;
-    /** @type {Pagination} */
-    pagination: Pagination;
-    /** @type {HTMLElement|null} */
-    root_element: HTMLElement | null;
-    refsAnnotation: {
-        title: HTMLSpanElement;
-        add_data_button: HTMLButtonElement;
-        update_data_button: HTMLButtonElement;
-        itemList: HTMLElement;
-        pagination_section: HTMLElement;
-    };
-    /** @type {typeof this.refsAnnotation} */
-    refs: typeof this.refsAnnotation;
-    eventsDeclaration: readonly ["connect", "refsConnected", "renderLayout"];
-    /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
-     */
-    on(event: (typeof this.eventsDeclaration)[number], listener: Function): () => void;
-    /**
-     * Gets the current status of the list items.
-     * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the list items
-     */
-    get status(): "content" | "no_content" | "error" | "loading";
-    /**
-     * Sets the status of the list items.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the list items
-     * @param {string} [text] - the text to be shown in the list items when the status is "error"
-     */
-    setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
-    /**
-     * Sets the title of the data view.
-     * @param {string} text - The new title text.
-     */
-    set title(text: string);
-    /**
-     * Gets the title of the data view.
-     * @returns {string} The current title text.
-     */
-    get title(): string;
-    /**
-     * Renders the data view by invoking the render methods of the list items and pagination components.
-     * @param {Object} resp - The response to be rendered in the data view.
-     * If undefined, the list items and pagination will be set to their "loading" states.
-     */
-    render(resp: any): void;
-    #private;
-}
-/**
- * @template T
  */
 export class PaginatedTable<T> extends Component {
     constructor();
-    /** @type {TableView<T>} */
-    tableView: TableView<T>;
+    /** @type {Table<T>} */
+    tableView: Table<T>;
     /** @type {Pagination} */
     pagination: Pagination;
-    /** @type {HTMLElement|null} */
-    root_element: HTMLElement | null;
     refsAnnotation: {
         title: HTMLSpanElement;
         add_data_button: HTMLButtonElement;
@@ -199,26 +167,49 @@ export class PaginatedTable<T> extends Component {
         table: HTMLTableElement;
         pagination_section: HTMLElement;
     };
-    /** @type {typeof this.refsAnnotation} */
-    refs: typeof this.refsAnnotation;
-    eventsDeclaration: readonly ["connect", "refsConnected", "renderLayout"];
-    /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
-     */
-    on(event: (typeof this.eventsDeclaration)[number], listener: Function): () => void;
+    table: Table<any>;
+    /** @returns {typeof this.refsAnnotation} */
+    get refs(): typeof this.refsAnnotation;
     /**
      * Gets the current status of the table view.
      * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the table view
      */
-    get status(): "content" | "no_content" | "error" | "loading";
+    get state(): "content" | "no_content" | "error" | "loading";
     /**
-     * Sets the status of the table view.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the table view
-     * @param {string} [text] - the text to be shown in the table view when the status is "error"
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message.
      */
-    setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
+    setLoading(): void;
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
+    setContent(): void;
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will show an error message.
+     */
+    setError(): void;
+    /**
+     * Sets the table view to its "no_content" state.
+     * The table view will show a no content message.
+     */
+    setNoContent(): void;
+    /**
+     * Sets the text of the loading message in the table view.
+     * @param {string} text - The text to be shown as the loading message.
+     */
+    setLoadingText(text: string): void;
+    /**
+     * Sets the text of the error message in the table view.
+     * @param {string} text - The text to be shown as the error message.
+     */
+    setErrorText(text: string): void;
+    /**
+     * Sets the text of the no content message in the table view.
+     * @param {string} text - The text to be shown as the no content message.
+     */
+    setNoContentText(text: string): void;
     /**
      * Sets the title of the data view.
      * @param {string} text - The new title text.
@@ -234,128 +225,160 @@ export class PaginatedTable<T> extends Component {
      * @param {Object} resp - The response to be rendered in the data view.
      * If undefined, the table view and pagination will be set to their "loading" states.
      */
-    render(resp: any): void;
+    setData(resp: any): void;
+    /**
+     * Subscribes to the "page-changed" event of the pagination component.
+     * The event is triggered when the user changes the page by clicking on a page number or
+     * by clicking on the previous or next buttons.
+     * @param {(index: number)=>void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the index of the new page as the first argument.
+     * @returns {Function} A function that removes the event listener.
+     */
+    onPageChanged(callback: (index: number) => void): Function;
     #private;
 }
 export class Pagination extends Component {
-    /** @type {HTMLElement|null} */
-    root_element: HTMLElement | null;
-    eventsDeclaration: readonly ["page-changed"];
     /** @type {import("./layout.js").TypePageUrlRenderer|null} */
-    page_url_rendrer: any | null;
-    pages_count: number;
+    pageUrlRenderer: any | null;
     /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
+     * Subscribes to the "page-changed" event of the pagination component.
+     * The event is triggered when the user changes the page by clicking on a page number or
+     * by clicking on the previous or next buttons.
+     * @param {(index: number)=>void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the index of the new page as the first argument.
+     * @returns {Function} A function that removes the event listener.
      */
-    on(event: (typeof this.eventsDeclaration)[number], listener: Function): () => void;
+    onPageChanged(callback: (index: number) => void): Function;
     /**
      * Sets the config of the pagination component.
-     * @param {{page_url_rendrer:import("./layout.js").TypePageUrlRenderer}} config - The config object to be set.
+     * @param {{pageUrlRenderer:import("./layout.js").TypePageUrlRenderer}} config - The config object to be set.
      * The config object should contain the following properties:
-     * - page_url_rendrer {TypePageUrlRenderer} - The page url renderer function.
+     * - pageUrlRenderer {TypePageUrlRenderer} - The page url renderer function.
      */
     setConfig(config: {
-        page_url_rendrer: any;
+        pageUrlRenderer: any;
     }): void;
     /**
      * Sets the current page of the pagination component.
-     * If the root_element element is set, the component will be re-rendered.
+     * If the component is mounted, the component will be re-rendered.
      * @param {number} value - the new current page value
      */
-    set current_page(value: number);
+    set currentPage(value: number);
     /**
      * Gets the current page value.
      * @returns {number} - the current page value
      */
-    get current_page(): number;
+    get currentPage(): number;
+    /**
+     * Gets the total number of pages.
+     * @returns {number} - the total number of pages
+     */
+    get totalPages(): number;
     /**
      * @param {Object} [resp] - response object
      */
-    render(resp?: any): void;
+    setData(resp?: any): void;
     #private;
+}
+export class SlotToggler {
+    /**
+     * Creates a new instance of SlotToggler.
+     * @param {Component} component - The component that owns the slots.
+     * @param {string[]} slotNames - The names of the slots.
+     * @param {string} activeSlotName - The name of the slot that is currently active.
+     */
+    constructor(component: Component, slotNames: string[], activeSlotName: string);
+    component: Component;
+    slotNames: string[];
+    activeSlotName: string;
+    /**
+     * Toggles the active slot to the given slot name.
+     * Removes the previously active slot, defines all slots, mounts the children of the given slot name, and sets the given slot name as the active slot.
+     * @param {string} slotName - The name of the slot to toggle to.
+     */
+    toggle(slotName: string): void;
 }
 /**
  * @template T
- * @typedef {(row:T, index:number)=>HTMLTableRowElement} TableRowRenderer
  */
-/**
- * @template T
- */
-export class TableView<T> extends Component {
+export class Table<T> extends Component {
     constructor();
-    /** @type {HTMLElement|null} */
-    root_element: HTMLElement | null;
-    eventsDeclaration: readonly ["connect", "refsConnected"];
-    /** @type {typeof this.refsAnnotation} */
-    refs: typeof this.refsAnnotation;
-    refsAnnotation: {
-        section_with_content: HTMLTableSectionElement;
-        section_without_content: HTMLTableSectionElement;
-        section_error: HTMLTableSectionElement;
-        section_loading: HTMLTableSectionElement;
-        header_row: HTMLTableRowElement;
-        error_text: HTMLElement;
-        loading_text: HTMLElement;
-        no_content_text: HTMLElement;
-    };
-    widget: Widget;
-    /**
-     * Subscribes to an event.
-     * @param {typeof this.eventsDeclaration[number]} event - The name of the event to subscribe to.
-     * @param {Function} listener - The callback function to be executed when the event is triggered.
-     */
-    on(event: (typeof this.eventsDeclaration)[number], listener: Function): () => void;
+    /** @returns {typeof refsAnnotation} */
+    get refs(): typeof refsAnnotation;
+    toggler: Toggler;
     /**
      * @param {Object} [config] - config
-     * @param {HTMLTableElement} [config.root_element] - the table element to render the table view into
      * @param {TableRowRenderer<T>} [config.tableRowRenderer] - the table row renderer function
-     * @param {string} [config.table_row_header_string] - the table row header string
+     * @param {string} [config.headerHTML] - the table row header string
      */
     setConfig(config?: {
-        root_element?: HTMLTableElement;
         tableRowRenderer?: TableRowRenderer<T>;
-        table_row_header_string?: string;
+        headerHTML?: string;
     }): void;
     /**
-     * Gets the current status of the table view.
-     * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the table view
+     * Gets the current state of the table view.
+     * @returns {"content"|"no_content"|"error"|"loading"} - the current state of the table view
      */
-    get status(): "content" | "no_content" | "error" | "loading";
+    get state(): "content" | "no_content" | "error" | "loading";
+    setContent(): void;
+    setLoading(): void;
+    setError(): void;
+    setNoContent(): void;
     /**
-     * Sets the status of the table view.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the table view
-     * @param {string} [text] - the text to be shown in the table view when the status is "error"
+     * Sets the text of the loading message in the table view.
+     * @param {string} text - The text to be shown as the loading message.
      */
-    setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
+    setLoadingText(text: string): void;
+    /**
+     * Sets the text of the error message in the table view.
+     * @param {string} text - The text to be shown as the error message.
+     */
+    setErrorText(text: string): void;
+    /**
+     * Sets the text of the no content message in the table view.
+     * @param {string} text - The text to be shown as the no content message.
+     */
+    setNoContentText(text: string): void;
     /**
      * Renders the table view by setting its inner HTML and connecting its elements.
      * If a response is provided, it will be rendered in the table view.
      * @param {Object} resp - The response to be rendered in the table view.
-     * If undefined, the table view will be set to the "loading" status.
+     * If undefined, the table view will be set to the "loading" state.
      */
-    render(resp: any): void;
+    setData(resp: any): void;
+    /**
+     * Gets the rows of the table view.
+     * @returns {T[]} - The rows of the table view.
+     */
+    get rows(): T[];
     #private;
 }
-export class Widget extends Component {
-    /** @type {typeof this.refsAnnotation} */
-    refs: typeof this.refsAnnotation;
-    refsAnnotation: {
-        section_with_content: HTMLElement;
-        section_without_content: HTMLElement;
-        section_error: HTMLElement;
-        section_loading: HTMLElement;
-        error_text: HTMLElement;
-        loading_text: HTMLElement;
-        no_content_text: HTMLElement;
-    };
+export class Toggler {
+    /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
+    items: Map<string, {
+        isActive: boolean;
+        on: (itemName: string) => void;
+        off: (itemName: string) => void;
+    }>;
     /**
-     * Sets the status of the table view.
-     * @param {"content"|"no_content"|"error"|"loading"} status - the new status of the table view
-     * @param {string} [text] - the text to be shown in the table view when the status is "error"
+     * Adds an item to the toggler.
+     * @param {string} itemName - The name of the item to be added.
+     * @param {(itemName:string) => void} on - The function to be called when the item is set as active.
+     * @param {(itemName:string) => void} off - The function to be called when the item is set as inactive.
      */
-    setStatus(status: "content" | "no_content" | "error" | "loading", text?: string): void;
+    addItem(itemName: string, on: (itemName: string) => void, off: (itemName: string) => void): void;
+    /**
+     * Removes the item with the given name from the toggler.
+     * @param {string} itemName - The name of the item to be removed.
+     */
+    removeItem(itemName: string): void;
+    /**
+     * Sets the active item to the given item name.
+     * @param {string} active - The name of the item to be set as active.
+     * @throws {Error} If the item does not exist in the toggler.
+     */
+    setActive(active: string): void;
+    runCallbacks(): void;
     #private;
 }
 /**
@@ -481,3 +504,94 @@ export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string)
  * @returns {number}
  */
 export function unixtime(): number;
+import { EventEmitter } from '@supercat1337/event-emitter';
+declare class SlotManager {
+    /**
+     * Defines the names of the slots in the component.
+     * The slots are declared in the component's template using the "scope-ref" attribute.
+     * The slot names are used to access the children components of the component.
+     * @param {...string} slotNames - The names of the slots.
+     */
+    defineSlots(...slotNames: string[]): void;
+    /**
+     * Removes the given slot name from the component.
+     * This method first unmounts all children components of the given slot name,
+     * then removes the slot name from the component's internal maps.
+     * @param {string} slotName - The name of the slot to remove.
+     */
+    removeSlot(slotName: string): void;
+    /**
+     * Returns an array of slot names defined in the component.
+     * @type {string[]}
+     */
+    get slotNames(): string[];
+    /**
+     * Checks if the given slot name exists in the component.
+     * @param {string} slotName - The name of the slot to check.
+     * @returns {boolean} True if the slot exists, false otherwise.
+     */
+    slotExists(slotName: string): boolean;
+    /**
+     * Sets the slot refs object.
+     * This object is a map of HTML elements with the keys being the names of the slots.
+     * The slot refs object is set by the component automatically when the component is connected to the DOM.
+     * @param {{[key:string]:HTMLElement}} scope_refs - The slot refs object.
+     */
+    setSlotRefs(scope_refs: {
+        [key: string]: HTMLElement;
+    }): void;
+    /**
+     * Returns the HTML element reference of the given slot name.
+     * @param {string} slotName - The name of the slot to get the reference for.
+     * @returns {HTMLElement|null} The HTML element reference of the slot, or null if the slot does not exist.
+     */
+    getSlotRef(slotName: string): HTMLElement | null;
+    /**
+     * Clears the slot refs object.
+     * This is usually done when the component is disconnected from the DOM.
+     */
+    clearSlotRefs(): void;
+    /**
+     * Adds a child component to a slot.
+     * @param {string} slotName - The name of the slot to add the component to.
+     * @param {...Component} children - The components to add to the slot.
+     * @throws {Error} If the slot does not exist.
+     */
+    addChildComponent(slotName: string, ...children: Component[]): void;
+    /**
+     * Removes the given child component from all slots.
+     * @param {Component} childComponent - The child component to remove.
+     */
+    removeChildComponent(childComponent: Component): void;
+    /**
+     * Returns the children components of the component.
+     * @type {Set<Component>}
+     */
+    get children(): Set<Component>;
+    /**
+     * Mounts all children components of the given slot name to the DOM.
+     * The children components are mounted to the slot ref element with the "append" mode.
+     * If no slot name is given, all children components of all slots are mounted to the DOM.
+     * @param {string} [slotName] - The name of the slot to mount children components for.
+     */
+    mountChildren(slotName?: string): void;
+    /**
+     * Unmounts all children components of the given slot name.
+     * This method iterates over the children components of the given slot name and calls their unmount method.
+     * @param {string} [slotName] - The name of the slot to unmount the children components for.
+     * if no slot name is given, all children components of all slots are unmounted.
+     */
+    unmountChildren(slotName?: string): void;
+    #private;
+}
+declare namespace refsAnnotation {
+    let section_with_content: HTMLTableSectionElement;
+    let section_without_content: HTMLTableSectionElement;
+    let section_error: HTMLTableSectionElement;
+    let section_loading: HTMLTableSectionElement;
+    let header_row: HTMLTableRowElement;
+    let error_text: HTMLElement;
+    let loading_text: HTMLElement;
+    let no_content_text: HTMLElement;
+}
+export {};
