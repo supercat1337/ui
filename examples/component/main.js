@@ -1,5 +1,4 @@
 // @ts-check
-import { createFromHTML } from "../../node_modules/dom-scope/dist/dom-scope.esm.js";
 import { Component } from "../../dist/ui.bundle.esm.js";
 
 // 1. Parent component (has a slot `slot1`)

@@ -1,25 +1,51 @@
 export type TypePageUrlRenderer = (page: string) => string;
 export type LayoutFunction = (component: any) => Node | string;
+export type TextUpdateFunction = (component: Component) => void;
 export type TableRowRenderer<T> = (row: T, index: number) => HTMLTableRowElement;
+export type Refs = {
+    table: HTMLTableElement;
+    pagination: HTMLElement;
+};
 /**
  * @typedef {(component: any) => Node|string} LayoutFunction
  */
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
+ */
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}}} */
     $internals: {
         eventEmitter: EventEmitter<any>;
         disconnectController: AbortController;
         root: HTMLElement | null;
+        textUpdateFunction: TextUpdateFunction | null;
+        textResources: {
+            [key: string]: any;
+        };
     };
     slots: SlotManager;
     refsAnnotation: any;
     /**
+     * Reloads the text content of the component by calling the text update function if it is set.
+     * This method is useful when the component's text content depends on external data that may change.
+     * @returns {void}
+     */
+    reloadText(): void;
+    /**
+     * Sets the text update function for the component.
+     * The text update function is a function that is called when the reloadText method is called.
+     * The function receives the component instance as the this value.
+     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @returns {void}
+     */
+    setTextUpdateFunction(func: TextUpdateFunction | null): void;
+    /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [refsAnnotation] - An array of strings representing the names of the refs.
+     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
-    setLayout(layout: LayoutFunction | string, refsAnnotation?: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation): void;
+    setLayout(layout: LayoutFunction | string, annotation?: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation): void;
     /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
@@ -151,25 +177,156 @@ export class Component {
  * @param {() => void} callback - The function to be executed when the DOM is ready.
  */
 export function DOMReady(callback: () => void): void;
+export class Modal extends Component {
+    /**
+     * Indicates whether the submit button should be hidden when the content mode is active.
+     * @type {boolean}
+     * */
+    hideSubmitButtonOnContentMode: boolean;
+    toggler: Toggler;
+    /** @returns {{modal_title: HTMLHeadingElement, close_x_button: HTMLButtonElement, modal_body: HTMLDivElement, close_button: HTMLButtonElement, submit_button: HTMLButtonElement, section_with_content: HTMLDivElement, section_error: HTMLDivElement, error_text: HTMLSpanElement, section_loading: HTMLDivElement, loading_text: HTMLSpanElement}} */
+    getRefs(): {
+        modal_title: HTMLHeadingElement;
+        close_x_button: HTMLButtonElement;
+        modal_body: HTMLDivElement;
+        close_button: HTMLButtonElement;
+        submit_button: HTMLButtonElement;
+        section_with_content: HTMLDivElement;
+        section_error: HTMLDivElement;
+        error_text: HTMLSpanElement;
+        section_loading: HTMLDivElement;
+        loading_text: HTMLSpanElement;
+    };
+    /**
+     * Displays the modal if the component is connected to the DOM.
+     * Retrieves or creates a modal instance and calls its show method.
+     * @param {object} [ctx={}] - An optional context object to be passed to the "show" event.
+     */
+    show(ctx?: object): void;
+    /**
+     * Displays the modal with the loading indicator if the component is connected to the DOM.
+     * Retrieves or creates a modal instance, sets its backdrop to static, and calls its show method.
+     * Emits the "show" event as well.
+     * @param {object} [ctx={}] - An optional context object to be passed to the "show" event.
+     */
+    showLoading(ctx?: object): void;
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
+    setContentMode(): void;
+    /**
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message and activate the loading toggler.
+     */
+    setLoadingMode(): void;
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will display an error message and activate the error toggler.
+     */
+    setErrorMode(): void;
+    /**
+     * Hides the modal if the component is connected to the DOM.
+     * Retrieves or creates a modal instance and calls its hide method.
+     */
+    hide(): void;
+    /**
+     * Subscribes to the "show" event.
+     * This event is emitted whenever the modal is shown.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this, ctx: object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onShow(callback: (modal: this, ctx: object) => void): () => void;
+    /**
+     * Subscribes to the "hide" event.
+     * This event is emitted whenever the modal is hidden.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onHide(callback: (modal: this) => void): () => void;
+    /**
+     * Subscribes to the "response" event.
+     * This event is emitted whenever the modal receives a response.
+     * The callback is called with the component instance as the this value and the response as the second argument.
+     * @param {(modal: this, response: Object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onResponse(callback: (modal: this, response: any) => void): () => void;
+    /**
+     * Emits the "response" event.
+     * This event is emitted whenever the modal receives a response.
+     * The callback is called with the component instance as the this value and the response as the second argument.
+     * @param {Object} response - The response to be emitted.
+     */
+    emitResponse(response: any): void;
+    /**
+     * Subscribes to the "submit" event.
+     * This event is emitted when the user clicks the submit button.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this, ctx: object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onSubmit(callback: (modal: this, ctx: object) => void): () => void;
+    /**
+     * Emits the "submit" event.
+     * This event is emitted when the user clicks the submit button.
+     * The callback is called with the component instance as the this value and the context object as the second argument.
+     * @param {object} ctx - The context object to be passed to the callback.
+     */
+    emitSubmit(ctx: object): void;
+    /**
+     * Sets the title of the modal.
+     * @param {string} title - The new title text.
+     */
+    setTitleText(title: string): void;
+    /**
+     * Sets the text of the loading message in the table view.
+     * @param {string} text - The text to be shown as the loading message.
+     */
+    setLoadingText(text: string): void;
+    /**
+     * Sets the text of the error message in the table view.
+     * @param {string} text - The text to be shown as the error message.
+     */
+    setErrorText(text: string): void;
+    /**
+     * Sets the text of the submit button.
+     * @param {string} text - The text to be shown as the submit button.
+     */
+    setSubmitButtonText(text: string): void;
+    /**
+     * Sets the text of the close button.
+     * @param {string} text - The text to be shown as the close button.
+     */
+    setCloseButtonText(text: string): void;
+    /**
+     * Hides the close buttons of the modal.
+     * If the component is not connected to the DOM, does nothing.
+     */
+    hideCloseButtons(): void;
+    /**
+     * Shows the close buttons of the modal.
+     * If the component is not connected to the DOM, does nothing.
+     */
+    showCloseButtons(): void;
+}
+/** @typedef {{ table: HTMLTableElement, pagination: HTMLElement}} Refs */
 /**
  * @template T
  */
 export class PaginatedTable<T> extends Component {
     constructor();
     /** @type {Table<T>} */
-    tableView: Table<T>;
+    table: Table<T>;
     /** @type {Pagination} */
     pagination: Pagination;
-    refsAnnotation: {
-        title: HTMLSpanElement;
-        add_data_button: HTMLButtonElement;
-        update_data_button: HTMLButtonElement;
+    /** @returns {{ table: HTMLTableElement, pagination: HTMLElement}} */
+    getRefs(): {
         table: HTMLTableElement;
-        pagination_section: HTMLElement;
+        pagination: HTMLElement;
     };
-    table: Table<any>;
-    /** @returns {typeof this.refsAnnotation} */
-    get refs(): typeof this.refsAnnotation;
     /**
      * Gets the current status of the table view.
      * @returns {"content"|"no_content"|"error"|"loading"} - the current status of the table view
@@ -211,16 +368,6 @@ export class PaginatedTable<T> extends Component {
      */
     setNoContentText(text: string): void;
     /**
-     * Sets the title of the data view.
-     * @param {string} text - The new title text.
-     */
-    set title(text: string);
-    /**
-     * Gets the title of the data view.
-     * @returns {string} The current title text.
-     */
-    get title(): string;
-    /**
      * Renders the data view by invoking the render methods of the table view and pagination components.
      * @param {Object} resp - The response to be rendered in the data view.
      * If undefined, the table view and pagination will be set to their "loading" states.
@@ -235,7 +382,38 @@ export class PaginatedTable<T> extends Component {
      * @returns {Function} A function that removes the event listener.
      */
     onPageChanged(callback: (index: number) => void): Function;
-    #private;
+    /**
+     * Subscribes to the "loading" event of the table view.
+     * The event is triggered when the table view is set to its "loading" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onLoading(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "content" event of the table view.
+     * The event is triggered when the table view is set to its "content" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onContent(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "error" event of the table view.
+     * The event is triggered when the table view is set to its "error" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onError(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "no_content" event of the table view.
+     * The event is triggered when the table view is set to its "no_content" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onNoContent(callback: (component: this) => void): () => void;
 }
 export class Pagination extends Component {
     /** @type {import("./layout.js").TypePageUrlRenderer|null} */
@@ -303,15 +481,26 @@ export class SlotToggler {
  */
 export class Table<T> extends Component {
     constructor();
-    /** @returns {typeof refsAnnotation} */
-    get refs(): typeof refsAnnotation;
     toggler: Toggler;
     /**
-     * @param {Object} [config] - config
+     * @returns {{header_row:HTMLTableRowElement, section_with_content:HTMLTableSectionElement, section_without_content:HTMLTableSectionElement, section_error:HTMLTableSectionElement, section_loading:HTMLTableSectionElement, error_text:HTMLElement, loading_text:HTMLElement, no_content_text:HTMLElement}} - the refs object
+     */
+    getRefs(): {
+        header_row: HTMLTableRowElement;
+        section_with_content: HTMLTableSectionElement;
+        section_without_content: HTMLTableSectionElement;
+        section_error: HTMLTableSectionElement;
+        section_loading: HTMLTableSectionElement;
+        error_text: HTMLElement;
+        loading_text: HTMLElement;
+        no_content_text: HTMLElement;
+    };
+    /**
+     * @param {Object} config - config
      * @param {TableRowRenderer<T>} [config.tableRowRenderer] - the table row renderer function
      * @param {string} [config.headerHTML] - the table row header string
      */
-    setConfig(config?: {
+    setConfig(config: {
         tableRowRenderer?: TableRowRenderer<T>;
         headerHTML?: string;
     }): void;
@@ -320,10 +509,58 @@ export class Table<T> extends Component {
      * @returns {"content"|"no_content"|"error"|"loading"} - the current state of the table view
      */
     get state(): "content" | "no_content" | "error" | "loading";
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
     setContent(): void;
+    /**
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message and activate the loading toggler.
+     */
     setLoading(): void;
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will display an error message and activate the error toggler.
+     */
     setError(): void;
+    /**
+     * Sets the table view to its "no_content" state.
+     * The table view will display a no content message and activate the no content toggler.
+     */
     setNoContent(): void;
+    /**
+     * Subscribes to the "loading" event.
+     * This event is emitted when the view is set to "loading" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onLoading(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "error" event.
+     * This event is emitted when the view is set to the "error" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onError(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "no_content" event.
+     * This event is emitted when the view is set to the "no_content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onNoContent(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "content" event.
+     * This event is emitted when the view is set to the "content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onContent(callback: (component: this) => void): () => void;
     /**
      * Sets the text of the loading message in the table view.
      * @param {string} text - The text to be shown as the loading message.
@@ -378,6 +615,11 @@ export class Toggler {
      * @throws {Error} If the item does not exist in the toggler.
      */
     setActive(active: string): void;
+    /**
+     * Runs the callbacks for all items in the toggler.
+     * If an item is active, the "on" callback is called with the item name as the argument.
+     * If an item is inactive, the "off" callback is called with the item name as the argument.
+     */
     runCallbacks(): void;
     #private;
 }
@@ -431,11 +673,6 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
- * Hides the given modal element.
- * @param {Element} modal_element - The modal element to hide.
- */
-export function hideModal(modal_element: Element): void;
-/**
  * Checks if the user prefers a dark color scheme.
  * Utilizes the `window.matchMedia` API to determine if the user's
  * system is set to a dark mode preference.
@@ -466,12 +703,6 @@ export function scrollToTop(element: HTMLElement): void;
  * @param {...HTMLElement} elements - The elements to show.
  */
 export function showElements(...elements: HTMLElement[]): void;
-/**
- * Displays the given modal element by creating or retrieving its instance
- * and calling the show method on it.
- * @param {Element} modal_element - The modal element to be displayed.
- */
-export function showModal(modal_element: Element): void;
 /**
  * Adds a spinner to the button (if it doesn't already have one).
  * The spinner is prepended to the button's contents.
@@ -583,15 +814,5 @@ declare class SlotManager {
      */
     unmountChildren(slotName?: string): void;
     #private;
-}
-declare namespace refsAnnotation {
-    let section_with_content: HTMLTableSectionElement;
-    let section_without_content: HTMLTableSectionElement;
-    let section_error: HTMLTableSectionElement;
-    let section_loading: HTMLTableSectionElement;
-    let header_row: HTMLTableRowElement;
-    let error_text: HTMLElement;
-    let loading_text: HTMLElement;
-    let no_content_text: HTMLElement;
 }
 export {};

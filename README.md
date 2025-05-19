@@ -82,8 +82,6 @@ The following functions are included in this library:
 -   `showElements`: A function that shows elements on the page.
 -   `showSpinnerInButton`: A function that shows a spinner in a button.
 -   `removeSpinnerFromButton`: A function that removes a spinner from a button.
--   `showModal`: A function that shows a modal on the page.
--   `hideModal`: A function that hides a modal on the page.
 -   `unixtime`: A function that returns the current Unix timestamp.
 -   `isDarkMode`: A function that returns true if the user is in dark mode, false otherwise.
 -   `getDefaultLanguage`: A function that returns the default language of the user.

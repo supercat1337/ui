@@ -43,7 +43,6 @@ function sleep(ms) {
 
 DOMReady(() => {
     let paginatedTable = new PaginatedTable();
-    globalThis.paginatedTable = paginatedTable;
 
     paginatedTable.onPageChanged(async (index) => {
         paginatedTable.setLoading();
@@ -52,7 +51,6 @@ DOMReady(() => {
         paginatedTable.setData(dataResponse);
     });
 
-    paginatedTable.title = "Data";
     paginatedTable.table.setConfig({
         headerHTML:
             "<th>#</th> <th>id</th>  <th>Column 1</th> <th>Column 2</th> <th>Column 3</th>",

@@ -1,10 +1,9 @@
-import Modal from 'bootstrap/js/src/modal.js';
 import { createFromHTML, selectRefsExtended, checkRefs } from 'dom-scope';
 import { EventEmitter } from '@supercat1337/event-emitter';
 import { extractRPCResponse, RPCPagedResponse, RPCErrorResponse } from '@supercat1337/rpc';
+import * as bsModal from 'bootstrap/js/src/modal.js';
 
 // @ts-check
-
 
 /**
  * Executes the provided callback function when the DOM is fully loaded.
@@ -140,40 +139,6 @@ function showSpinnerInButton(button, customClassName = null) {
 function removeSpinnerFromButton(button) {
     let spinner = button.querySelector(".spinner-border");
     if (spinner) spinner.remove();
-}
-
-/**
- * Hides the given modal element.
- * @param {Element} modal_element - The modal element to hide.
- */
-function hideModal(modal_element) {
-    /*
-  let modal = Modal.getOrCreateInstance(modal_element);
-  modal.hide();
-  let modal_backdrop = document.querySelector(".modal-backdrop");
-  if (modal_backdrop) {
-      modal_backdrop.classList.remove("show");
-
-      setTimeout(() => {
-          modal_backdrop.remove();
-      }, 500);
-  }*/
-
-    let close_button = /** @type {HTMLButtonElement} */ (
-        modal_element.querySelector('[data-bs-dismiss="modal"]')
-    );
-    close_button?.click();
-}
-
-/**
- * Displays the given modal element by creating or retrieving its instance
- * and calling the show method on it.
- * @param {Element} modal_element - The modal element to be displayed.
- */
-function showModal(modal_element) {
-    // @ts-ignore
-    let modal = Modal.getOrCreateInstance(modal_element);
-    modal.show();
 }
 
 /**
@@ -345,6 +310,11 @@ class Toggler {
         }
     }
 
+    /**
+     * Runs the callbacks for all items in the toggler.
+     * If an item is active, the "on" callback is called with the item name as the argument.
+     * If an item is inactive, the "off" callback is called with the item name as the argument.
+     */
     runCallbacks() {
         for (const [key, value] of this.items) {
             if (value.isActive) {
@@ -571,15 +541,26 @@ class SlotManager {
  * @typedef {(component: any) => Node|string} LayoutFunction
  */
 
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
+ */
+
 class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}}} */
     $internals = {
         eventEmitter: new EventEmitter(),
         /** @type {AbortController} */
         disconnectController: new AbortController(),
         /** @type {HTMLElement|null} */
         root: null,
+        /** @type {TextUpdateFunction|null} */
+        textUpdateFunction: null,
+        /** @type {{[key:string]:any}}  */
+        textResources: {},
     };
+
+    /** @type {LayoutFunction|string|null} */
+    #layout = null;
 
     /** @type {Node|null} */
     #template = null;
@@ -593,17 +574,42 @@ class Component {
 
     refsAnnotation;
 
+    constructor() {
+        let that = this;
+        this.onConnect(() => {
+            that.reloadText();
+        });
+    }
+
     /**
-     * Sets the layout of the component by assigning the template content.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [refsAnnotation] - An array of strings representing the names of the refs.
-     * The function is called with the component instance as the this value.
+     * Reloads the text content of the component by calling the text update function if it is set.
+     * This method is useful when the component's text content depends on external data that may change.
+     * @returns {void}
      */
-    setLayout(layout, refsAnnotation) {
+    reloadText() {
+        if (this.$internals.textUpdateFunction) {
+            this.$internals.textUpdateFunction(this);
+        }
+    }
+
+    /**
+     * Sets the text update function for the component.
+     * The text update function is a function that is called when the reloadText method is called.
+     * The function receives the component instance as the this value.
+     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @returns {void}
+     */
+    setTextUpdateFunction(func) {
+        this.$internals.textUpdateFunction = func;
+    }
+
+    #loadTemplate() {
+        if (this.#layout == null) return;
+
         let template;
 
-        if (typeof layout === "function") {
-            let _template = layout(this);
+        if (typeof this.#layout === "function") {
+            let _template = this.#layout(this);
 
             if (_template instanceof Node) {
                 template = _template;
@@ -611,7 +617,7 @@ class Component {
                 template = createFromHTML(_template);
             }
         } else {
-            template = createFromHTML(layout);
+            template = createFromHTML(this.#layout);
         }
 
         let count = 0;
@@ -624,9 +630,20 @@ class Component {
         }
 
         this.#template = template;
+    }
 
-        if (refsAnnotation) {
-            this.refsAnnotation = refsAnnotation;
+    /**
+     * Sets the layout of the component by assigning the template content.
+     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * The function is called with the component instance as the this value.
+     */
+    setLayout(layout, annotation) {
+        this.#layout = layout;
+        this.#template = null;
+
+        if (annotation) {
+            this.refsAnnotation = annotation;
         }
     }
 
@@ -637,6 +654,10 @@ class Component {
      * @returns {any} The refs object.
      */
     getRefs() {
+        if (!this.#connected) {
+            throw new Error("Component is not connected to the DOM");
+        }
+
         return this.#refs;
     }
 
@@ -772,6 +793,10 @@ class Component {
      * If "prepend", the component is prepended to the container.
      */
     mount(container, mode = "replace") {
+        if (this.#template === null) {
+            this.#loadTemplate();
+        }
+
         if (this.#template === null) throw new Error("Template is not set");
 
         if (this.#connected === true) {
@@ -1157,7 +1182,7 @@ function getHtmlLayout$1() {
         <tr>
             <td ref="error_text" class="col-12 text-center py-4" colspan="100"
                 style="white-space: initial; word-wrap: break-word;">
-
+                Error
             </td>
         </tr>
     </tbody>
@@ -1209,7 +1234,7 @@ function defaultTableRowRenderer(data, index) {
  * @typedef {(row:T, index:number)=>HTMLTableRowElement} TableRowRenderer
  */
 
-const refsAnnotation = {
+const refsAnnotation$2 = {
     section_with_content: HTMLTableSectionElement.prototype,
     section_without_content: HTMLTableSectionElement.prototype,
     section_error: HTMLTableSectionElement.prototype,
@@ -1219,6 +1244,27 @@ const refsAnnotation = {
     loading_text: HTMLElement.prototype,
     no_content_text: HTMLElement.prototype,
 };
+
+const textResources_default$1 = {
+    no_content_text: "No items",
+    error_text: "Error",
+    loading_text: "Loading...",
+    invalid_response: "Invalid response",
+};
+
+/**
+ * Updates the text content of the component's elements.
+ * @param {Table} component - The component to update.
+ * @returns {void}
+ */
+function textUpdater$1(component) {
+    let refs = component.getRefs();
+    let textResources = component.$internals.textResources;
+
+    refs.error_text.innerText = textResources.error_text;
+    refs.loading_text.innerText = textResources.loading_text;
+    refs.no_content_text.innerText = textResources.no_content_text;
+}
 
 /**
  * @template T
@@ -1232,38 +1278,32 @@ class Table extends Component {
     /** @type {"content"|"no_content"|"error"|"loading"} */
     #state = "loading";
 
-    #error_text = "";
-    #loading_text = "Loading...";
-    #no_content_text = "No items";
-
-    /** @returns {typeof refsAnnotation} */
-    get refs() {
-        return this.getRefs();
-    }
-
     /** @type {T[]} */
     #rows = [];
 
     constructor() {
         super();
 
-        this.toggler = new Toggler();
+        this.$internals.textResources = textResources_default$1;
+        this.setTextUpdateFunction(textUpdater$1);
 
         let that = this;
 
+        this.toggler = new Toggler();
         this.toggler.addItem(
             "content",
             (key) => {
                 if (!that.isConnected) return false;
-
+                let refs = this.getRefs();
                 that.#renderRows();
-                showElements(that.refs.section_with_content);
+                showElements(refs.section_with_content);
             },
             (key) => {
                 if (!that.isConnected) return false;
 
-                this.refs.section_with_content.innerHTML = "";
-                hideElements(that.refs.section_with_content);
+                let refs = this.getRefs();
+                refs.section_with_content.innerHTML = "";
+                hideElements(refs.section_with_content);
             }
         );
 
@@ -1271,13 +1311,13 @@ class Table extends Component {
             "no_content",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_without_content);
+                let refs = this.getRefs();
+                showElements(refs.section_without_content);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_without_content);
+                let refs = this.getRefs();
+                hideElements(refs.section_without_content);
             }
         );
 
@@ -1285,13 +1325,13 @@ class Table extends Component {
             "error",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_error);
+                let refs = this.getRefs();
+                showElements(refs.section_error);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_error);
+                let refs = this.getRefs();
+                hideElements(refs.section_error);
             }
         );
 
@@ -1299,53 +1339,49 @@ class Table extends Component {
             "loading",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_loading);
+                let refs = this.getRefs();
+                showElements(refs.section_loading);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_loading);
+                let refs = this.getRefs();
+                hideElements(refs.section_loading);
             }
         );
 
         this.toggler.setActive("loading");
 
         this.onConnect(() => {
-            that.refs.header_row.innerHTML = that.#headerHTML;
-            that.refs.error_text.innerHTML = that.#error_text;
-            that.refs.loading_text.innerHTML = that.#loading_text;
-            that.refs.no_content_text.innerHTML = that.#no_content_text;
+            let refs = this.getRefs();
+            refs.header_row.innerHTML = that.#headerHTML;
         });
 
         this.onConnect(() => {
             that.toggler.runCallbacks();
         });
 
-        this.setLayout(getHtmlLayout$1, refsAnnotation);
+        this.setLayout(getHtmlLayout$1, refsAnnotation$2);
     }
 
     /**
-     * @param {Object} [config] - config
+     * @returns {{header_row:HTMLTableRowElement, section_with_content:HTMLTableSectionElement, section_without_content:HTMLTableSectionElement, section_error:HTMLTableSectionElement, section_loading:HTMLTableSectionElement, error_text:HTMLElement, loading_text:HTMLElement, no_content_text:HTMLElement}} - the refs object
+     */
+    getRefs() {
+        return super.getRefs();
+    }
+
+    /**
+     * @param {Object} config - config
      * @param {TableRowRenderer<T>} [config.tableRowRenderer] - the table row renderer function
      * @param {string} [config.headerHTML] - the table row header string
      */
     setConfig(config) {
-        /** @type {{tableRowRenderer:TableRowRenderer<T>, headerHTML:string|null}} */
-        let _config = Object.assign(
-            {
-                tableRowRenderer: defaultTableRowRenderer,
-                headerHTML: null,
-            },
-            config
-        );
-
-        if (_config.tableRowRenderer) {
-            this.#tableRowRenderer = _config.tableRowRenderer;
+        if (config.tableRowRenderer) {
+            this.#tableRowRenderer = config.tableRowRenderer;
         }
 
-        if (_config.headerHTML) {
-            this.#headerHTML = _config.headerHTML;
+        if (config.headerHTML) {
+            this.#headerHTML = config.headerHTML;
         }
     }
 
@@ -1357,26 +1393,90 @@ class Table extends Component {
         return this.#state;
     }
 
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
     setContent() {
         this.#state = "content";
 
         this.#renderRows();
         this.toggler.setActive("content");
+        this.$internals.eventEmitter.emit("content", this);
     }
 
+    /**
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message and activate the loading toggler.
+     */
     setLoading() {
         this.#state = "loading";
         this.toggler.setActive("loading");
+        this.$internals.eventEmitter.emit("loading", this);
     }
 
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will display an error message and activate the error toggler.
+     */
     setError() {
         this.#state = "error";
         this.toggler.setActive("error");
+        this.$internals.eventEmitter.emit("error", this);
     }
 
+    /**
+     * Sets the table view to its "no_content" state.
+     * The table view will display a no content message and activate the no content toggler.
+     */
     setNoContent() {
         this.#state = "no_content";
         this.toggler.setActive("no_content");
+        this.$internals.eventEmitter.emit("no_content", this);
+    }
+
+    /**
+     * Subscribes to the "loading" event.
+     * This event is emitted when the view is set to "loading" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onLoading(callback) {
+        return this.$internals.eventEmitter.on("loading", callback);
+    }
+
+    /**
+     * Subscribes to the "error" event.
+     * This event is emitted when the view is set to the "error" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onError(callback) {
+        return this.$internals.eventEmitter.on("error", callback);
+    }
+
+    /**
+     * Subscribes to the "no_content" event.
+     * This event is emitted when the view is set to the "no_content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onNoContent(callback) {
+        return this.$internals.eventEmitter.on("no_content", callback);
+    }
+
+    /**
+     * Subscribes to the "content" event.
+     * This event is emitted when the view is set to the "content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onContent(callback) {
+        return this.$internals.eventEmitter.on("content", callback);
     }
 
     /**
@@ -1384,10 +1484,14 @@ class Table extends Component {
      * @param {string} text - The text to be shown as the loading message.
      */
     setLoadingText(text) {
-        this.#loading_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.loading_text = text;
 
         if (!this.isConnected) return;
-        this.refs.loading_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.loading_text.textContent = text;
     }
 
     /**
@@ -1395,10 +1499,14 @@ class Table extends Component {
      * @param {string} text - The text to be shown as the error message.
      */
     setErrorText(text) {
-        this.#error_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.error_text = text;
 
         if (!this.isConnected) return;
-        this.refs.error_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.error_text.textContent = text;
     }
 
     /**
@@ -1406,10 +1514,14 @@ class Table extends Component {
      * @param {string} text - The text to be shown as the no content message.
      */
     setNoContentText(text) {
-        this.#no_content_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.no_content_text = text;
 
         if (!this.isConnected) return;
-        this.refs.no_content_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.no_content_text.textContent = text;
     }
 
     /**
@@ -1430,7 +1542,7 @@ class Table extends Component {
 
         if (!(response instanceof RPCPagedResponse)) {
             this.#rows = [];
-            this.setErrorText("Invalid response");
+            this.setErrorText(this.$internals.textResources.invalid_response);
             this.setError();
             return;
         }
@@ -1449,14 +1561,15 @@ class Table extends Component {
 
     #renderRows() {
         if (!this.isConnected) return;
+        let refs = this.getRefs();
 
-        this.refs.section_with_content.innerHTML = "";
+        refs.section_with_content.innerHTML = "";
 
         let rows = this.#rows;
 
         for (let i = 0; i < rows.length; i++) {
             let row = this.#tableRowRenderer(rows[i], i);
-            this.refs.section_with_content.appendChild(row);
+            refs.section_with_content.appendChild(row);
         }
     }
 
@@ -1481,27 +1594,9 @@ class Table extends Component {
 
 function getHtmlLayout(paginatedTable) {
     return /* html */ `
-<div style="display: contents;">
-    <div class="d-flex flex-column" style="min-height: 75vh">
-        <div class="flex-grow-1 mt-3">
-            <h1 class="display-6 mb-3">
-                <span ref="title">${escapeHtml(paginatedTable.title)}</span>
-                <button class="btn btn-outline-secondary btn-sm ms-2" ref="add_data_button">
-                    Add
-                </button>
-
-                <button class="btn btn-outline-secondary btn-sm ms-2" ref="update_data_button">
-                    Update
-                </button>
-            </h1>
-        
-            <table class="table table-striped" ref="table" scope-ref="table">
-            </table>
-
-        </div>
-    </div>
-    <div aria-label="Page navigation" class="mt-5 d-flex justify-content-center" ref="pagination_section" scope-ref="pagination">
-    </div>
+<div style="display: contents;">    
+    <table class="table table-striped" ref="table" scope-ref="table"></table>
+    <div aria-label="Page navigation" class="mt-5 d-flex justify-content-center" ref="pagination" scope-ref="pagination"></div>
 </div>
 `;
 }
@@ -1509,47 +1604,39 @@ function getHtmlLayout(paginatedTable) {
 // @ts-check
 
 
+const refsAnnotation$1 = {
+    table: HTMLTableElement.prototype,
+    pagination: HTMLElement.prototype,
+};
+
+/** @typedef {{ table: HTMLTableElement, pagination: HTMLElement}} Refs */
+
 /**
  * @template T
  */
 class PaginatedTable extends Component {
     /** @type {Table<T>} */
-    tableView;
+    table;
 
     /** @type {Pagination} */
     pagination;
-
-    refsAnnotation = {
-        title: HTMLSpanElement.prototype,
-        add_data_button: HTMLButtonElement.prototype,
-        update_data_button: HTMLButtonElement.prototype,
-        table: HTMLTableElement.prototype,
-        pagination_section: HTMLElement.prototype,
-    };
-
-    #title = "";
 
     constructor() {
         super();
 
         this.defineSlots("table", "pagination");
-        this.setLayout(getHtmlLayout);
+        this.setLayout(getHtmlLayout, refsAnnotation$1);
 
         this.table = new Table();
         this.pagination = new Pagination();
 
         this.addChildComponent("table", this.table);
         this.addChildComponent("pagination", this.pagination);
-
-        let that = this;
-        this.onConnect(() => {
-            that.refs.title.innerText = that.#title;
-        });
     }
 
-    /** @returns {typeof this.refsAnnotation} */
-    get refs() {
-        return this.getRefs();
+    /** @returns {{ table: HTMLTableElement, pagination: HTMLElement}} */
+    getRefs() {
+        return super.getRefs();
     }
 
     /**
@@ -1566,6 +1653,11 @@ class PaginatedTable extends Component {
      */
     setLoading() {
         this.table.setLoading();
+
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+        refs.pagination.style.visibility = "hidden";
     }
 
     /**
@@ -1574,6 +1666,11 @@ class PaginatedTable extends Component {
      */
     setContent() {
         this.table.setContent();
+
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+        refs.pagination.style.visibility = "visible";
     }
 
     /**
@@ -1582,6 +1679,10 @@ class PaginatedTable extends Component {
      */
     setError() {
         this.table.setError();
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+        refs.pagination.style.visibility = "visible";
     }
 
     /**
@@ -1590,6 +1691,10 @@ class PaginatedTable extends Component {
      */
     setNoContent() {
         this.table.setNoContent();
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+        refs.pagination.style.visibility = "visible";
     }
 
     /**
@@ -1617,25 +1722,6 @@ class PaginatedTable extends Component {
     }
 
     /**
-     * Sets the title of the data view.
-     * @param {string} text - The new title text.
-     */
-    set title(text) {
-        this.#title = text;
-        if (!this.isConnected) return;
-
-        this.refs.title.innerText = this.#title;
-    }
-
-    /**
-     * Gets the title of the data view.
-     * @returns {string} The current title text.
-     */
-    get title() {
-        return this.#title;
-    }
-
-    /**
      * Renders the data view by invoking the render methods of the table view and pagination components.
      * @param {Object} resp - The response to be rendered in the data view.
      * If undefined, the table view and pagination will be set to their "loading" states.
@@ -1643,6 +1729,11 @@ class PaginatedTable extends Component {
     setData(resp) {
         this.table.setData(resp);
         this.pagination.setData(resp);
+
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+        refs.pagination.style.visibility = "visible";
     }
 
     /**
@@ -1656,6 +1747,496 @@ class PaginatedTable extends Component {
     onPageChanged(callback) {
         return this.pagination.onPageChanged(callback);
     }
+
+    /**
+     * Subscribes to the "loading" event of the table view.
+     * The event is triggered when the table view is set to its "loading" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onLoading(callback) {
+        let that = this;
+        return this.table.onLoading(() => {
+            callback(that);
+        });
+    }
+
+    /**
+     * Subscribes to the "content" event of the table view.
+     * The event is triggered when the table view is set to its "content" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onContent(callback) {
+        let that = this;
+        return this.table.onContent(() => {
+            callback(that);
+        });
+    }
+
+    /**
+     * Subscribes to the "error" event of the table view.
+     * The event is triggered when the table view is set to its "error" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onError(callback) {
+        let that = this;
+        return this.table.onError(() => {
+            callback(that);
+        });
+    }
+
+    /**
+     * Subscribes to the "no_content" event of the table view.
+     * The event is triggered when the table view is set to its "no_content" state.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback function receives the component instance as the this value.
+     * @returns {()=>void} A function that removes the event listener.
+     */
+    onNoContent(callback) {
+        let that = this;
+        return this.table.onNoContent(() => {
+            callback(that);
+        });
+    }
 }
 
-export { Component, DOMReady, PaginatedTable, Pagination, SlotToggler, Table, Toggler, copyToClipboard, escapeHtml, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, hideModal, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showModal, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };
+// layout.js
+// @ts-check
+
+/**
+ * @returns {string}
+ */
+function getHtml() {
+    let html = /* html */ `
+<div class="modal fade" data-bs-backdrop="static" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" ref="modal_title">Modal name</h5>
+                <button type="button" ref="close_x_button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" ref="modal_body">
+                <div scope-ref="modal_body" ref="section_with_content" class="d-none">
+                </div>
+                <div ref="section_error" class="text-center d-none">
+
+                    <div class="d-flex justify-content-center align-items-center fs-5 text-danger" style="min-height: 25vh">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-exclamation-triangle" viewBox="0 0 16 16">
+                            <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
+                            <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
+                        </svg>
+                        <span ref="error_text" class="ms-3"
+                            style="white-space: initial; word-wrap: break-word;">
+                            Error text
+                        </span>
+                    </div>
+                </div>
+
+                <div ref="section_loading" class="d-none">
+                    <div class="d-flex justify-content-center align-items-center" style="min-height: 25vh">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span ref="loading_text" class="ms-3 fs-5"
+                            style="white-space: initial; word-wrap: break-word;">
+                            Loading...
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" ref="close_button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" ref="submit_button" class="btn btn-primary">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+`;
+
+    return html;
+}
+
+// @ts-check
+
+/**
+ * @typedef {Object} Refs
+ * @property {HTMLHeadingElement} modal_title
+ * @property {HTMLButtonElement} close_x_button
+ * @property {HTMLDivElement} modal_body
+ * @property {HTMLDivElement} section_with_content
+ * @property {HTMLDivElement} section_error
+ * @property {HTMLSpanElement} error_text
+ * @property {HTMLDivElement} section_loading
+ * @property {HTMLSpanElement} loading_text
+ * @property {HTMLButtonElement} close_button
+ * @property {HTMLButtonElement} submit_button
+ */
+
+const refsAnnotation = {
+    modal_title: HTMLHeadingElement.prototype,
+    close_x_button: HTMLButtonElement.prototype,
+    modal_body: HTMLDivElement.prototype,
+    section_with_content: HTMLDivElement.prototype,
+    section_error: HTMLDivElement.prototype,
+    error_text: HTMLSpanElement.prototype,
+    section_loading: HTMLDivElement.prototype,
+    loading_text: HTMLSpanElement.prototype,
+    close_button: HTMLButtonElement.prototype,
+    submit_button: HTMLButtonElement.prototype,
+};
+
+/**
+ * Updates the text content of the component's elements.
+ * @param {Modal} component - The component to update.
+ * @returns {void}
+ */
+function textUpdater(component) {
+    let refs = component.getRefs();
+    let textResources = component.$internals.textResources;
+
+    refs.modal_title.textContent = textResources.modal_title_text;
+    refs.close_x_button.setAttribute(
+        "aria-label",
+        textResources.close_x_button_aria_label
+    );
+    refs.loading_text.textContent = textResources.loading_text_text;
+    refs.close_button.textContent = textResources.close_button_text;
+    refs.submit_button.textContent = textResources.submit_button_text;
+}
+
+let textResources_default = {
+    modal_title_text: "Modal name",
+    close_x_button_aria_label: "Close",
+    loading_text_text: "Loading...",
+    close_button_text: "Close",
+    submit_button_text: "Add",
+};
+
+class Modal extends Component {
+    /**
+     * Indicates whether the submit button should be hidden when the content mode is active.
+     * @type {boolean}
+     * */
+    hideSubmitButtonOnContentMode = false;
+
+    constructor() {
+        super();
+        this.defineSlots("modal_body");
+        this.setLayout(getHtml(), refsAnnotation);
+
+        this.$internals.textResources = textResources_default;
+        this.setTextUpdateFunction(textUpdater);
+
+        let that = this;
+
+        this.toggler = new Toggler();
+        this.toggler.addItem(
+            "content",
+            (key) => {
+                if (!that.isConnected) return false;
+                let refs = this.getRefs();
+                if (that.hideSubmitButtonOnContentMode) {
+                    hideElements(refs.submit_button);
+                } else {
+                    showElements(refs.submit_button);
+                }
+                showElements(refs.section_with_content);
+            },
+            (key) => {
+                if (!that.isConnected) return false;
+
+                let refs = this.getRefs();
+                hideElements(refs.section_with_content);
+            }
+        );
+
+        this.toggler.addItem(
+            "error",
+            (key) => {
+                if (!that.isConnected) return false;
+                let refs = this.getRefs();
+                refs.error_text.textContent =
+                    this.$internals.textResources.error_text;
+                hideElements(refs.submit_button);
+                showElements(refs.section_error);
+            },
+            (key) => {
+                if (!that.isConnected) return false;
+                let refs = this.getRefs();
+                hideElements(refs.section_error);
+            }
+        );
+
+        this.toggler.addItem(
+            "loading",
+            (key) => {
+                if (!that.isConnected) return false;
+                let refs = this.getRefs();
+                refs.loading_text.textContent =
+                    this.$internals.textResources.loading_text;
+                hideElements(refs.submit_button);
+                showElements(refs.section_loading);
+            },
+            (key) => {
+                if (!that.isConnected) return false;
+                let refs = this.getRefs();
+                hideElements(refs.section_loading);
+            }
+        );
+
+        this.toggler.setActive("content");
+
+        this.onConnect(() => {
+            that.toggler.runCallbacks();
+
+            let root = /** @type {Element} */ (that.$internals.root);
+
+            // @ts-ignore
+            that.$on(root, "hide.bs.modal", () => {
+                if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                }
+
+                that.$internals.eventEmitter.emit("hide", that);
+            });
+        });
+    }
+
+    /** @returns {{modal_title: HTMLHeadingElement, close_x_button: HTMLButtonElement, modal_body: HTMLDivElement, close_button: HTMLButtonElement, submit_button: HTMLButtonElement, section_with_content: HTMLDivElement, section_error: HTMLDivElement, error_text: HTMLSpanElement, section_loading: HTMLDivElement, loading_text: HTMLSpanElement}} */
+    getRefs() {
+        return super.getRefs();
+    }
+
+    /**
+     * Displays the modal if the component is connected to the DOM.
+     * Retrieves or creates a modal instance and calls its show method.
+     * @param {object} [ctx={}] - An optional context object to be passed to the "show" event.
+     */
+    show(ctx = {}) {
+        if (!this.isConnected) return;
+
+        this.toggler.setActive("content");
+        this.$internals.eventEmitter.emit("show", this, ctx);
+
+        let modal_element = /** @type {Element} */ (this.$internals.root);
+        // @ts-ignore
+        let modal = bsModal.default.getOrCreateInstance(modal_element);
+        modal.show();
+    }
+
+    /**
+     * Displays the modal with the loading indicator if the component is connected to the DOM.
+     * Retrieves or creates a modal instance, sets its backdrop to static, and calls its show method.
+     * Emits the "show" event as well.
+     * @param {object} [ctx={}] - An optional context object to be passed to the "show" event.
+     */
+    showLoading(ctx = {}) {
+        if (!this.isConnected) return;
+
+        this.toggler.setActive("loading");
+        this.$internals.eventEmitter.emit("show", this, ctx);
+        let modal_element = /** @type {Element} */ (this.$internals.root);
+        // @ts-ignore
+        let modal = bsModal.default.getOrCreateInstance(modal_element);
+        modal.show();
+    }
+
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
+    setContentMode() {
+        this.toggler.setActive("content");
+    }
+
+    /**
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message and activate the loading toggler.
+     */
+    setLoadingMode() {
+        this.toggler.setActive("loading");
+    }
+
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will display an error message and activate the error toggler.
+     */
+    setErrorMode() {
+        this.toggler.setActive("error");
+    }
+
+    /**
+     * Hides the modal if the component is connected to the DOM.
+     * Retrieves or creates a modal instance and calls its hide method.
+     */
+    hide() {
+        if (!this.isConnected) return;
+
+        let modal_element = /** @type {Element} */ (this.$internals.root);
+        let close_button = /** @type {HTMLButtonElement} */ (
+            modal_element.querySelector('[data-bs-dismiss="modal"]')
+        );
+        close_button?.click();
+    }
+
+    /**
+     * Subscribes to the "show" event.
+     * This event is emitted whenever the modal is shown.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this, ctx: object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onShow(callback) {
+        return this.$internals.eventEmitter.on("show", callback);
+    }
+
+    /**
+     * Subscribes to the "hide" event.
+     * This event is emitted whenever the modal is hidden.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onHide(callback) {
+        return this.$internals.eventEmitter.on("hide", callback);
+    }
+
+    /**
+     * Subscribes to the "response" event.
+     * This event is emitted whenever the modal receives a response.
+     * The callback is called with the component instance as the this value and the response as the second argument.
+     * @param {(modal: this, response: Object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onResponse(callback) {
+        return this.$internals.eventEmitter.on("response", callback);
+    }
+
+    /**
+     * Emits the "response" event.
+     * This event is emitted whenever the modal receives a response.
+     * The callback is called with the component instance as the this value and the response as the second argument.
+     * @param {Object} response - The response to be emitted.
+     */
+    emitResponse(response) {
+        this.$internals.eventEmitter.emit("response", this, response);
+    }
+
+    /**
+     * Subscribes to the "submit" event.
+     * This event is emitted when the user clicks the submit button.
+     * The callback is called with the component instance as the this value.
+     * @param {(modal: this, ctx: object) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onSubmit(callback) {
+        return this.$internals.eventEmitter.on("submit", callback);
+    }
+
+    /**
+     * Emits the "submit" event.
+     * This event is emitted when the user clicks the submit button.
+     * The callback is called with the component instance as the this value and the context object as the second argument.
+     * @param {object} ctx - The context object to be passed to the callback.
+     */
+    emitSubmit(ctx) {
+        this.$internals.eventEmitter.emit("submit", this, ctx);
+    }
+
+    /**
+     * Sets the title of the modal.
+     * @param {string} title - The new title text.
+     */
+    setTitleText(title) {
+        this.$internals.textResources.modal_title_text = title;
+
+        if (!this.isConnected) return;
+
+        let refs = this.getRefs();
+
+        refs.modal_title.textContent = title;
+    }
+
+    /**
+     * Sets the text of the loading message in the table view.
+     * @param {string} text - The text to be shown as the loading message.
+     */
+    setLoadingText(text) {
+        this.$internals.textResources.loading_text = text;
+
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+        refs.loading_text.textContent = text;
+    }
+
+    /**
+     * Sets the text of the error message in the table view.
+     * @param {string} text - The text to be shown as the error message.
+     */
+    setErrorText(text) {
+        this.$internals.textResources.error_text = text;
+
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+        refs.error_text.textContent = text;
+    }
+
+    /**
+     * Sets the text of the submit button.
+     * @param {string} text - The text to be shown as the submit button.
+     */
+    setSubmitButtonText(text) {
+        this.$internals.textResources.submit_button_text = text;
+
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+        refs.submit_button.textContent = text;
+    }
+
+    /**
+     * Sets the text of the close button.
+     * @param {string} text - The text to be shown as the close button.
+     */
+    setCloseButtonText(text) {
+        this.$internals.textResources.close_button_text = text;
+
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+        refs.close_button.textContent = text;
+    }
+
+    /**
+     * Hides the close buttons of the modal.
+     * If the component is not connected to the DOM, does nothing.
+     */
+    hideCloseButtons() {
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+
+        refs.close_x_button.setAttribute("aria-hidden", "true");
+        refs.close_x_button.style.visibility = "hidden";
+        refs.close_button.setAttribute("aria-hidden", "true");
+        refs.close_button.style.visibility = "hidden";
+    }
+
+    /**
+     * Shows the close buttons of the modal.
+     * If the component is not connected to the DOM, does nothing.
+     */
+    showCloseButtons() {
+        if (!this.isConnected) return;
+        let refs = this.getRefs();
+
+        refs.close_x_button.removeAttribute("aria-hidden");
+        refs.close_x_button.style.visibility = "visible";
+        refs.close_button.removeAttribute("aria-hidden");
+        refs.close_button.style.visibility = "visible";
+    }
+}
+
+export { Component, DOMReady, Modal, PaginatedTable, Pagination, SlotToggler, Table, Toggler, copyToClipboard, escapeHtml, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };

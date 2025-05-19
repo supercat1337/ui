@@ -1,6 +1,6 @@
 {
   "name": "@supercat1337/ui",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A lightweight, modern JavaScript library for displaying RPC responses and managing the DOM.",
   "license": "MIT",
   "author": "SuperCat1337",
@@ -22,7 +22,7 @@
   "dependencies": {
     "@supercat1337/event-emitter": "^1.0.10",
     "@supercat1337/rpc": "^1.0.5",
-    "bootstrap": "^5.3.3",
+    "bootstrap": "^5.3.6",
     "dom-scope": "^1.0.17"
   }
 }

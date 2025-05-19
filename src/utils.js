@@ -1,7 +1,5 @@
 // @ts-check
 
-import Modal from "bootstrap/js/src/modal.js";
-
 /**
  * Executes the provided callback function when the DOM is fully loaded.
  * If the document is already loaded, the callback is executed immediately.
@@ -136,40 +134,6 @@ export function showSpinnerInButton(button, customClassName = null) {
 export function removeSpinnerFromButton(button) {
     let spinner = button.querySelector(".spinner-border");
     if (spinner) spinner.remove();
-}
-
-/**
- * Hides the given modal element.
- * @param {Element} modal_element - The modal element to hide.
- */
-export function hideModal(modal_element) {
-    /*
-  let modal = Modal.getOrCreateInstance(modal_element);
-  modal.hide();
-  let modal_backdrop = document.querySelector(".modal-backdrop");
-  if (modal_backdrop) {
-      modal_backdrop.classList.remove("show");
-
-      setTimeout(() => {
-          modal_backdrop.remove();
-      }, 500);
-  }*/
-
-    let close_button = /** @type {HTMLButtonElement} */ (
-        modal_element.querySelector('[data-bs-dismiss="modal"]')
-    );
-    close_button?.click();
-}
-
-/**
- * Displays the given modal element by creating or retrieving its instance
- * and calling the show method on it.
- * @param {Element} modal_element - The modal element to be displayed.
- */
-export function showModal(modal_element) {
-    // @ts-ignore
-    let modal = Modal.getOrCreateInstance(modal_element);
-    modal.show();
 }
 
 /**

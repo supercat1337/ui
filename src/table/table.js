@@ -50,6 +50,27 @@ const refsAnnotation = {
     no_content_text: HTMLElement.prototype,
 };
 
+const textResources_default = {
+    no_content_text: "No items",
+    error_text: "Error",
+    loading_text: "Loading...",
+    invalid_response: "Invalid response",
+};
+
+/**
+ * Updates the text content of the component's elements.
+ * @param {Table} component - The component to update.
+ * @returns {void}
+ */
+function textUpdater(component) {
+    let refs = component.getRefs();
+    let textResources = component.$internals.textResources;
+
+    refs.error_text.innerText = textResources.error_text;
+    refs.loading_text.innerText = textResources.loading_text;
+    refs.no_content_text.innerText = textResources.no_content_text;
+}
+
 /**
  * @template T
  */
@@ -62,38 +83,32 @@ export class Table extends Component {
     /** @type {"content"|"no_content"|"error"|"loading"} */
     #state = "loading";
 
-    #error_text = "";
-    #loading_text = "Loading...";
-    #no_content_text = "No items";
-
-    /** @returns {typeof refsAnnotation} */
-    get refs() {
-        return this.getRefs();
-    }
-
     /** @type {T[]} */
     #rows = [];
 
     constructor() {
         super();
 
-        this.toggler = new Toggler();
+        this.$internals.textResources = textResources_default;
+        this.setTextUpdateFunction(textUpdater);
 
         let that = this;
 
+        this.toggler = new Toggler();
         this.toggler.addItem(
             "content",
             (key) => {
                 if (!that.isConnected) return false;
-
+                let refs = this.getRefs();
                 that.#renderRows();
-                showElements(that.refs.section_with_content);
+                showElements(refs.section_with_content);
             },
             (key) => {
                 if (!that.isConnected) return false;
 
-                this.refs.section_with_content.innerHTML = "";
-                hideElements(that.refs.section_with_content);
+                let refs = this.getRefs();
+                refs.section_with_content.innerHTML = "";
+                hideElements(refs.section_with_content);
             }
         );
 
@@ -101,13 +116,13 @@ export class Table extends Component {
             "no_content",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_without_content);
+                let refs = this.getRefs();
+                showElements(refs.section_without_content);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_without_content);
+                let refs = this.getRefs();
+                hideElements(refs.section_without_content);
             }
         );
 
@@ -115,13 +130,13 @@ export class Table extends Component {
             "error",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_error);
+                let refs = this.getRefs();
+                showElements(refs.section_error);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_error);
+                let refs = this.getRefs();
+                hideElements(refs.section_error);
             }
         );
 
@@ -129,23 +144,21 @@ export class Table extends Component {
             "loading",
             (key) => {
                 if (!that.isConnected) return false;
-
-                showElements(that.refs.section_loading);
+                let refs = this.getRefs();
+                showElements(refs.section_loading);
             },
             (key) => {
                 if (!that.isConnected) return false;
-
-                hideElements(that.refs.section_loading);
+                let refs = this.getRefs();
+                hideElements(refs.section_loading);
             }
         );
 
         this.toggler.setActive("loading");
 
         this.onConnect(() => {
-            that.refs.header_row.innerHTML = that.#headerHTML;
-            that.refs.error_text.innerHTML = that.#error_text;
-            that.refs.loading_text.innerHTML = that.#loading_text;
-            that.refs.no_content_text.innerHTML = that.#no_content_text;
+            let refs = this.getRefs();
+            refs.header_row.innerHTML = that.#headerHTML;
         });
 
         this.onConnect(() => {
@@ -156,26 +169,24 @@ export class Table extends Component {
     }
 
     /**
-     * @param {Object} [config] - config
+     * @returns {{header_row:HTMLTableRowElement, section_with_content:HTMLTableSectionElement, section_without_content:HTMLTableSectionElement, section_error:HTMLTableSectionElement, section_loading:HTMLTableSectionElement, error_text:HTMLElement, loading_text:HTMLElement, no_content_text:HTMLElement}} - the refs object
+     */
+    getRefs() {
+        return super.getRefs();
+    }
+
+    /**
+     * @param {Object} config - config
      * @param {TableRowRenderer<T>} [config.tableRowRenderer] - the table row renderer function
      * @param {string} [config.headerHTML] - the table row header string
      */
     setConfig(config) {
-        /** @type {{tableRowRenderer:TableRowRenderer<T>, headerHTML:string|null}} */
-        let _config = Object.assign(
-            {
-                tableRowRenderer: defaultTableRowRenderer,
-                headerHTML: null,
-            },
-            config
-        );
-
-        if (_config.tableRowRenderer) {
-            this.#tableRowRenderer = _config.tableRowRenderer;
+        if (config.tableRowRenderer) {
+            this.#tableRowRenderer = config.tableRowRenderer;
         }
 
-        if (_config.headerHTML) {
-            this.#headerHTML = _config.headerHTML;
+        if (config.headerHTML) {
+            this.#headerHTML = config.headerHTML;
         }
     }
 
@@ -187,26 +198,90 @@ export class Table extends Component {
         return this.#state;
     }
 
+    /**
+     * Sets the table view to its "content" state.
+     * The table view will show its content.
+     */
     setContent() {
         this.#state = "content";
 
         this.#renderRows();
         this.toggler.setActive("content");
+        this.$internals.eventEmitter.emit("content", this);
     }
 
+    /**
+     * Sets the table view to its "loading" state.
+     * The table view will display a loading message and activate the loading toggler.
+     */
     setLoading() {
         this.#state = "loading";
         this.toggler.setActive("loading");
+        this.$internals.eventEmitter.emit("loading", this);
     }
 
+    /**
+     * Sets the table view to its "error" state.
+     * The table view will display an error message and activate the error toggler.
+     */
     setError() {
         this.#state = "error";
         this.toggler.setActive("error");
+        this.$internals.eventEmitter.emit("error", this);
     }
 
+    /**
+     * Sets the table view to its "no_content" state.
+     * The table view will display a no content message and activate the no content toggler.
+     */
     setNoContent() {
         this.#state = "no_content";
         this.toggler.setActive("no_content");
+        this.$internals.eventEmitter.emit("no_content", this);
+    }
+
+    /**
+     * Subscribes to the "loading" event.
+     * This event is emitted when the view is set to "loading" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onLoading(callback) {
+        return this.$internals.eventEmitter.on("loading", callback);
+    }
+
+    /**
+     * Subscribes to the "error" event.
+     * This event is emitted when the view is set to the "error" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onError(callback) {
+        return this.$internals.eventEmitter.on("error", callback);
+    }
+
+    /**
+     * Subscribes to the "no_content" event.
+     * This event is emitted when the view is set to the "no_content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onNoContent(callback) {
+        return this.$internals.eventEmitter.on("no_content", callback);
+    }
+
+    /**
+     * Subscribes to the "content" event.
+     * This event is emitted when the view is set to the "content" state.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onContent(callback) {
+        return this.$internals.eventEmitter.on("content", callback);
     }
 
     /**
@@ -214,10 +289,14 @@ export class Table extends Component {
      * @param {string} text - The text to be shown as the loading message.
      */
     setLoadingText(text) {
-        this.#loading_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.loading_text = text;
 
         if (!this.isConnected) return;
-        this.refs.loading_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.loading_text.textContent = text;
     }
 
     /**
@@ -225,10 +304,14 @@ export class Table extends Component {
      * @param {string} text - The text to be shown as the error message.
      */
     setErrorText(text) {
-        this.#error_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.error_text = text;
 
         if (!this.isConnected) return;
-        this.refs.error_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.error_text.textContent = text;
     }
 
     /**
@@ -236,10 +319,14 @@ export class Table extends Component {
      * @param {string} text - The text to be shown as the no content message.
      */
     setNoContentText(text) {
-        this.#no_content_text = text;
+        let textResources = /** @type {typeof textResources_default} */ (
+            this.$internals.textResources
+        );
+        textResources.no_content_text = text;
 
         if (!this.isConnected) return;
-        this.refs.no_content_text.innerHTML = text;
+        let refs = this.getRefs();
+        refs.no_content_text.textContent = text;
     }
 
     /**
@@ -260,7 +347,7 @@ export class Table extends Component {
 
         if (!(response instanceof RPCPagedResponse)) {
             this.#rows = [];
-            this.setErrorText("Invalid response");
+            this.setErrorText(this.$internals.textResources.invalid_response);
             this.setError();
             return;
         }
@@ -279,14 +366,15 @@ export class Table extends Component {
 
     #renderRows() {
         if (!this.isConnected) return;
+        let refs = this.getRefs();
 
-        this.refs.section_with_content.innerHTML = "";
+        refs.section_with_content.innerHTML = "";
 
         let rows = this.#rows;
 
         for (let i = 0; i < rows.length; i++) {
             let row = this.#tableRowRenderer(rows[i], i);
-            this.refs.section_with_content.appendChild(row);
+            refs.section_with_content.appendChild(row);
         }
     }
 

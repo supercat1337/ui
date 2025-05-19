@@ -215,15 +215,26 @@ class SlotManager {
  * @typedef {(component: any) => Node|string} LayoutFunction
  */
 
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
+ */
+
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}}} */
     $internals = {
         eventEmitter: new EventEmitter(),
         /** @type {AbortController} */
         disconnectController: new AbortController(),
         /** @type {HTMLElement|null} */
         root: null,
+        /** @type {TextUpdateFunction|null} */
+        textUpdateFunction: null,
+        /** @type {{[key:string]:any}}  */
+        textResources: {},
     };
+
+    /** @type {LayoutFunction|string|null} */
+    #layout = null;
 
     /** @type {Node|null} */
     #template = null;
@@ -237,17 +248,42 @@ export class Component {
 
     refsAnnotation;
 
+    constructor() {
+        let that = this;
+        this.onConnect(() => {
+            that.reloadText();
+        });
+    }
+
     /**
-     * Sets the layout of the component by assigning the template content.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [refsAnnotation] - An array of strings representing the names of the refs.
-     * The function is called with the component instance as the this value.
+     * Reloads the text content of the component by calling the text update function if it is set.
+     * This method is useful when the component's text content depends on external data that may change.
+     * @returns {void}
      */
-    setLayout(layout, refsAnnotation) {
+    reloadText() {
+        if (this.$internals.textUpdateFunction) {
+            this.$internals.textUpdateFunction(this);
+        }
+    }
+
+    /**
+     * Sets the text update function for the component.
+     * The text update function is a function that is called when the reloadText method is called.
+     * The function receives the component instance as the this value.
+     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @returns {void}
+     */
+    setTextUpdateFunction(func) {
+        this.$internals.textUpdateFunction = func;
+    }
+
+    #loadTemplate() {
+        if (this.#layout == null) return;
+
         let template;
 
-        if (typeof layout === "function") {
-            let _template = layout(this);
+        if (typeof this.#layout === "function") {
+            let _template = this.#layout(this);
 
             if (_template instanceof Node) {
                 template = _template;
@@ -255,7 +291,7 @@ export class Component {
                 template = createFromHTML(_template);
             }
         } else {
-            template = createFromHTML(layout);
+            template = createFromHTML(this.#layout);
         }
 
         let count = 0;
@@ -268,9 +304,20 @@ export class Component {
         }
 
         this.#template = template;
+    }
 
-        if (refsAnnotation) {
-            this.refsAnnotation = refsAnnotation;
+    /**
+     * Sets the layout of the component by assigning the template content.
+     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * The function is called with the component instance as the this value.
+     */
+    setLayout(layout, annotation) {
+        this.#layout = layout;
+        this.#template = null;
+
+        if (annotation) {
+            this.refsAnnotation = annotation;
         }
     }
 
@@ -281,6 +328,10 @@ export class Component {
      * @returns {any} The refs object.
      */
     getRefs() {
+        if (!this.#connected) {
+            throw new Error("Component is not connected to the DOM");
+        }
+
         return this.#refs;
     }
 
@@ -416,6 +467,10 @@ export class Component {
      * If "prepend", the component is prepended to the container.
      */
     mount(container, mode = "replace") {
+        if (this.#template === null) {
+            this.#loadTemplate();
+        }
+
         if (this.#template === null) throw new Error("Template is not set");
 
         if (this.#connected === true) {

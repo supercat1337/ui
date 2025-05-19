@@ -22,7 +22,7 @@ export function getHtmlLayout() {
         <tr>
             <td ref="error_text" class="col-12 text-center py-4" colspan="100"
                 style="white-space: initial; word-wrap: break-word;">
-
+                Error
             </td>
         </tr>
     </tbody>
