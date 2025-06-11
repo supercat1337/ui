@@ -1,6 +1,6 @@
 {
   "name": "@supercat1337/ui",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A lightweight, modern JavaScript library for displaying RPC responses and managing the DOM.",
   "license": "MIT",
   "author": "SuperCat1337",

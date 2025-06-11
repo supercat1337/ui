@@ -252,6 +252,18 @@ export class Component {
         let that = this;
         this.onConnect(() => {
             that.reloadText();
+            try {
+                that.connectedCallback();
+            } catch (e) {
+                console.error("Error in connectedCallback:", e);
+            }
+        });
+        this.onUnmount(() => {
+            try {
+                that.disconnectedCallback();
+            } catch (e) {
+                console.error("Error in disconnectedCallback:", e);
+            }
         });
     }
 
@@ -457,6 +469,20 @@ export class Component {
         this.$internals.disconnectController.abort();
         this.#refs = {};
     }
+
+    /**
+     * This method is called when the component is connected to the DOM.
+     * It is an empty method and is intended to be overridden by the user.
+     * @memberof Component
+     */
+    connectedCallback() {}
+
+    /**
+     * This method is called when the component is disconnected from the DOM.
+     * It is an empty method and is intended to be overridden by the user.
+     * @memberof Component
+     */
+    disconnectedCallback() {}
 
     /**
      * Mounts the component to the specified container.

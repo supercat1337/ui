@@ -125,6 +125,18 @@ export class Component {
      */
     disconnect(): void;
     /**
+     * This method is called when the component is connected to the DOM.
+     * It is an empty method and is intended to be overridden by the user.
+     * @memberof Component
+     */
+    connectedCallback(): void;
+    /**
+     * This method is called when the component is disconnected from the DOM.
+     * It is an empty method and is intended to be overridden by the user.
+     * @memberof Component
+     */
+    disconnectedCallback(): void;
+    /**
      * Mounts the component to the specified container.
      * @param {Element} container - The container to mount the component to.
      * @param {"replace"|"append"|"prepend"} [mode="replace"] - The mode to use to mount the component.
