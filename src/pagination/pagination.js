@@ -78,7 +78,7 @@ export class Pagination extends Component {
     #render() {
         if (!this.isConnected) return;
         let root_element = this.$internals.root;
-
+        if (!root_element) return;
         root_element.innerHTML = renderPaginationItems(
             this.#currentPage,
             this.#totalPages,

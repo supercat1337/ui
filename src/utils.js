@@ -110,7 +110,7 @@ export function showElements(...elements) {
  * Adds a spinner to the button (if it doesn't already have one).
  * The spinner is prepended to the button's contents.
  * @param {HTMLButtonElement} button - The button to add the spinner to.
- * @param {string} [customClassName] - The class name to use for the spinner.
+ * @param {string|null} [customClassName] - The class name to use for the spinner.
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
  */
 export function showSpinnerInButton(button, customClassName = null) {

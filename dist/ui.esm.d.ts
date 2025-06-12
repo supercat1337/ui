@@ -13,7 +13,7 @@ export type Refs = {
  * @typedef {(component: Component) => void} TextUpdateFunction
  */
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}}} */
     $internals: {
         eventEmitter: EventEmitter<any>;
         disconnectController: AbortController;
@@ -22,9 +22,19 @@ export class Component {
         textResources: {
             [key: string]: any;
         };
+        refs: {
+            [key: string]: HTMLElement;
+        };
+        slotRefs: {
+            [key: string]: HTMLElement;
+        };
     };
-    slots: SlotManager;
+    /** @type {LayoutFunction|string|null} */
+    layout: LayoutFunction | string | null;
+    /** @type {string[]} */
+    slots: string[];
     refsAnnotation: any;
+    slotManager: SlotManager;
     /**
      * Reloads the text content of the component by calling the text update function if it is set.
      * This method is useful when the component's text content depends on external data that may change.
@@ -719,10 +729,10 @@ export function showElements(...elements: HTMLElement[]): void;
  * Adds a spinner to the button (if it doesn't already have one).
  * The spinner is prepended to the button's contents.
  * @param {HTMLButtonElement} button - The button to add the spinner to.
- * @param {string} [customClassName] - The class name to use for the spinner.
+ * @param {string|null} [customClassName] - The class name to use for the spinner.
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
  */
-export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string): void;
+export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string | null): void;
 /**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
  * @param {HTMLButtonElement} el - The button element to set the status for.
@@ -750,6 +760,10 @@ export function unixtime(): number;
 import { EventEmitter } from '@supercat1337/event-emitter';
 declare class SlotManager {
     /**
+     * @param {Component} component
+     */
+    constructor(component: Component);
+    /**
      * Defines the names of the slots in the component.
      * The slots are declared in the component's template using the "scope-ref" attribute.
      * The slot names are used to access the children components of the component.
@@ -774,26 +788,6 @@ declare class SlotManager {
      * @returns {boolean} True if the slot exists, false otherwise.
      */
     slotExists(slotName: string): boolean;
-    /**
-     * Sets the slot refs object.
-     * This object is a map of HTML elements with the keys being the names of the slots.
-     * The slot refs object is set by the component automatically when the component is connected to the DOM.
-     * @param {{[key:string]:HTMLElement}} scope_refs - The slot refs object.
-     */
-    setSlotRefs(scope_refs: {
-        [key: string]: HTMLElement;
-    }): void;
-    /**
-     * Returns the HTML element reference of the given slot name.
-     * @param {string} slotName - The name of the slot to get the reference for.
-     * @returns {HTMLElement|null} The HTML element reference of the slot, or null if the slot does not exist.
-     */
-    getSlotRef(slotName: string): HTMLElement | null;
-    /**
-     * Clears the slot refs object.
-     * This is usually done when the component is disconnected from the DOM.
-     */
-    clearSlotRefs(): void;
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
