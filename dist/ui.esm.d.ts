@@ -33,8 +33,8 @@ export class Component {
     };
     /** @type {LayoutFunction|string|null} */
     layout: LayoutFunction | string | null;
-    /** @type {string[]} */
-    slots: string[];
+    /** @type {string[]|undefined} */
+    slots: string[] | undefined;
     refsAnnotation: any;
     slotManager: SlotManager;
     isCollapsed: boolean;

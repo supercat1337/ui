@@ -215,14 +215,18 @@ export class Component {
     };
 
     /** @type {LayoutFunction|string|null} */
+    #layout = null;
+
+    /** @type {LayoutFunction|string|null} */
     layout;
 
-    /** @type {string[]} */
+    /** @type {string[]|undefined} */
     slots;
 
     refsAnnotation;
 
     /** @type {Node|null} */
+
     #template = null;
 
     #connected = false;
@@ -274,8 +278,12 @@ export class Component {
     }
 
     #loadTemplate() {
-        // @ts-ignore
-        let layout = this.layout || this.constructor.layout || null;
+        if (this.layout) {
+            this.#layout = this.layout;
+            this.layout = null;
+        }
+
+        let layout = this.#layout || null;
         if (layout == null) return;
 
         let template;
@@ -311,7 +319,7 @@ export class Component {
      * The function is called with the component instance as the this value.
      */
     setLayout(layout, annotation) {
-        this.layout = layout;
+        this.#layout = layout;
         this.#template = null;
 
         if (annotation) {
@@ -598,7 +606,6 @@ export class Component {
     addChildComponent(slotName, ...components) {
         if (typeof this.slots !== "undefined") {
             this.defineSlots(...this.slots);
-            // @ts-ignore
             this.slots = undefined;
         }
         if (this.slotManager.slotExists(slotName) === false) {
@@ -644,7 +651,6 @@ export class SlotToggler {
     constructor(component, slotNames, activeSlotName) {
         if (typeof component.slots !== "undefined") {
             component.defineSlots(...component.slots);
-            // @ts-ignore
             component.slots = undefined;
         }
 

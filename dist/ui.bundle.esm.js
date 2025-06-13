@@ -672,8 +672,10 @@ var Component = class {
     parentSlotName: ""
   };
   /** @type {LayoutFunction|string|null} */
+  #layout = null;
+  /** @type {LayoutFunction|string|null} */
   layout;
-  /** @type {string[]} */
+  /** @type {string[]|undefined} */
   slots;
   refsAnnotation;
   /** @type {Node|null} */
@@ -720,7 +722,11 @@ var Component = class {
     this.$internals.textUpdateFunction = func;
   }
   #loadTemplate() {
-    let layout = this.layout || this.constructor.layout || null;
+    if (this.layout) {
+      this.#layout = this.layout;
+      this.layout = null;
+    }
+    let layout = this.#layout || null;
     if (layout == null) return;
     let template;
     if (typeof layout === "function") {
@@ -749,7 +755,7 @@ var Component = class {
    * The function is called with the component instance as the this value.
    */
   setLayout(layout, annotation) {
-    this.layout = layout;
+    this.#layout = layout;
     this.#template = null;
     if (annotation) {
       this.refsAnnotation = annotation;
