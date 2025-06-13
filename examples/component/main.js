@@ -39,9 +39,9 @@ const child = new ChildComponent();
 
 // Insert Leaf components into ChildComponent
 child.addChildComponent("slot1", LeafComponentA, LeafComponentB);
-
 // Insert ChildComponent into ParentComponent
 parent.addChildComponent("slot1", child);
 // 5. Mount everything in DOM
-
 parent.mount(document.body);
+
+globalThis.app = { parent, child, LeafComponentA, LeafComponentB };

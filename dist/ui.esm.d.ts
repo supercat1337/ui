@@ -13,7 +13,7 @@ export type Refs = {
  * @typedef {(component: Component) => void} TextUpdateFunction
  */
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
     $internals: {
         eventEmitter: EventEmitter<any>;
         disconnectController: AbortController;
@@ -28,6 +28,8 @@ export class Component {
         slotRefs: {
             [key: string]: HTMLElement;
         };
+        parentComponent: Component | null;
+        parentSlotName: string;
     };
     /** @type {LayoutFunction|string|null} */
     layout: LayoutFunction | string | null;
@@ -35,6 +37,7 @@ export class Component {
     slots: string[];
     refsAnnotation: any;
     slotManager: SlotManager;
+    isCollapsed: boolean;
     /**
      * Reloads the text content of the component by calling the text update function if it is set.
      * This method is useful when the component's text content depends on external data that may change.
@@ -162,6 +165,19 @@ export class Component {
      */
     unmount(): void;
     /**
+     * Collapses the component by unmounting it from the DOM.
+     * Sets the isCollapsed flag to true.
+     */
+    collapse(): void;
+    /**
+     * Expands the component by mounting it to the DOM.
+     * Sets the isCollapsed flag to false.
+     * If the component is already connected, does nothing.
+     * If the component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expand(): void;
+    /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.
@@ -170,6 +186,11 @@ export class Component {
      * @returns {() => void} A function that can be called to remove the event listener.
      */
     $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
+    /**
+     * Returns an array of the slot names defined in the component.
+     * @returns {string[]}
+     */
+    getSlotNames(): string[];
     /**
      * Defines the names of the slots in the component.
      * The slots are declared in the component's template using the "data-slot" attribute.

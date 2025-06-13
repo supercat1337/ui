@@ -390,6 +390,7 @@ class SlotManager {
         if (slotChildren) {
             let children = Array.from(slotChildren);
             for (let i = 0; i < children.length; i++) {
+                this.#component.removeChildComponent(children[i]);
                 children[i].unmount();
                 this.#children.delete(children[i]);
             }
@@ -482,7 +483,9 @@ class SlotManager {
 
             if (slotRef)
                 for (let y = 0; y < children.length; y++) {
-                    children[y].mount(slotRef, "append");
+                    if (children[y].isCollapsed == false) {
+                        children[y].mount(slotRef, "append");
+                    }
                 }
         }
     }
@@ -518,7 +521,7 @@ class SlotManager {
  */
 
 class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}}} */
+    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
     $internals = {
         eventEmitter: new EventEmitter(),
         /** @type {AbortController} */
@@ -533,6 +536,8 @@ class Component {
         refs: {},
         /** @type {{[key:string]:HTMLElement}} */
         slotRefs: {},
+        parentComponent: null,
+        parentSlotName: "",
     };
 
     /** @type {LayoutFunction|string|null} */
@@ -549,6 +554,8 @@ class Component {
     #connected = false;
 
     slotManager = new SlotManager(this);
+
+    isCollapsed = false;
 
     constructor() {
         let that = this;
@@ -849,6 +856,33 @@ class Component {
     }
 
     /**
+     * Collapses the component by unmounting it from the DOM.
+     * Sets the isCollapsed flag to true.
+     */
+    collapse() {
+        this.unmount();
+        this.isCollapsed = true;
+    }
+
+    /**
+     * Expands the component by mounting it to the DOM.
+     * Sets the isCollapsed flag to false.
+     * If the component is already connected, does nothing.
+     * If the component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expand() {
+        this.isCollapsed = false;
+        if (this.#connected === true) return;
+        if (this.$internals.parentComponent === null) return;
+
+        this.$internals.parentComponent.addChildComponent(
+            this.$internals.parentSlotName,
+            this
+        );
+    }
+
+    /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.
@@ -856,12 +890,19 @@ class Component {
      * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
      * @returns {() => void} A function that can be called to remove the event listener.
      */
-
     $on(element, event, callback) {
         element.addEventListener(event, callback, {
             signal: this.$internals.disconnectController.signal,
         });
         return () => element.removeEventListener(event, callback);
+    }
+
+    /**
+     * Returns an array of the slot names defined in the component.
+     * @returns {string[]}
+     */
+    getSlotNames() {
+        return this.slotManager.slotNames;
     }
 
     /**
@@ -892,6 +933,11 @@ class Component {
 
         this.slotManager.addChildComponent(slotName, ...components);
 
+        for (let i = 0; i < components.length; i++) {
+            components[i].$internals.parentComponent = this;
+            components[i].$internals.parentSlotName = slotName;
+        }
+
         if (this.#connected) {
             this.slotManager.mountChildren(slotName);
         }
@@ -903,6 +949,13 @@ class Component {
      * @param {Component} childComponent - The child component to be removed.
      */
     removeChildComponent(childComponent) {
+        if (childComponent.$internals.parentComponent !== this) {
+            return;
+        }
+
+        childComponent.$internals.parentComponent = null;
+        childComponent.$internals.parentSlotName = null;
+
         this.slotManager.removeChildComponent(childComponent);
     }
 }
