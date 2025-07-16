@@ -889,6 +889,34 @@ class Component {
     }
 
     /**
+     * Shows the component.
+     * If the component is not connected, it does nothing.
+     * If the component is connected, it removes the "d-none" class from the root element.
+     */
+    show() {
+        if (!this.isConnected) return;
+
+        let root = this.$internals.root;
+        if (root) {
+            root.classList.remove("d-none");
+        }
+    }
+
+    /**
+     * Hides the component.
+     * If the component is not connected, it does nothing.
+     * If the component is connected, it adds the "d-none" class to the root element.
+     */
+    hide() {
+        if (!this.isConnected) return;
+
+        let root = this.$internals.root;
+        if (root) {
+            root.classList.add("d-none");
+        }
+    }
+
+    /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.

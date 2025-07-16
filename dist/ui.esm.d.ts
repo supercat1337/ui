@@ -172,6 +172,18 @@ export class Component {
      */
     expand(): void;
     /**
+     * Shows the component.
+     * If the component is not connected, it does nothing.
+     * If the component is connected, it removes the "d-none" class from the root element.
+     */
+    show(): void;
+    /**
+     * Hides the component.
+     * If the component is not connected, it does nothing.
+     * If the component is connected, it adds the "d-none" class to the root element.
+     */
+    hide(): void;
+    /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.
