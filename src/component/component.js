@@ -446,7 +446,7 @@ export class Component {
 
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
-
+        this.slotManager.mountChildren();
         this.$internals.eventEmitter.emit("connect", this);
     }
 
@@ -514,9 +514,6 @@ export class Component {
         else if (mode === "prepend") container.prepend(clonedTemplate);
 
         this.connect(componentRoot);
-
-        this.slotManager.mountChildren();
-
         this.$internals.eventEmitter.emit("mount", this);
     }
 

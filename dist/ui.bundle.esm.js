@@ -866,6 +866,7 @@ var Component = class {
     this.$internals.slotRefs = scope_refs;
     this.$internals.disconnectController = new AbortController();
     this.#connected = true;
+    this.slotManager.mountChildren();
     this.$internals.eventEmitter.emit("connect", this);
   }
   /**
@@ -925,7 +926,6 @@ var Component = class {
     else if (mode === "append") container.append(clonedTemplate);
     else if (mode === "prepend") container.prepend(clonedTemplate);
     this.connect(componentRoot);
-    this.slotManager.mountChildren();
     this.$internals.eventEmitter.emit("mount", this);
   }
   /**
