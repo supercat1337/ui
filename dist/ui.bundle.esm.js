@@ -499,7 +499,7 @@ var EventEmitter = class {
   }
 };
 
-// src/component/component.js
+// src/component/slot-manager.js
 var SlotManager = class {
   /** @type {Set<string>} */
   #definedSlotNames = /* @__PURE__ */ new Set();
@@ -652,6 +652,23 @@ var SlotManager = class {
     }
   }
 };
+
+// src/component/component.js
+function onConnectDefault(component) {
+  component.reloadText();
+  try {
+    component.connectedCallback();
+  } catch (e) {
+    console.error("Error in connectedCallback:", e);
+  }
+}
+function onUnmountDefault(component) {
+  try {
+    component.disconnectedCallback();
+  } catch (e) {
+    console.error("Error in disconnectedCallback:", e);
+  }
+}
 var Component = class {
   /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
   $internals = {
@@ -677,6 +694,7 @@ var Component = class {
   layout;
   /** @type {string[]|undefined} */
   slots;
+  /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
   refsAnnotation;
   /** @type {Node|null} */
   #template = null;
@@ -684,22 +702,8 @@ var Component = class {
   slotManager = new SlotManager(this);
   isCollapsed = false;
   constructor() {
-    let that = this;
-    this.onConnect(() => {
-      that.reloadText();
-      try {
-        that.connectedCallback();
-      } catch (e) {
-        console.error("Error in connectedCallback:", e);
-      }
-    });
-    this.onUnmount(() => {
-      try {
-        that.disconnectedCallback();
-      } catch (e) {
-        console.error("Error in disconnectedCallback:", e);
-      }
-    });
+    this.onConnect(onConnectDefault);
+    this.onUnmount(onUnmountDefault);
   }
   /**
    * Reloads the text content of the component by calling the text update function if it is set.
@@ -788,7 +792,7 @@ var Component = class {
    * @param {...any} args - The arguments to be passed to the event handlers.
    */
   emit(event, ...args) {
-    return this.$internals.eventEmitter.emit(event, ...args);
+    return this.$internals.eventEmitter.emit(event, this, ...args);
   }
   /**
    * Emits the "beforeConnect" event.
@@ -867,7 +871,7 @@ var Component = class {
     this.$internals.disconnectController = new AbortController();
     this.#connected = true;
     this.slotManager.mountChildren();
-    this.$internals.eventEmitter.emit("connect", this);
+    this.emit("connect");
   }
   /**
    * Disconnects the component from the DOM.
@@ -912,11 +916,7 @@ var Component = class {
       return;
     }
     let clonedTemplate = this.#template.cloneNode(true);
-    this.$internals.eventEmitter.emit(
-      "beforeConnect",
-      this,
-      clonedTemplate
-    );
+    this.emit("beforeConnect", clonedTemplate);
     let componentRoot = (
       /** @type {HTMLElement} */
       // @ts-ignore
@@ -926,7 +926,7 @@ var Component = class {
     else if (mode === "append") container.append(clonedTemplate);
     else if (mode === "prepend") container.prepend(clonedTemplate);
     this.connect(componentRoot);
-    this.$internals.eventEmitter.emit("mount", this);
+    this.emit("mount");
   }
   /**
    * Unmounts the component from the DOM.
@@ -935,11 +935,11 @@ var Component = class {
    */
   unmount() {
     if (this.#connected === false) return;
-    this.$internals.eventEmitter.emit("beforeUnmount", this);
+    this.emit("beforeUnmount");
     this.disconnect();
     this.slotManager.unmountChildren();
     this.$internals.root?.remove();
-    this.$internals.eventEmitter.emit("unmount", this);
+    this.emit("unmount");
   }
   /**
    * Collapses the component by unmounting it from the DOM.
@@ -1052,10 +1052,12 @@ var Component = class {
       return;
     }
     childComponent.$internals.parentComponent = null;
-    childComponent.$internals.parentSlotName = null;
+    childComponent.$internals.parentSlotName = "";
     this.slotManager.removeChildComponent(childComponent);
   }
 };
+
+// src/slot-toggler.js
 var SlotToggler = class {
   /**
    * Creates a new instance of SlotToggler.

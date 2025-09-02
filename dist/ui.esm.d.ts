@@ -1,11 +1,5 @@
 export type LayoutFunction = (component: any) => Node | string;
 export type TextUpdateFunction = (component: Component) => void;
-/**
- * @typedef {(component: any) => Node|string} LayoutFunction
- */
-/**
- * @typedef {(component: Component) => void} TextUpdateFunction
- */
 export class Component {
     /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
     $internals: {
@@ -29,7 +23,8 @@ export class Component {
     layout: LayoutFunction | string | null;
     /** @type {string[]|undefined} */
     slots: string[] | undefined;
-    refsAnnotation: any;
+    /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
+    refsAnnotation: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation | undefined;
     slotManager: SlotManager;
     isCollapsed: boolean;
     /**

@@ -489,7 +489,7 @@ export class Component {
         }
 
         childComponent.$internals.parentComponent = null;
-        childComponent.$internals.parentSlotName = null;
+        childComponent.$internals.parentSlotName = "";
 
         this.slotManager.removeChildComponent(childComponent);
     }
