@@ -4,6 +4,31 @@ import { EventEmitter } from '@supercat1337/event-emitter';
 // @ts-check
 
 /**
+ * Enables support for the "d-none" class in the web component.
+ * The "d-none" class is commonly used in Bootstrap to hide elements.
+ * This method adds a CSS rule to the document to support the "d-none" class.
+ *
+ * @example
+ * import { enableDNoneSupport } from "@supercat/ui";
+ *
+ * enableDNoneSupport();
+ */
+function enableDNoneSupport() {
+    const css = /* css */ `
+.d-none {
+    display: none !important;
+}
+`;
+
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+}
+
+// @ts-check
+
+/**
  * Executes the provided callback function when the DOM is fully loaded.
  * If the document is already loaded, the callback is executed immediately.
  * Otherwise, it is added as a listener to the 'DOMContentLoaded' event.
@@ -709,7 +734,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeConnect(callback) {
-        return this.$internals.eventEmitter.on("beforeConnect", callback);
+        return this.on("beforeConnect", callback);
     }
 
     /**
@@ -720,7 +745,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onConnect(callback) {
-        return this.$internals.eventEmitter.on("connect", callback);
+        return this.on("connect", callback);
     }
 
     /**
@@ -731,7 +756,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onMount(callback) {
-        return this.$internals.eventEmitter.on("mount", callback);
+        return this.on("mount", callback);
     }
 
     /**
@@ -742,7 +767,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeUnmount(callback) {
-        return this.$internals.eventEmitter.on("beforeUnmount", callback);
+        return this.on("beforeUnmount", callback);
     }
 
     /**
@@ -753,7 +778,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onUnmount(callback) {
-        return this.$internals.eventEmitter.on("unmount", callback);
+        return this.on("unmount", callback);
     }
 
     /**
@@ -1059,5 +1084,10 @@ class SlotToggler {
         }
     }
 }
+
+// @ts-check
+
+
+enableDNoneSupport();
 
 export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };

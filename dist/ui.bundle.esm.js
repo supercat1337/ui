@@ -1,3 +1,18 @@
+// src/css-d-none-support.js
+function enableDNoneSupport() {
+  const css = (
+    /* css */
+    `
+.d-none {
+    display: none !important;
+}
+`
+  );
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+}
+
 // src/utils.js
 function DOMReady(callback) {
   document.readyState === "interactive" || document.readyState === "complete" ? callback() : document.addEventListener("DOMContentLoaded", callback);
@@ -802,7 +817,7 @@ var Component = class {
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
   onBeforeConnect(callback) {
-    return this.$internals.eventEmitter.on("beforeConnect", callback);
+    return this.on("beforeConnect", callback);
   }
   /**
    * Subscribes to the "connect" event.
@@ -812,7 +827,7 @@ var Component = class {
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
   onConnect(callback) {
-    return this.$internals.eventEmitter.on("connect", callback);
+    return this.on("connect", callback);
   }
   /**
    * Subscribes to the "mount" event.
@@ -822,7 +837,7 @@ var Component = class {
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
   onMount(callback) {
-    return this.$internals.eventEmitter.on("mount", callback);
+    return this.on("mount", callback);
   }
   /**
    * Subscribes to the "beforeUnmount" event.
@@ -832,7 +847,7 @@ var Component = class {
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
   onBeforeUnmount(callback) {
-    return this.$internals.eventEmitter.on("beforeUnmount", callback);
+    return this.on("beforeUnmount", callback);
   }
   /**
    * Subscribes to the "unmount" event.
@@ -842,7 +857,7 @@ var Component = class {
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
   onUnmount(callback) {
-    return this.$internals.eventEmitter.on("unmount", callback);
+    return this.on("unmount", callback);
   }
   /**
    * Checks if the component is connected to a root element.
@@ -1106,6 +1121,9 @@ var SlotToggler = class {
     }
   }
 };
+
+// src/index.js
+enableDNoneSupport();
 export {
   Component,
   DOMReady,
