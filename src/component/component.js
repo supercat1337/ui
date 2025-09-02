@@ -12,6 +12,35 @@ import { SlotManager } from "./slot-manager.js";
  * @typedef {(component: Component) => void} TextUpdateFunction
  */
 
+/**
+ * Default handler for the "connect" event.
+ * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
+ * If the `connectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {Component} component - The component instance
+ */
+function onConnectDefault(component) {
+    component.reloadText();
+    try {
+        component.connectedCallback();
+    } catch (e) {
+        console.error("Error in connectedCallback:", e);
+    }
+}
+
+/**
+ * Default handler for the "unmount" event.
+ * This function calls the `disconnectedCallback` method of the component.
+ * If the `disconnectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {Component} component - The component instance
+ */
+function onUnmountDefault(component) {
+    try {
+        component.disconnectedCallback();
+    } catch (e) {
+        console.error("Error in disconnectedCallback:", e);
+    }
+}
+
 export class Component {
     /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
     $internals = {
@@ -41,6 +70,7 @@ export class Component {
     /** @type {string[]|undefined} */
     slots;
 
+    /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
     refsAnnotation;
 
     /** @type {Node|null} */
@@ -54,23 +84,8 @@ export class Component {
     isCollapsed = false;
 
     constructor() {
-        let that = this;
-
-        this.onConnect(() => {
-            that.reloadText();
-            try {
-                that.connectedCallback();
-            } catch (e) {
-                console.error("Error in connectedCallback:", e);
-            }
-        });
-        this.onUnmount(() => {
-            try {
-                that.disconnectedCallback();
-            } catch (e) {
-                console.error("Error in disconnectedCallback:", e);
-            }
-        });
+        this.onConnect(onConnectDefault);
+        this.onUnmount(onUnmountDefault);
     }
 
     /**
