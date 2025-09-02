@@ -357,7 +357,7 @@ export class Component {
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event, ...args) {
-        return this.$internals.eventEmitter.emit(event, ...args);
+        return this.$internals.eventEmitter.emit(event, this, ...args);
     }
 
     /**
@@ -447,7 +447,7 @@ export class Component {
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
         this.slotManager.mountChildren();
-        this.$internals.eventEmitter.emit("connect", this);
+        this.emit("connect");
     }
 
     /**
@@ -498,11 +498,7 @@ export class Component {
         }
 
         let clonedTemplate = this.#template.cloneNode(true);
-        this.$internals.eventEmitter.emit(
-            "beforeConnect",
-            this,
-            clonedTemplate
-        );
+        this.emit("beforeConnect", clonedTemplate);
 
         let componentRoot = /** @type {HTMLElement} */ (
             // @ts-ignore
@@ -514,7 +510,7 @@ export class Component {
         else if (mode === "prepend") container.prepend(clonedTemplate);
 
         this.connect(componentRoot);
-        this.$internals.eventEmitter.emit("mount", this);
+        this.emit("mount");
     }
 
     /**
@@ -525,13 +521,13 @@ export class Component {
     unmount() {
         if (this.#connected === false) return;
 
-        this.$internals.eventEmitter.emit("beforeUnmount", this);
+        this.emit("beforeUnmount");
         this.disconnect();
 
         this.slotManager.unmountChildren();
 
         this.$internals.root?.remove();
-        this.$internals.eventEmitter.emit("unmount", this);
+        this.emit("unmount");
     }
 
     /**
