@@ -28,12 +28,12 @@ function onConnectDefault(component) {
 }
 
 /**
- * Default handler for the "unmount" event.
+ * Default handler for the "disconnect" event.
  * This function calls the `disconnectedCallback` method of the component.
  * If the `disconnectedCallback` method throws an error, it is caught and console.error is called with the error.
  * @param {Component} component - The component instance
  */
-function onUnmountDefault(component) {
+function onDisconnectDefault(component) {
     try {
         component.disconnectedCallback();
     } catch (e) {
@@ -85,7 +85,7 @@ export class Component {
 
     constructor() {
         this.onConnect(onConnectDefault);
-        this.onUnmount(onUnmountDefault);
+        this.onDisconnect(onDisconnectDefault);
     }
 
     /**
@@ -240,6 +240,17 @@ export class Component {
     }
 
     /**
+     * Subscribes to the "disconnect" event.
+     * This event is emitted just before the component is disconnected from the DOM.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback is called with the component instance as the this value.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onDisconnect(callback) {
+        return this.on("disconnect", callback);
+    }
+
+    /**
      * Subscribes to the "mount" event.
      * This event is emitted after the component is mounted to the DOM.
      * The callback is called with the component instance as the this value.
@@ -319,6 +330,7 @@ export class Component {
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
         this.$internals.slotRefs = {};
+        this.emit("disconnect");
     }
 
     /**
