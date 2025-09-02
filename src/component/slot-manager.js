@@ -6,7 +6,7 @@ export class SlotManager {
     #definedSlotNames = new Set();
 
     /** @type {Map<string, Set<Component>>} */
-    #slotChildrenMap = new Map();
+    #namedSlotChildren = new Map();
 
     /** @type {Set<Component>}  */
     #children = new Set();
@@ -28,27 +28,23 @@ export class SlotManager {
      * @param {...string} slotNames - The names of the slots.
      */
     defineSlots(...slotNames) {
-        let keysToDelete = [];
+        const newSlotNames = new Set(slotNames);
 
-        let currentSlotNames = Array.from(this.#definedSlotNames);
-
-        for (let i = 0; i < currentSlotNames.length; i++) {
-            if (slotNames.indexOf(currentSlotNames[i]) == -1) {
-                keysToDelete.push(currentSlotNames[i]);
+        // Remove old slots that are not in the new list
+        for (const existingSlotName of this.#definedSlotNames) {
+            if (!newSlotNames.has(existingSlotName)) {
+                this.removeSlot(existingSlotName);
             }
         }
 
-        for (let i = 0; i < keysToDelete.length; i++) {
-            this.removeSlot(keysToDelete[i]);
-        }
-
-        for (let i = 0; i < slotNames.length; i++) {
-            if (!this.#slotChildrenMap.has(slotNames[i])) {
-                this.#slotChildrenMap.set(slotNames[i], new Set());
+        // Add new slots
+        for (const slotName of newSlotNames) {
+            if (!this.#namedSlotChildren.has(slotName)) {
+                this.#namedSlotChildren.set(slotName, new Set());
             }
         }
 
-        this.#definedSlotNames = new Set(slotNames);
+        this.#definedSlotNames = newSlotNames;
     }
 
     /**
@@ -58,7 +54,7 @@ export class SlotManager {
      * @param {string} slotName - The name of the slot to remove.
      */
     removeSlot(slotName) {
-        let slotChildren = this.#slotChildrenMap.get(slotName);
+        let slotChildren = this.#namedSlotChildren.get(slotName);
         if (slotChildren) {
             let children = Array.from(slotChildren);
             for (let i = 0; i < children.length; i++) {
@@ -67,7 +63,7 @@ export class SlotManager {
                 this.#children.delete(children[i]);
             }
 
-            this.#slotChildrenMap.delete(slotName);
+            this.#namedSlotChildren.delete(slotName);
         }
 
         this.#definedSlotNames.delete(slotName);
@@ -102,15 +98,15 @@ export class SlotManager {
             throw new Error(`Slot "${slotName}" does not exist`);
         }
 
-        let childrenSet = this.#slotChildrenMap.get(slotName);
-        if (!childrenSet) {
-            childrenSet = new Set();
-            this.#slotChildrenMap.set(slotName, childrenSet);
+        let childrenComponentsSet = this.#namedSlotChildren.get(slotName);
+        if (!childrenComponentsSet) {
+            childrenComponentsSet = new Set();
+            this.#namedSlotChildren.set(slotName, childrenComponentsSet);
         }
 
         for (let i = 0; i < children.length; i++) {
             this.#children.add(children[i]);
-            childrenSet.add(children[i]);
+            childrenComponentsSet.add(children[i]);
         }
     }
 
@@ -120,9 +116,9 @@ export class SlotManager {
      */
     removeChildComponent(childComponent) {
         this.#children.delete(childComponent);
-        for (let [slotName, childrenSet] of this.#slotChildrenMap) {
-            if (!childrenSet.has(childComponent)) continue;
-            childrenSet.delete(childComponent);
+        for (let [slotName, childrenComponentsSet] of this.#namedSlotChildren) {
+            if (!childrenComponentsSet.has(childComponent)) continue;
+            childrenComponentsSet.delete(childComponent);
             break;
         }
     }
@@ -143,22 +139,22 @@ export class SlotManager {
      */
     mountChildren(slotName) {
         /** @type {string[]} */
-        let slotNames = slotName
+        const slotNames = slotName
             ? [slotName]
             : Array.from(this.#definedSlotNames);
 
-        for (let i = 0; i < slotNames.length; i++) {
-            let children = Array.from(
-                this.#slotChildrenMap.get(slotNames[i]) || []
-            );
-            let slotRef = this.#component.$internals.slotRefs[slotNames[i]];
+        for (const currentSlotName of slotNames) {
+            const children = this.#namedSlotChildren.get(currentSlotName);
+            const slotRef =
+                this.#component.$internals.slotRefs[currentSlotName];
 
-            if (slotRef)
-                for (let y = 0; y < children.length; y++) {
-                    if (children[y].isCollapsed == false) {
-                        children[y].mount(slotRef, "append");
-                    }
+            if (!children || !slotRef) continue;
+
+            for (const child of children) {
+                if (!child.isCollapsed) {
+                    child.mount(slotRef, "append");
                 }
+            }
         }
     }
 
@@ -175,7 +171,7 @@ export class SlotManager {
             : Array.from(this.#definedSlotNames);
         for (let i = 0; i < slotNames.length; i++) {
             let children = Array.from(
-                this.#slotChildrenMap.get(slotNames[i]) || []
+                this.#namedSlotChildren.get(slotNames[i]) || []
             );
             for (let y = 0; y < children.length; y++) {
                 children[y].unmount();
