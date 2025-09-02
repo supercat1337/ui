@@ -320,3 +320,54 @@ export class Toggler {
         }
     }
 }
+
+/**
+ * Fades in the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 0.
+ * The function then repeatedly adjusts the opacity of the element until it is 1.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade in.
+ * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ */
+export function fadeIn(element, duration = 400) {
+    element.style.opacity = "0";
+    element.style.display = "block";
+    let last = +new Date();
+    const tick = () => {
+        let date = +new Date();
+        element.style.opacity = String(
+            +element.style.opacity + (date - last) / duration
+        );
+        last = +new Date();
+        if (+element.style.opacity < 1) {
+            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
+                setTimeout(tick, 16);
+        }
+    };
+    tick();
+}
+
+/**
+ * Fades out the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 1.
+ * The function then repeatedly adjusts the opacity of the element until it is 0.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade out.
+ * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ */
+export function fadeOut(element, duration = 400) {
+    element.style.opacity = "1";
+    let last = +new Date();
+    const tick = () => {
+        let date = +new Date();
+        element.style.opacity = String(
+            +element.style.opacity - (date - last) / duration
+        );
+        last = +new Date();
+        if (+element.style.opacity > 0) {
+            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
+                setTimeout(tick, 16);
+        }
+    };
+    tick();
+}

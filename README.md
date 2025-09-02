@@ -79,6 +79,8 @@ The following functions are included in this library:
 -   `formatDateTime`: A function that formats a Unix timestamp into a human-readable date and time.
 -   `formatDate`: A function that formats a Unix timestamp into a human-readable date.
 -   `Toggler`: A class that represents a toggler. A toggler is a collection of items that can be toggled on and off.
+-   `fadeIn`: A function that fades in an element.
+-   `fadeOut`: A function that fades out an element.
 
 ## License
 
