@@ -201,7 +201,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeConnect(callback) {
-        return this.$internals.eventEmitter.on("beforeConnect", callback);
+        return this.on("beforeConnect", callback);
     }
 
     /**
@@ -212,7 +212,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onConnect(callback) {
-        return this.$internals.eventEmitter.on("connect", callback);
+        return this.on("connect", callback);
     }
 
     /**
@@ -223,7 +223,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onMount(callback) {
-        return this.$internals.eventEmitter.on("mount", callback);
+        return this.on("mount", callback);
     }
 
     /**
@@ -234,7 +234,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeUnmount(callback) {
-        return this.$internals.eventEmitter.on("beforeUnmount", callback);
+        return this.on("beforeUnmount", callback);
     }
 
     /**
@@ -245,7 +245,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onUnmount(callback) {
-        return this.$internals.eventEmitter.on("unmount", callback);
+        return this.on("unmount", callback);
     }
 
     /**
