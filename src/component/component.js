@@ -175,6 +175,30 @@ export class Component {
     }
 
     /**
+     * Returns the ref element with the given name.
+     * @param {string} refName - The name of the ref to retrieve.
+     * @returns {HTMLElement} The ref element with the given name.
+     * @throws {Error} If the ref does not exist.
+     */
+    getRef(refName) {
+        let refs = this.getRefs();
+        if (!(refName in refs)) {
+            throw new Error(`Ref "${refName}" does not exist`);
+        }
+        return refs[refName];
+    }
+
+    /**
+     * Checks if a ref with the given name exists.
+     * @param {string} refName - The name of the ref to check.
+     * @returns {boolean} True if the ref exists, false otherwise.
+     */
+    hasRef(refName) {
+        let refs = this.getRefs();
+        return refName in refs;
+    }
+
+    /**
      * Subscribes to a specified event.
      * @param {string} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
@@ -320,6 +344,19 @@ export class Component {
      * If "prepend", the component is prepended to the container.
      */
     mount(container, mode = "replace") {
+        if (!(container instanceof Element)) {
+            throw new TypeError("Container must be a DOM Element");
+        }
+
+        const validModes = ["replace", "append", "prepend"];
+        if (!validModes.includes(mode)) {
+            throw new Error(
+                `Invalid mode: ${mode}. Must be one of: ${validModes.join(
+                    ", "
+                )}`
+            );
+        }
+
         if (this.#template === null) {
             this.#loadTemplate();
         }
@@ -397,11 +434,7 @@ export class Component {
      */
     show() {
         if (!this.isConnected) return;
-
-        let root = this.$internals.root;
-        if (root) {
-            root.classList.remove("d-none");
-        }
+        this.$internals.root?.classList.remove("d-none");
     }
 
     /**
@@ -411,11 +444,7 @@ export class Component {
      */
     hide() {
         if (!this.isConnected) return;
-
-        let root = this.$internals.root;
-        if (root) {
-            root.classList.add("d-none");
-        }
+        this.$internals.root?.classList.add("d-none");
     }
 
     /**
@@ -458,6 +487,10 @@ export class Component {
      * @throws {Error} If the slot does not exist.
      */
     addChildComponent(slotName, ...components) {
+        if (!components.every((comp) => comp instanceof Component)) {
+            throw new Error("All components must be instances of Component");
+        }
+
         if (typeof this.slots !== "undefined") {
             this.defineSlots(...this.slots);
             this.slots = undefined;
