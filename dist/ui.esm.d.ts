@@ -1,26 +1,10 @@
 export type LayoutFunction = (component: any) => Node | string;
 export type TextUpdateFunction = (component: Component) => void;
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
-    $internals: {
-        eventEmitter: EventEmitter<any>;
-        disconnectController: AbortController;
-        root: HTMLElement | null;
-        textUpdateFunction: TextUpdateFunction | null;
-        textResources: {
-            [key: string]: any;
-        };
-        refs: {
-            [key: string]: HTMLElement;
-        };
-        slotRefs: {
-            [key: string]: HTMLElement;
-        };
-        parentComponent: Component | null;
-        parentSlotName: string;
-    };
-    /** @type {LayoutFunction|string|null} */
-    layout: LayoutFunction | string | null;
+    /** @type {Internals} */
+    $internals: Internals;
+    /** @type {LayoutFunction|string|undefined} */
+    layout: LayoutFunction | string | undefined;
     /** @type {string[]|undefined} */
     slots: string[] | undefined;
     /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
@@ -37,10 +21,10 @@ export class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
-    setTextUpdateFunction(func: TextUpdateFunction | null): void;
+    setTextUpdateFunction(func: any | null): void;
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
@@ -55,6 +39,26 @@ export class Component {
      * @returns {any} The refs object.
      */
     getRefs(): any;
+    /**
+     * Returns the ref element with the given name.
+     * @param {string} refName - The name of the ref to retrieve.
+     * @returns {HTMLElement} The ref element with the given name.
+     * @throws {Error} If the ref does not exist.
+     */
+    getRef(refName: string): HTMLElement;
+    /**
+     * Checks if a ref with the given name exists.
+     * @param {string} refName - The name of the ref to check.
+     * @returns {boolean} True if the ref exists, false otherwise.
+     */
+    hasRef(refName: string): boolean;
+    /**
+     * Updates the refs object with the current state of the DOM.
+     * This method is usually called internally when the component is connected or disconnected.
+     * @throws {Error} If the component is not connected to the DOM.
+     * @returns {void}
+     */
+    updateRefs(): void;
     /**
      * Subscribes to a specified event.
      * @param {string} event - The name of the event to subscribe to.
@@ -84,6 +88,14 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onConnect(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "disconnect" event.
+     * This event is emitted just before the component is disconnected from the DOM.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * The callback is called with the component instance as the this value.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onDisconnect(callback: (component: this) => void): () => void;
     /**
      * Subscribes to the "mount" event.
      * This event is emitted after the component is mounted to the DOM.
@@ -123,7 +135,9 @@ export class Component {
     /**
      * Disconnects the component from the DOM.
      * Sets the component's #connected flag to false.
-     * This method does not emit any events.
+     * Clears the refs and slotRefs objects.
+     * Aborts all event listeners attached with the $on method.
+     * Emits "disconnect" event through the event emitter.
      */
     disconnect(): void;
     /**
@@ -205,7 +219,7 @@ export class Component {
      * @param {...Component} components - The component to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addChildComponent(slotName: string, ...components: Component[]): void;
+    addComponentToSlot(slotName: string, ...components: Component[]): void;
     /**
      * Removes the specified child component from all slots.
      * Delegates the removal to the SlotManager instance.
@@ -285,6 +299,24 @@ export function copyToClipboard(text: string): Promise<void>;
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe: string): string;
+/**
+ * Fades in the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 0.
+ * The function then repeatedly adjusts the opacity of the element until it is 1.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade in.
+ * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ */
+export function fadeIn(element: HTMLElement, duration?: number): void;
+/**
+ * Fades out the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 1.
+ * The function then repeatedly adjusts the opacity of the element until it is 0.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade out.
+ * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ */
+export function fadeOut(element: HTMLElement, duration?: number): void;
 /**
  * Formats the given number of bytes into a human-readable string.
  *
@@ -384,12 +416,44 @@ export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string)
  * @returns {number}
  */
 export function unixtime(): number;
-import { EventEmitter } from '@supercat1337/event-emitter';
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
+ */
+declare class Internals {
+    /** @type {EventEmitter} */
+    eventEmitter: EventEmitter<any>;
+    /** @type {AbortController} */
+    disconnectController: AbortController;
+    /** @type {HTMLElement|null} */
+    root: HTMLElement | null;
+    /** @type {TextUpdateFunction|null} */
+    textUpdateFunction: TextUpdateFunction | null;
+    /** @type {{[key:string]:any}}  */
+    textResources: {
+        [key: string]: any;
+    };
+    /** @type {{[key:string]:HTMLElement}} */
+    refs: {
+        [key: string]: HTMLElement;
+    };
+    /** @type {{[key:string]:HTMLElement}} */
+    slotRefs: {
+        [key: string]: HTMLElement;
+    };
+    /** @type {Component|null} */
+    parentComponent: Component | null;
+    /** @type {string} */
+    parentSlotName: string;
+}
 declare class SlotManager {
     /**
      * @param {Component} component
      */
     constructor(component: Component);
+    /**
+     * @param {boolean} mode
+     */
+    setSlotStrictMode(mode: boolean): void;
     /**
      * Defines the names of the slots in the component.
      * The slots are declared in the component's template using the "scope-ref" attribute.
@@ -397,6 +461,12 @@ declare class SlotManager {
      * @param {...string} slotNames - The names of the slots.
      */
     defineSlots(...slotNames: string[]): void;
+    /**
+     * Adds a slot to the component.
+     * This method is used to programmatically add a slot to the component.
+     * @param {string} slotName - The name of the slot to add.
+     */
+    addSlot(slotName: string): void;
     /**
      * Removes the given slot name from the component.
      * This method first unmounts all children components of the given slot name,
@@ -418,10 +488,10 @@ declare class SlotManager {
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} children - The components to add to the slot.
+     * @param {...Component} components - The components to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addChildComponent(slotName: string, ...children: Component[]): void;
+    addComponentsToSlot(slotName: string, ...components: Component[]): void;
     /**
      * Removes the given child component from all slots.
      * @param {Component} childComponent - The child component to remove.
@@ -448,4 +518,5 @@ declare class SlotManager {
     unmountChildren(slotName?: string): void;
     #private;
 }
+import { EventEmitter } from '@supercat1337/event-emitter';
 export {};

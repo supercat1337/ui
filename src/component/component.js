@@ -1,15 +1,11 @@
 // @ts-check
 
 import { checkRefs, createFromHTML, selectRefsExtended } from "dom-scope";
-import { EventEmitter } from "@supercat1337/event-emitter";
 import { SlotManager } from "./slot-manager.js";
+import { Internals } from "./internals.js";
 
 /**
  * @typedef {(component: any) => Node|string} LayoutFunction
- */
-
-/**
- * @typedef {(component: Component) => void} TextUpdateFunction
  */
 
 /**
@@ -42,29 +38,13 @@ function onDisconnectDefault(component) {
 }
 
 export class Component {
-    /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
-    $internals = {
-        eventEmitter: new EventEmitter(),
-        /** @type {AbortController} */
-        disconnectController: new AbortController(),
-        /** @type {HTMLElement|null} */
-        root: null,
-        /** @type {TextUpdateFunction|null} */
-        textUpdateFunction: null,
-        /** @type {{[key:string]:any}}  */
-        textResources: {},
-        /** @type {{[key:string]:HTMLElement}} */
-        refs: {},
-        /** @type {{[key:string]:HTMLElement}} */
-        slotRefs: {},
-        parentComponent: null,
-        parentSlotName: "",
-    };
+    /** @type {Internals} */
+    $internals = new Internals();
 
-    /** @type {LayoutFunction|string|null} */
-    #layout = null;
+    /** @type {LayoutFunction|string|undefined} */
+    #layout = undefined;
 
-    /** @type {LayoutFunction|string|null} */
+    /** @type {LayoutFunction|string|undefined} */
     layout;
 
     /** @type {string[]|undefined} */
@@ -103,7 +83,7 @@ export class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
     setTextUpdateFunction(func) {
@@ -113,11 +93,11 @@ export class Component {
     #loadTemplate() {
         if (this.layout) {
             this.#layout = this.layout;
-            this.layout = null;
+            this.layout = undefined;
         }
 
-        let layout = this.#layout || null;
-        if (layout == null) return;
+        let layout = this.#layout || undefined;
+        if (layout == undefined) return;
 
         let template;
 
@@ -196,6 +176,32 @@ export class Component {
     hasRef(refName) {
         let refs = this.getRefs();
         return refName in refs;
+    }
+
+    /**
+     * Updates the refs object with the current state of the DOM.
+     * This method is usually called internally when the component is connected or disconnected.
+     * @throws {Error} If the component is not connected to the DOM.
+     * @returns {void}
+     */
+    updateRefs() {
+        if (!this.$internals.root) {
+            throw new Error("Component is not connected to the DOM");
+        }
+
+        let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
+
+        let { refs, scope_refs } = selectRefsExtended(componentRoot);
+        if (this.refsAnnotation) {
+            checkRefs(refs, this.refsAnnotation);
+        }
+
+        for (let key in scope_refs) {
+            this.slotManager.addSlot(key);
+        }
+
+        this.$internals.refs = refs;
+        this.$internals.slotRefs = scope_refs;
     }
 
     /**
@@ -304,13 +310,7 @@ export class Component {
 
         this.$internals.root = componentRoot;
 
-        let { refs, scope_refs } = selectRefsExtended(componentRoot);
-        if (this.refsAnnotation) {
-            checkRefs(refs, this.refsAnnotation);
-        }
-
-        this.$internals.refs = refs;
-        this.$internals.slotRefs = scope_refs;
+        this.updateRefs();
 
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
@@ -321,7 +321,9 @@ export class Component {
     /**
      * Disconnects the component from the DOM.
      * Sets the component's #connected flag to false.
-     * This method does not emit any events.
+     * Clears the refs and slotRefs objects.
+     * Aborts all event listeners attached with the $on method.
+     * Emits "disconnect" event through the event emitter.
      */
     disconnect() {
         if (this.#connected === false) return;
@@ -404,11 +406,11 @@ export class Component {
         if (this.#connected === false) return;
 
         this.emit("beforeUnmount");
-        this.disconnect();
-
         this.slotManager.unmountChildren();
 
+        this.disconnect();
         this.$internals.root?.remove();
+
         this.emit("unmount");
     }
 
@@ -433,7 +435,7 @@ export class Component {
         if (this.#connected === true) return;
         if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addChildComponent(
+        this.$internals.parentComponent.addComponentToSlot(
             this.$internals.parentSlotName,
             this
         );
@@ -498,20 +500,16 @@ export class Component {
      * @param {...Component} components - The component to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addChildComponent(slotName, ...components) {
+    addComponentToSlot(slotName, ...components) {
         if (!components.every((comp) => comp instanceof Component)) {
             throw new Error("All components must be instances of Component");
         }
 
         if (typeof this.slots !== "undefined") {
             this.defineSlots(...this.slots);
-            this.slots = undefined;
-        }
-        if (this.slotManager.slotExists(slotName) === false) {
-            throw new Error("Slot does not exist");
         }
 
-        this.slotManager.addChildComponent(slotName, ...components);
+        this.slotManager.addComponentsToSlot(slotName, ...components);
 
         for (let i = 0; i < components.length; i++) {
             components[i].$internals.parentComponent = this;

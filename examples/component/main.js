@@ -9,7 +9,7 @@ class ParentComponent extends Component {
         <div scope-ref="slot1"><!-- The child components will be inserted here --></div>
     </div>
 `;
-    slots = ["slot1"];
+    //slots = ["slot1"];
     refsAnnotation = {
         title: HTMLHeadingElement,
     };
@@ -20,10 +20,10 @@ class ChildComponent extends Component {
     layout = /* html */ `
     <div class="child">
         <p>This is a child component</p>
-        <div scope-ref="slot1"><!-- The nested slot --></div>
+        <div scope-ref="slot5"><!-- The nested slot --></div>
     </div>
 `;
-    slots = ["slot1"];
+    slots = ["slot5"];
 }
 
 // 3. Simple components for insertion
@@ -38,9 +38,9 @@ const parent = new ParentComponent();
 const child = new ChildComponent();
 
 // Insert Leaf components into ChildComponent
-child.addChildComponent("slot1", LeafComponentA, LeafComponentB);
+child.addComponentToSlot("slot5", LeafComponentA, LeafComponentB);
 // Insert ChildComponent into ParentComponent
-parent.addChildComponent("slot1", child);
+parent.addComponentToSlot("slot1", child);
 // 5. Mount everything in DOM
 parent.mount(document.body);
 

@@ -1,10 +1,14 @@
-// src/css-d-none-support.js
-function enableDNoneSupport() {
+// src/core-styles.js
+function injectCoreStyles() {
   const css = (
     /* css */
     `
 .d-none {
     display: none !important;
+}
+
+html-fragment {
+    display: contents;
 }
 `
   );
@@ -183,6 +187,37 @@ var Toggler = class {
     }
   }
 };
+function fadeIn(element, duration = 400) {
+  element.style.opacity = "0";
+  element.style.display = "block";
+  let last = +/* @__PURE__ */ new Date();
+  const tick = () => {
+    let date = +/* @__PURE__ */ new Date();
+    element.style.opacity = String(
+      +element.style.opacity + (date - last) / duration
+    );
+    last = +/* @__PURE__ */ new Date();
+    if (+element.style.opacity < 1) {
+      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+    }
+  };
+  tick();
+}
+function fadeOut(element, duration = 400) {
+  element.style.opacity = "1";
+  let last = +/* @__PURE__ */ new Date();
+  const tick = () => {
+    let date = +/* @__PURE__ */ new Date();
+    element.style.opacity = String(
+      +element.style.opacity - (date - last) / duration
+    );
+    last = +/* @__PURE__ */ new Date();
+    if (+element.style.opacity > 0) {
+      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+    }
+  };
+  tick();
+}
 
 // node_modules/dom-scope/dist/dom-scope.esm.js
 var SCOPE_ATTR_NAME = "scope-ref";
@@ -345,6 +380,198 @@ function createFromHTML(html, options) {
   template.innerHTML = html;
   return template.content;
 }
+
+// src/component/slot-manager.js
+var SlotManager = class {
+  /** @type {Set<string>} */
+  #slotNames = /* @__PURE__ */ new Set();
+  /** @type {Map<string, Set<Component>>} */
+  #namedSlotChildren = /* @__PURE__ */ new Map();
+  /** @type {Set<Component>}  */
+  #childrenComponents = /* @__PURE__ */ new Set();
+  /** @type {Component} */
+  #component;
+  /** @type {boolean} */
+  #slotStrictMode = false;
+  /**
+   * @param {Component} component
+   */
+  constructor(component) {
+    this.#component = component;
+  }
+  /**
+   * @param {boolean} mode
+   */
+  setSlotStrictMode(mode) {
+    this.#slotStrictMode = mode;
+  }
+  /**
+   * Defines the names of the slots in the component.
+   * The slots are declared in the component's template using the "scope-ref" attribute.
+   * The slot names are used to access the children components of the component.
+   * @param {...string} slotNames - The names of the slots.
+   */
+  defineSlots(...slotNames) {
+    const newSlotNames = new Set(slotNames);
+    for (const existingSlotName of this.#slotNames) {
+      if (!newSlotNames.has(existingSlotName)) {
+        this.removeSlot(existingSlotName);
+      }
+    }
+    for (const slotName of newSlotNames) {
+      this.addSlot(slotName);
+    }
+  }
+  /**
+   * Adds a slot to the component.
+   * This method is used to programmatically add a slot to the component.
+   * @param {string} slotName - The name of the slot to add.
+   */
+  addSlot(slotName) {
+    if (!this.#namedSlotChildren.has(slotName)) {
+      this.#namedSlotChildren.set(slotName, /* @__PURE__ */ new Set());
+    }
+    this.#slotNames.add(slotName);
+  }
+  /**
+   * Removes the given slot name from the component.
+   * This method first unmounts all children components of the given slot name,
+   * then removes the slot name from the component's internal maps.
+   * @param {string} slotName - The name of the slot to remove.
+   */
+  removeSlot(slotName) {
+    if (!this.#slotNames.has(slotName)) return;
+    let slotChildren = this.#namedSlotChildren.get(slotName);
+    if (slotChildren) {
+      slotChildren.forEach((childComponent) => {
+        this.#component.removeChildComponent(childComponent);
+        childComponent.unmount();
+        this.#childrenComponents.delete(childComponent);
+      });
+      this.#namedSlotChildren.delete(slotName);
+    }
+    this.#slotNames.delete(slotName);
+  }
+  /**
+   * Returns an array of slot names defined in the component.
+   * @type {string[]}
+   */
+  get slotNames() {
+    let arr = Array.from(this.#slotNames);
+    return arr;
+  }
+  /**
+   * Checks if the given slot name exists in the component.
+   * @param {string} slotName - The name of the slot to check.
+   * @returns {boolean} True if the slot exists, false otherwise.
+   */
+  slotExists(slotName) {
+    return this.#slotNames.has(slotName);
+  }
+  /**
+   * Adds a child component to a slot.
+   * @param {string} slotName - The name of the slot to add the component to.
+   * @param {...Component} components - The components to add to the slot.
+   * @throws {Error} If the slot does not exist.
+   */
+  addComponentsToSlot(slotName, ...components) {
+    if (!this.slotExists(slotName)) {
+      if (this.#slotStrictMode) {
+        throw new Error(`Slot "${slotName}" does not exist`);
+      } else {
+        console.warn(
+          `Warning: Slot "${slotName}" does not exist in component "${this.#component.constructor.name}". It will be created automatically.`
+        );
+      }
+    }
+    let childrenComponentsSet = this.#namedSlotChildren.get(slotName);
+    if (!childrenComponentsSet) {
+      childrenComponentsSet = /* @__PURE__ */ new Set();
+      this.#namedSlotChildren.set(slotName, childrenComponentsSet);
+    }
+    for (let i = 0; i < components.length; i++) {
+      this.#childrenComponents.add(components[i]);
+      childrenComponentsSet.add(components[i]);
+    }
+  }
+  /**
+   * Removes the given child component from all slots.
+   * @param {Component} childComponent - The child component to remove.
+   */
+  removeChildComponent(childComponent) {
+    this.#childrenComponents.delete(childComponent);
+    for (let [slotName, childrenComponentsSet] of this.#namedSlotChildren) {
+      if (!childrenComponentsSet.has(childComponent)) continue;
+      childrenComponentsSet.delete(childComponent);
+      break;
+    }
+  }
+  /**
+   * Returns the children components of the component.
+   * @type {Set<Component>}
+   */
+  get children() {
+    return this.#childrenComponents;
+  }
+  /**
+   * Mounts all children components of the given slot name to the DOM.
+   * The children components are mounted to the slot ref element with the "append" mode.
+   * If no slot name is given, all children components of all slots are mounted to the DOM.
+   * @param {string} [slotName] - The name of the slot to mount children components for.
+   */
+  mountChildren(slotName) {
+    if (this.#component.isConnected !== true) return;
+    const slotNames = slotName ? [slotName] : Array.from(this.#slotNames);
+    let hasInvalidSlot = slotNames.some(
+      (name) => !this.#component.$internals.slotRefs[name]
+    );
+    if (hasInvalidSlot) {
+      if (this.#slotStrictMode) {
+        throw new Error(
+          `One or more slot names do not exist in component "${this.#component.constructor.name}"`
+        );
+      } else {
+        this.#component.updateRefs();
+        let hasInvalidSlot_2 = slotNames.some(
+          (name) => !this.#component.$internals.slotRefs[name]
+        );
+        if (hasInvalidSlot_2) {
+          console.warn(
+            `One or more slot names do not exist in component "${this.#component.constructor.name}"`
+          );
+          return;
+        }
+      }
+    }
+    for (const currentSlotName of slotNames) {
+      const children = this.#namedSlotChildren.get(currentSlotName);
+      const slotRef = this.#component.$internals.slotRefs[currentSlotName];
+      if (!children || !slotRef) continue;
+      for (const child of children) {
+        if (!child.isCollapsed) {
+          child.mount(slotRef, "append");
+        }
+      }
+    }
+  }
+  /**
+   * Unmounts all children components of the given slot name.
+   * This method iterates over the children components of the given slot name and calls their unmount method.
+   * @param {string} [slotName] - The name of the slot to unmount the children components for.
+   * if no slot name is given, all children components of all slots are unmounted.
+   */
+  unmountChildren(slotName) {
+    let slotNames = slotName ? [slotName] : Array.from(this.#slotNames);
+    for (let i = 0; i < slotNames.length; i++) {
+      let children = Array.from(
+        this.#namedSlotChildren.get(slotNames[i]) || []
+      );
+      for (let y = 0; y < children.length; y++) {
+        children[y].unmount();
+      }
+    }
+  }
+};
 
 // node_modules/@supercat1337/event-emitter/dist/event-emitter.esm.js
 var EventEmitter = class {
@@ -514,157 +741,18 @@ var EventEmitter = class {
   }
 };
 
-// src/component/slot-manager.js
-var SlotManager = class {
-  /** @type {Set<string>} */
-  #definedSlotNames = /* @__PURE__ */ new Set();
-  /** @type {Map<string, Set<Component>>} */
-  #slotChildrenMap = /* @__PURE__ */ new Map();
-  /** @type {Set<Component>}  */
-  #children = /* @__PURE__ */ new Set();
-  /** @type {Component} */
-  #component;
-  /**
-   * @param {Component} component
-   */
-  constructor(component) {
-    this.#component = component;
-  }
-  /**
-   * Defines the names of the slots in the component.
-   * The slots are declared in the component's template using the "scope-ref" attribute.
-   * The slot names are used to access the children components of the component.
-   * @param {...string} slotNames - The names of the slots.
-   */
-  defineSlots(...slotNames) {
-    let keysToDelete = [];
-    let currentSlotNames = Array.from(this.#definedSlotNames);
-    for (let i = 0; i < currentSlotNames.length; i++) {
-      if (slotNames.indexOf(currentSlotNames[i]) == -1) {
-        keysToDelete.push(currentSlotNames[i]);
-      }
-    }
-    for (let i = 0; i < keysToDelete.length; i++) {
-      this.removeSlot(keysToDelete[i]);
-    }
-    for (let i = 0; i < slotNames.length; i++) {
-      if (!this.#slotChildrenMap.has(slotNames[i])) {
-        this.#slotChildrenMap.set(slotNames[i], /* @__PURE__ */ new Set());
-      }
-    }
-    this.#definedSlotNames = new Set(slotNames);
-  }
-  /**
-   * Removes the given slot name from the component.
-   * This method first unmounts all children components of the given slot name,
-   * then removes the slot name from the component's internal maps.
-   * @param {string} slotName - The name of the slot to remove.
-   */
-  removeSlot(slotName) {
-    let slotChildren = this.#slotChildrenMap.get(slotName);
-    if (slotChildren) {
-      let children = Array.from(slotChildren);
-      for (let i = 0; i < children.length; i++) {
-        this.#component.removeChildComponent(children[i]);
-        children[i].unmount();
-        this.#children.delete(children[i]);
-      }
-      this.#slotChildrenMap.delete(slotName);
-    }
-    this.#definedSlotNames.delete(slotName);
-  }
-  /**
-   * Returns an array of slot names defined in the component.
-   * @type {string[]}
-   */
-  get slotNames() {
-    let arr = Array.from(this.#definedSlotNames);
-    return arr;
-  }
-  /**
-   * Checks if the given slot name exists in the component.
-   * @param {string} slotName - The name of the slot to check.
-   * @returns {boolean} True if the slot exists, false otherwise.
-   */
-  slotExists(slotName) {
-    return this.#definedSlotNames.has(slotName);
-  }
-  /**
-   * Adds a child component to a slot.
-   * @param {string} slotName - The name of the slot to add the component to.
-   * @param {...Component} children - The components to add to the slot.
-   * @throws {Error} If the slot does not exist.
-   */
-  addChildComponent(slotName, ...children) {
-    if (this.slotExists(slotName) === false) {
-      throw new Error(`Slot "${slotName}" does not exist`);
-    }
-    let childrenSet = this.#slotChildrenMap.get(slotName);
-    if (!childrenSet) {
-      childrenSet = /* @__PURE__ */ new Set();
-      this.#slotChildrenMap.set(slotName, childrenSet);
-    }
-    for (let i = 0; i < children.length; i++) {
-      this.#children.add(children[i]);
-      childrenSet.add(children[i]);
-    }
-  }
-  /**
-   * Removes the given child component from all slots.
-   * @param {Component} childComponent - The child component to remove.
-   */
-  removeChildComponent(childComponent) {
-    this.#children.delete(childComponent);
-    for (let [slotName, childrenSet] of this.#slotChildrenMap) {
-      if (!childrenSet.has(childComponent)) continue;
-      childrenSet.delete(childComponent);
-      break;
-    }
-  }
-  /**
-   * Returns the children components of the component.
-   * @type {Set<Component>}
-   */
-  get children() {
-    return this.#children;
-  }
-  /**
-   * Mounts all children components of the given slot name to the DOM.
-   * The children components are mounted to the slot ref element with the "append" mode.
-   * If no slot name is given, all children components of all slots are mounted to the DOM.
-   * @param {string} [slotName] - The name of the slot to mount children components for.
-   */
-  mountChildren(slotName) {
-    let slotNames = slotName ? [slotName] : Array.from(this.#definedSlotNames);
-    for (let i = 0; i < slotNames.length; i++) {
-      let children = Array.from(
-        this.#slotChildrenMap.get(slotNames[i]) || []
-      );
-      let slotRef = this.#component.$internals.slotRefs[slotNames[i]];
-      if (slotRef)
-        for (let y = 0; y < children.length; y++) {
-          if (children[y].isCollapsed == false) {
-            children[y].mount(slotRef, "append");
-          }
-        }
-    }
-  }
-  /**
-   * Unmounts all children components of the given slot name.
-   * This method iterates over the children components of the given slot name and calls their unmount method.
-   * @param {string} [slotName] - The name of the slot to unmount the children components for.
-   * if no slot name is given, all children components of all slots are unmounted.
-   */
-  unmountChildren(slotName) {
-    let slotNames = slotName ? [slotName] : Array.from(this.#definedSlotNames);
-    for (let i = 0; i < slotNames.length; i++) {
-      let children = Array.from(
-        this.#slotChildrenMap.get(slotNames[i]) || []
-      );
-      for (let y = 0; y < children.length; y++) {
-        children[y].unmount();
-      }
-    }
+// src/component/internals.js
+var Internals = class {
+  constructor() {
+    this.eventEmitter = new EventEmitter();
+    this.disconnectController = new AbortController();
+    this.root = null;
+    this.textUpdateFunction = null;
+    this.textResources = {};
+    this.refs = {};
+    this.slotRefs = {};
+    this.parentComponent = null;
+    this.parentSlotName = "";
   }
 };
 
@@ -677,35 +765,19 @@ function onConnectDefault(component) {
     console.error("Error in connectedCallback:", e);
   }
 }
-function onUnmountDefault(component) {
+function onDisconnectDefault(component) {
   try {
     component.disconnectedCallback();
   } catch (e) {
     console.error("Error in disconnectedCallback:", e);
   }
 }
-var Component = class {
-  /** @type {{eventEmitter: EventEmitter, disconnectController: AbortController, root: HTMLElement|null, textUpdateFunction: TextUpdateFunction|null, textResources: {[key:string]:any}, refs: {[key:string]:HTMLElement}, slotRefs: {[key:string]:HTMLElement}, parentComponent: Component|null, parentSlotName: string}} */
-  $internals = {
-    eventEmitter: new EventEmitter(),
-    /** @type {AbortController} */
-    disconnectController: new AbortController(),
-    /** @type {HTMLElement|null} */
-    root: null,
-    /** @type {TextUpdateFunction|null} */
-    textUpdateFunction: null,
-    /** @type {{[key:string]:any}}  */
-    textResources: {},
-    /** @type {{[key:string]:HTMLElement}} */
-    refs: {},
-    /** @type {{[key:string]:HTMLElement}} */
-    slotRefs: {},
-    parentComponent: null,
-    parentSlotName: ""
-  };
-  /** @type {LayoutFunction|string|null} */
-  #layout = null;
-  /** @type {LayoutFunction|string|null} */
+var Component = class _Component {
+  /** @type {Internals} */
+  $internals = new Internals();
+  /** @type {LayoutFunction|string|undefined} */
+  #layout = void 0;
+  /** @type {LayoutFunction|string|undefined} */
   layout;
   /** @type {string[]|undefined} */
   slots;
@@ -718,7 +790,7 @@ var Component = class {
   isCollapsed = false;
   constructor() {
     this.onConnect(onConnectDefault);
-    this.onUnmount(onUnmountDefault);
+    this.onDisconnect(onDisconnectDefault);
   }
   /**
    * Reloads the text content of the component by calling the text update function if it is set.
@@ -734,7 +806,7 @@ var Component = class {
    * Sets the text update function for the component.
    * The text update function is a function that is called when the reloadText method is called.
    * The function receives the component instance as the this value.
-   * @param {TextUpdateFunction|null} func - The text update function to set.
+   * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
    * @returns {void}
    */
   setTextUpdateFunction(func) {
@@ -743,10 +815,10 @@ var Component = class {
   #loadTemplate() {
     if (this.layout) {
       this.#layout = this.layout;
-      this.layout = null;
+      this.layout = void 0;
     }
-    let layout = this.#layout || null;
-    if (layout == null) return;
+    let layout = this.#layout || void 0;
+    if (layout == void 0) return;
     let template;
     if (typeof layout === "function") {
       let _template = layout(this);
@@ -793,6 +865,52 @@ var Component = class {
     return this.$internals.refs;
   }
   /**
+   * Returns the ref element with the given name.
+   * @param {string} refName - The name of the ref to retrieve.
+   * @returns {HTMLElement} The ref element with the given name.
+   * @throws {Error} If the ref does not exist.
+   */
+  getRef(refName) {
+    let refs = this.getRefs();
+    if (!(refName in refs)) {
+      throw new Error(`Ref "${refName}" does not exist`);
+    }
+    return refs[refName];
+  }
+  /**
+   * Checks if a ref with the given name exists.
+   * @param {string} refName - The name of the ref to check.
+   * @returns {boolean} True if the ref exists, false otherwise.
+   */
+  hasRef(refName) {
+    let refs = this.getRefs();
+    return refName in refs;
+  }
+  /**
+   * Updates the refs object with the current state of the DOM.
+   * This method is usually called internally when the component is connected or disconnected.
+   * @throws {Error} If the component is not connected to the DOM.
+   * @returns {void}
+   */
+  updateRefs() {
+    if (!this.$internals.root) {
+      throw new Error("Component is not connected to the DOM");
+    }
+    let componentRoot = (
+      /** @type {HTMLElement} */
+      this.$internals.root
+    );
+    let { refs, scope_refs } = selectRefsExtended(componentRoot);
+    if (this.refsAnnotation) {
+      checkRefs(refs, this.refsAnnotation);
+    }
+    for (let key in scope_refs) {
+      this.slotManager.addSlot(key);
+    }
+    this.$internals.refs = refs;
+    this.$internals.slotRefs = scope_refs;
+  }
+  /**
    * Subscribes to a specified event.
    * @param {string} event - The name of the event to subscribe to.
    * @param {Function} callback - The callback function to be executed when the event is triggered.
@@ -828,6 +946,16 @@ var Component = class {
    */
   onConnect(callback) {
     return this.on("connect", callback);
+  }
+  /**
+   * Subscribes to the "disconnect" event.
+   * This event is emitted just before the component is disconnected from the DOM.
+   * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+   * The callback is called with the component instance as the this value.
+   * @returns {()=>void} A function that can be called to unsubscribe the listener.
+   */
+  onDisconnect(callback) {
+    return this.on("disconnect", callback);
   }
   /**
    * Subscribes to the "mount" event.
@@ -877,12 +1005,7 @@ var Component = class {
       throw new Error("Component is already connected");
     }
     this.$internals.root = componentRoot;
-    let { refs, scope_refs } = selectRefsExtended(componentRoot);
-    if (this.refsAnnotation) {
-      checkRefs(refs, this.refsAnnotation);
-    }
-    this.$internals.refs = refs;
-    this.$internals.slotRefs = scope_refs;
+    this.updateRefs();
     this.$internals.disconnectController = new AbortController();
     this.#connected = true;
     this.slotManager.mountChildren();
@@ -891,7 +1014,9 @@ var Component = class {
   /**
    * Disconnects the component from the DOM.
    * Sets the component's #connected flag to false.
-   * This method does not emit any events.
+   * Clears the refs and slotRefs objects.
+   * Aborts all event listeners attached with the $on method.
+   * Emits "disconnect" event through the event emitter.
    */
   disconnect() {
     if (this.#connected === false) return;
@@ -899,6 +1024,7 @@ var Component = class {
     this.$internals.disconnectController.abort();
     this.$internals.refs = {};
     this.$internals.slotRefs = {};
+    this.emit("disconnect");
   }
   /**
    * This method is called when the component is connected to the DOM.
@@ -923,6 +1049,17 @@ var Component = class {
    * If "prepend", the component is prepended to the container.
    */
   mount(container, mode = "replace") {
+    if (!(container instanceof Element)) {
+      throw new TypeError("Container must be a DOM Element");
+    }
+    const validModes = ["replace", "append", "prepend"];
+    if (!validModes.includes(mode)) {
+      throw new Error(
+        `Invalid mode: ${mode}. Must be one of: ${validModes.join(
+          ", "
+        )}`
+      );
+    }
     if (this.#template === null) {
       this.#loadTemplate();
     }
@@ -951,8 +1088,8 @@ var Component = class {
   unmount() {
     if (this.#connected === false) return;
     this.emit("beforeUnmount");
-    this.disconnect();
     this.slotManager.unmountChildren();
+    this.disconnect();
     this.$internals.root?.remove();
     this.emit("unmount");
   }
@@ -975,7 +1112,7 @@ var Component = class {
     this.isCollapsed = false;
     if (this.#connected === true) return;
     if (this.$internals.parentComponent === null) return;
-    this.$internals.parentComponent.addChildComponent(
+    this.$internals.parentComponent.addComponentToSlot(
       this.$internals.parentSlotName,
       this
     );
@@ -987,10 +1124,7 @@ var Component = class {
    */
   show() {
     if (!this.isConnected) return;
-    let root = this.$internals.root;
-    if (root) {
-      root.classList.remove("d-none");
-    }
+    this.$internals.root?.classList.remove("d-none");
   }
   /**
    * Hides the component.
@@ -999,10 +1133,7 @@ var Component = class {
    */
   hide() {
     if (!this.isConnected) return;
-    let root = this.$internals.root;
-    if (root) {
-      root.classList.add("d-none");
-    }
+    this.$internals.root?.classList.add("d-none");
   }
   /**
    * Attaches an event listener to the specified element.
@@ -1040,15 +1171,14 @@ var Component = class {
    * @param {...Component} components - The component to add to the slot.
    * @throws {Error} If the slot does not exist.
    */
-  addChildComponent(slotName, ...components) {
+  addComponentToSlot(slotName, ...components) {
+    if (!components.every((comp) => comp instanceof _Component)) {
+      throw new Error("All components must be instances of Component");
+    }
     if (typeof this.slots !== "undefined") {
       this.defineSlots(...this.slots);
-      this.slots = void 0;
     }
-    if (this.slotManager.slotExists(slotName) === false) {
-      throw new Error("Slot does not exist");
-    }
-    this.slotManager.addChildComponent(slotName, ...components);
+    this.slotManager.addComponentsToSlot(slotName, ...components);
     for (let i = 0; i < components.length; i++) {
       components[i].$internals.parentComponent = this;
       components[i].$internals.parentSlotName = slotName;
@@ -1123,7 +1253,7 @@ var SlotToggler = class {
 };
 
 // src/index.js
-enableDNoneSupport();
+injectCoreStyles();
 export {
   Component,
   DOMReady,
@@ -1131,6 +1261,8 @@ export {
   Toggler,
   copyToClipboard,
   escapeHtml,
+  fadeIn,
+  fadeOut,
   formatBytes,
   formatDate,
   formatDateTime,
