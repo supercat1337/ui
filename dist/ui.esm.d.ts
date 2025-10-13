@@ -121,6 +121,22 @@ export class Component {
      */
     onUnmount(callback: (component: this) => void): () => void;
     /**
+     * Subscribes to the "collapse" event.
+     * This event is emitted after the component has collapsed.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onCollapse(callback: (component: this) => void): () => void;
+    /**
+     * Subscribes to the "expand" event.
+     * This event is emitted after the component has expanded.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onExpand(callback: (component: this) => void): () => void;
+    /**
      * Checks if the component is connected to a root element.
      * @returns {boolean} True if the component is connected, false otherwise.
      */
@@ -233,8 +249,9 @@ export class Component {
  * If the document is already loaded, the callback is executed immediately.
  * Otherwise, it is added as a listener to the 'DOMContentLoaded' event.
  * @param {() => void} callback - The function to be executed when the DOM is ready.
+ * @param {Document} [doc=window.document] - The document object to check the ready state of.
  */
-export function DOMReady(callback: () => void): void;
+export function DOMReady(callback: () => void, doc?: Document): void;
 export class SlotToggler {
     /**
      * Creates a new instance of SlotToggler.
@@ -284,6 +301,12 @@ export class Toggler {
      * If an item is inactive, the "off" callback is called with the item name as the argument.
      */
     runCallbacks(): void;
+    /**
+     * Initializes the toggler with the given active item name.
+     * Sets the active item to the given item name and runs the callbacks for all items in the toggler.
+     * @param {string} active - The name of the item to be set as active.
+     */
+    init(active: string): void;
     #private;
 }
 /**
@@ -330,18 +353,18 @@ export function formatBytes(bytes: number, decimals?: number, lang?: string, siz
 /**
  * Formats the given timestamp into a human-readable string representation of
  * a date. The date is formatted according to the user's locale.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @param {number} unix_timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
  */
-export function formatDate(timestamp: number): string;
+export function formatDate(unix_timestamp: number): string;
 /**
  * Formats the given timestamp into a human-readable string representation of
  * a date and time. The date is formatted according to the user's locale, and
  * the time is formatted according to the user's locale with a 24-hour clock.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @param {number} unix_timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
  */
-export function formatDateTime(timestamp: number): string;
+export function formatDateTime(unix_timestamp: number): string;
 /**
  * Returns the user's default language, or "en" if none can be determined.
  * @returns {string} The user's default language, in the form of a two-letter
@@ -354,12 +377,20 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
+ * Injects the core CSS styles into the document.
+ * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.
+ * The core styles also include support for the "html-fragment" element, which is used as a container for HTML fragments.
+ * @param {Document|null} [doc=window.document] - The document to inject the styles into. Defaults to the global document.
+ * @returns {void}
+ */
+export function injectCoreStyles(doc?: Document | null): void;
+/**
  * Checks if the user prefers a dark color scheme.
  * Utilizes the `window.matchMedia` API to determine if the user's
  * system is set to a dark mode preference.
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
-export function isDarkMode(): boolean;
+export function isDarkMode(wnd?: Window & typeof globalThis): boolean;
 /**
  * Removes the spinner from the given button.
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
@@ -413,9 +444,10 @@ export function ui_button_status_waiting_off_html(el: HTMLButtonElement, html: s
 export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string): void;
 /**
  * Returns the current Unix time in seconds.
+ * @param {Date} [dateObject=new Date()] - The date object to get the Unix time from. Defaults to the current date and time.
  * @returns {number}
  */
-export function unixtime(): number;
+export function unixtime(dateObject?: Date): number;
 /**
  * @typedef {(component: Component) => void} TextUpdateFunction
  */

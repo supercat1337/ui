@@ -4,41 +4,16 @@ import { EventEmitter } from '@supercat1337/event-emitter';
 // @ts-check
 
 /**
- * Injects the core CSS styles into the document.
- * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.
- * The core styles also include support for the "html-fragment" element, which is used as a container for HTML fragments.
- * @returns {void}
- */
-
-function injectCoreStyles() {
-    const css = /* css */ `
-.d-none {
-    display: none !important;
-}
-
-html-fragment {
-    display: contents;
-}
-`;
-
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-}
-
-// @ts-check
-
-/**
  * Executes the provided callback function when the DOM is fully loaded.
  * If the document is already loaded, the callback is executed immediately.
  * Otherwise, it is added as a listener to the 'DOMContentLoaded' event.
  * @param {() => void} callback - The function to be executed when the DOM is ready.
+ * @param {Document} [doc=window.document] - The document object to check the ready state of.
  */
-function DOMReady(callback) {
-    document.readyState === "interactive" || document.readyState === "complete"
+function DOMReady(callback, doc = window.document) {
+    doc.readyState === "interactive" || doc.readyState === "complete"
         ? callback()
-        : document.addEventListener("DOMContentLoaded", callback);
+        : doc.addEventListener("DOMContentLoaded", callback);
 }
 
 /**
@@ -165,13 +140,6 @@ function removeSpinnerFromButton(button) {
     if (spinner) spinner.remove();
 }
 
-/**
- * Returns the current Unix time in seconds.
- * @returns {number}
- */
-function unixtime() {
-    return Math.floor(new Date().getTime() / 1000);
-}
 
 /**
  * Checks if the user prefers a dark color scheme.
@@ -179,10 +147,10 @@ function unixtime() {
  * system is set to a dark mode preference.
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
-function isDarkMode() {
+function isDarkMode(wnd = window) {
     if (
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
+        wnd.matchMedia &&
+        wnd.matchMedia("(prefers-color-scheme: dark)").matches
     ) {
         return true;
     }
@@ -247,27 +215,90 @@ function copyToClipboard(text) {
     return navigator.clipboard.writeText(text);
 }
 
+
+/**
+ * Fades in the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 0.
+ * The function then repeatedly adjusts the opacity of the element until it is 1.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade in.
+ * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ */
+function fadeIn(element, duration = 400) {
+    element.style.opacity = "0";
+    element.style.display = "block";
+    let last = +new Date();
+    const tick = () => {
+        let date = +new Date();
+        element.style.opacity = String(
+            +element.style.opacity + (date - last) / duration
+        );
+        last = +new Date();
+        if (+element.style.opacity < 1) {
+            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
+                setTimeout(tick, 16);
+        }
+    };
+    tick();
+}
+
+/**
+ * Fades out the given element with the given duration.
+ * The element is set to be block level and its opacity is set to 1.
+ * The function then repeatedly adjusts the opacity of the element until it is 0.
+ * The time between each adjustment is the given duration.
+ * @param {HTMLElement} element - The element to fade out.
+ * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ */
+function fadeOut(element, duration = 400) {
+    element.style.opacity = "1";
+    let last = +new Date();
+    const tick = () => {
+        let date = +new Date();
+        element.style.opacity = String(
+            +element.style.opacity - (date - last) / duration
+        );
+        last = +new Date();
+        if (+element.style.opacity > 0) {
+            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
+                setTimeout(tick, 16);
+        }
+    };
+    tick();
+}
+
+// @ts-check
+
 /**
  * Formats the given timestamp into a human-readable string representation of
  * a date and time. The date is formatted according to the user's locale, and
  * the time is formatted according to the user's locale with a 24-hour clock.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @param {number} unix_timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
  */
-function formatDateTime(timestamp) {
-    var t = new Date(timestamp * 1000);
+function formatDateTime(unix_timestamp) {
+    var t = new Date(unix_timestamp * 1000);
     return `${t.toLocaleDateString("en-GB")} ${t.toLocaleTimeString("en-GB")}`;
 }
 
 /**
  * Formats the given timestamp into a human-readable string representation of
  * a date. The date is formatted according to the user's locale.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
+ * @param {number} unix_timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
  * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
  */
-function formatDate(timestamp) {
-    var t = new Date(timestamp * 1000);
+function formatDate(unix_timestamp) {
+    var t = new Date(unix_timestamp * 1000);
     return `${t.toLocaleDateString("en-GB")}`;
+}
+
+/**
+ * Returns the current Unix time in seconds.
+ * @param {Date} [dateObject=new Date()] - The date object to get the Unix time from. Defaults to the current date and time.
+ * @returns {number}
+ */
+function unixtime(dateObject = new Date()) {
+    return Math.floor(dateObject.getTime() / 1000);
 }
 
 class Toggler {
@@ -348,57 +379,48 @@ class Toggler {
             }
         }
     }
+
+    /**
+     * Initializes the toggler with the given active item name.
+     * Sets the active item to the given item name and runs the callbacks for all items in the toggler.
+     * @param {string} active - The name of the item to be set as active.
+     */
+    init(active) {
+        this.setActive(active);
+        this.runCallbacks();
+    }
 }
 
-/**
- * Fades in the given element with the given duration.
- * The element is set to be block level and its opacity is set to 0.
- * The function then repeatedly adjusts the opacity of the element until it is 1.
- * The time between each adjustment is the given duration.
- * @param {HTMLElement} element - The element to fade in.
- * @param {number} [duration=400] - The duration of the fade in in milliseconds.
- */
-function fadeIn(element, duration = 400) {
-    element.style.opacity = "0";
-    element.style.display = "block";
-    let last = +new Date();
-    const tick = () => {
-        let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity + (date - last) / duration
-        );
-        last = +new Date();
-        if (+element.style.opacity < 1) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
-        }
-    };
-    tick();
-}
+// @ts-check
 
 /**
- * Fades out the given element with the given duration.
- * The element is set to be block level and its opacity is set to 1.
- * The function then repeatedly adjusts the opacity of the element until it is 0.
- * The time between each adjustment is the given duration.
- * @param {HTMLElement} element - The element to fade out.
- * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ * Injects the core CSS styles into the document.
+ * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.
+ * The core styles also include support for the "html-fragment" element, which is used as a container for HTML fragments.
+ * @param {Document|null} [doc=window.document] - The document to inject the styles into. Defaults to the global document.
+ * @returns {void}
  */
-function fadeOut(element, duration = 400) {
-    element.style.opacity = "1";
-    let last = +new Date();
-    const tick = () => {
-        let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity - (date - last) / duration
-        );
-        last = +new Date();
-        if (+element.style.opacity > 0) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
-        }
-    };
-    tick();
+
+function injectCoreStyles(doc = window.document) {
+    
+    if (doc === null) {
+        throw new Error("Document is null. Cannot inject core styles.");
+    }
+
+    const css = /* css */ `
+.d-none {
+    display: none !important;
+}
+
+html-fragment {
+    display: contents;
+}
+`;
+
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+
+    doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
 }
 
 // @ts-check
@@ -954,6 +976,28 @@ class Component {
     }
 
     /**
+     * Subscribes to the "collapse" event.
+     * This event is emitted after the component has collapsed.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onCollapse(callback) {
+        return this.on("collapse", callback);
+    }
+
+    /**
+     * Subscribes to the "expand" event.
+     * This event is emitted after the component has expanded.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onExpand(callback) {
+        return this.on("expand", callback);
+    }
+
+    /**
      * Checks if the component is connected to a root element.
      * @returns {boolean} True if the component is connected, false otherwise.
      */
@@ -1085,6 +1129,7 @@ class Component {
     collapse() {
         this.unmount();
         this.isCollapsed = true;
+        this.emit("collapse");
     }
 
     /**
@@ -1103,6 +1148,7 @@ class Component {
             this.$internals.parentSlotName,
             this
         );
+        this.emit("expand");
     }
 
     /**
@@ -1262,6 +1308,8 @@ class SlotToggler {
 // @ts-check
 
 
-injectCoreStyles();
+if (globalThis.ui_auto_inject_core_styles !== false) {
+    injectCoreStyles(globalThis.document || null);
+}
 
-export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };
+export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, injectCoreStyles, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };

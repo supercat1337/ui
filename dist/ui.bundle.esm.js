@@ -1,25 +1,6 @@
-// src/core-styles.js
-function injectCoreStyles() {
-  const css = (
-    /* css */
-    `
-.d-none {
-    display: none !important;
-}
-
-html-fragment {
-    display: contents;
-}
-`
-  );
-  const sheet = new CSSStyleSheet();
-  sheet.replaceSync(css);
-  document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-}
-
-// src/utils.js
-function DOMReady(callback) {
-  document.readyState === "interactive" || document.readyState === "complete" ? callback() : document.addEventListener("DOMContentLoaded", callback);
+// src/utils/utils.js
+function DOMReady(callback, doc = window.document) {
+  doc.readyState === "interactive" || doc.readyState === "complete" ? callback() : doc.addEventListener("DOMContentLoaded", callback);
 }
 function escapeHtml(unsafe) {
   return unsafe.replace(
@@ -77,11 +58,8 @@ function removeSpinnerFromButton(button) {
   let spinner = button.querySelector(".spinner-border");
   if (spinner) spinner.remove();
 }
-function unixtime() {
-  return Math.floor((/* @__PURE__ */ new Date()).getTime() / 1e3);
-}
-function isDarkMode() {
-  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+function isDarkMode(wnd = window) {
+  if (wnd.matchMedia && wnd.matchMedia("(prefers-color-scheme: dark)").matches) {
     return true;
   }
   return false;
@@ -110,14 +88,52 @@ function formatBytes(bytes, decimals = 2, lang, sizes) {
 function copyToClipboard(text) {
   return navigator.clipboard.writeText(text);
 }
-function formatDateTime(timestamp) {
-  var t = new Date(timestamp * 1e3);
+function fadeIn(element, duration = 400) {
+  element.style.opacity = "0";
+  element.style.display = "block";
+  let last = +/* @__PURE__ */ new Date();
+  const tick = () => {
+    let date = +/* @__PURE__ */ new Date();
+    element.style.opacity = String(
+      +element.style.opacity + (date - last) / duration
+    );
+    last = +/* @__PURE__ */ new Date();
+    if (+element.style.opacity < 1) {
+      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+    }
+  };
+  tick();
+}
+function fadeOut(element, duration = 400) {
+  element.style.opacity = "1";
+  let last = +/* @__PURE__ */ new Date();
+  const tick = () => {
+    let date = +/* @__PURE__ */ new Date();
+    element.style.opacity = String(
+      +element.style.opacity - (date - last) / duration
+    );
+    last = +/* @__PURE__ */ new Date();
+    if (+element.style.opacity > 0) {
+      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+    }
+  };
+  tick();
+}
+
+// src/utils/date-time.js
+function formatDateTime(unix_timestamp) {
+  var t = new Date(unix_timestamp * 1e3);
   return `${t.toLocaleDateString("en-GB")} ${t.toLocaleTimeString("en-GB")}`;
 }
-function formatDate(timestamp) {
-  var t = new Date(timestamp * 1e3);
+function formatDate(unix_timestamp) {
+  var t = new Date(unix_timestamp * 1e3);
   return `${t.toLocaleDateString("en-GB")}`;
 }
+function unixtime(dateObject = /* @__PURE__ */ new Date()) {
+  return Math.floor(dateObject.getTime() / 1e3);
+}
+
+// src/utils/toggler.js
 var Toggler = class {
   /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
   items = /* @__PURE__ */ new Map();
@@ -186,71 +202,82 @@ var Toggler = class {
       }
     }
   }
+  /**
+   * Initializes the toggler with the given active item name.
+   * Sets the active item to the given item name and runs the callbacks for all items in the toggler.
+   * @param {string} active - The name of the item to be set as active.
+   */
+  init(active) {
+    this.setActive(active);
+    this.runCallbacks();
+  }
 };
-function fadeIn(element, duration = 400) {
-  element.style.opacity = "0";
-  element.style.display = "block";
-  let last = +/* @__PURE__ */ new Date();
-  const tick = () => {
-    let date = +/* @__PURE__ */ new Date();
-    element.style.opacity = String(
-      +element.style.opacity + (date - last) / duration
-    );
-    last = +/* @__PURE__ */ new Date();
-    if (+element.style.opacity < 1) {
-      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
-    }
-  };
-  tick();
+
+// src/utils/core-styles.js
+function injectCoreStyles(doc = window.document) {
+  if (doc === null) {
+    throw new Error("Document is null. Cannot inject core styles.");
+  }
+  const css = (
+    /* css */
+    `
+.d-none {
+    display: none !important;
 }
-function fadeOut(element, duration = 400) {
-  element.style.opacity = "1";
-  let last = +/* @__PURE__ */ new Date();
-  const tick = () => {
-    let date = +/* @__PURE__ */ new Date();
-    element.style.opacity = String(
-      +element.style.opacity - (date - last) / duration
-    );
-    last = +/* @__PURE__ */ new Date();
-    if (+element.style.opacity > 0) {
-      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
-    }
-  };
-  tick();
+
+html-fragment {
+    display: contents;
+}
+`
+  );
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
 }
 
 // node_modules/dom-scope/dist/dom-scope.esm.js
 var SCOPE_ATTR_NAME = "scope-ref";
 var SCOPE_AUTO_NAME_PREFIX = "$";
 var REF_ATTR_NAME = "ref";
-function isScopeElement(element, settings) {
+var defaultDomScopeConfig = {
+  scope_auto_name_prefix: SCOPE_AUTO_NAME_PREFIX,
+  scope_ref_attr_name: SCOPE_ATTR_NAME,
+  ref_attr_name: REF_ATTR_NAME,
+  window: globalThis.window,
+  is_scope_element: void 0,
+  include_root: false
+};
+var customDomScopeOptions = {};
+function isScopeElement(element, config) {
   var value;
-  if (settings.is_scope_element) {
-    value = settings.is_scope_element(element, settings);
+  if (config.is_scope_element) {
+    value = config.is_scope_element(element, config);
   } else {
-    value = element.getAttribute(SCOPE_ATTR_NAME);
+    value = element.getAttribute(config.scope_ref_attr_name);
   }
   if (value === null) return false;
   return value;
 }
-function getConfig(settings) {
+function getConfig(options = {}, checkWindow = true) {
   let init_data = {
-    ref_attr_name: REF_ATTR_NAME,
-    window: globalThis.window,
-    is_scope_element: void 0,
-    include_root: false
+    scope_auto_name_prefix: customDomScopeOptions.scope_auto_name_prefix || defaultDomScopeConfig.scope_auto_name_prefix,
+    scope_ref_attr_name: customDomScopeOptions.scope_ref_attr_name || defaultDomScopeConfig.scope_ref_attr_name,
+    ref_attr_name: customDomScopeOptions.ref_attr_name || defaultDomScopeConfig.ref_attr_name,
+    window: customDomScopeOptions.window || defaultDomScopeConfig.window,
+    is_scope_element: customDomScopeOptions.is_scope_element || defaultDomScopeConfig.is_scope_element,
+    include_root: customDomScopeOptions.include_root || defaultDomScopeConfig.include_root
   };
-  let config = Object.assign({}, init_data, settings);
-  if (!config.window) {
-    throw new Error("settings.window is not defined");
+  let config = Object.assign({}, init_data, options);
+  if (checkWindow && !config.window) {
+    throw new Error("options.window is not defined");
   }
   return config;
 }
-function selectRefsExtended(root_element, custom_callback, settings = {}) {
+function selectRefsExtended(root_element, custom_callback, options = {}) {
   var refs = {};
   var scope_refs = {};
   var unnamed_scopes = [];
-  var config = getConfig(settings);
+  const config = getConfig(options);
   function callback(currentNode) {
     var ref_name = currentNode.getAttribute(config.ref_attr_name);
     if (ref_name != null) {
@@ -259,14 +286,24 @@ function selectRefsExtended(root_element, custom_callback, settings = {}) {
           refs[ref_name] = currentNode;
         } else {
           if (globalThis.window) {
-            console.warn(`Element has reference #${ref_name} which is already used
-`, `
-element: `, currentNode, `
-reference #${ref_name}: `, refs[ref_name], `
-scope root: `, root_element);
+            console.warn(
+              `Element has reference #${ref_name} which is already used
+`,
+              `
+element: `,
+              currentNode,
+              `
+reference #${ref_name}: `,
+              refs[ref_name],
+              `
+scope root: `,
+              root_element
+            );
           } else {
-            console.warn(`Element has reference #${ref_name} which is already used
-`);
+            console.warn(
+              `Element has reference #${ref_name} which is already used
+`
+            );
           }
         }
       }
@@ -279,9 +316,14 @@ scope root: `, root_element);
           scope_refs[ref_scope_name] = currentNode;
         } else {
           if (globalThis.window) {
-            console.warn(`scope #${ref_scope_name} is already used`, currentNode);
+            console.warn(
+              `scope #${ref_scope_name} is already used`,
+              currentNode
+            );
           } else {
-            console.warn(`scope #${ref_scope_name} is already used`);
+            console.warn(
+              `scope #${ref_scope_name} is already used`
+            );
           }
           unnamed_scopes.push(currentNode);
         }
@@ -305,16 +347,17 @@ scope root: `, root_element);
   }
   walkDomScope(root_element, callback, config);
   var index = 0;
+  const SCOPE_AUTO_NAME_PREFIX2 = config.scope_auto_name_prefix;
   unnamed_scopes.forEach((unnamed_scope_element) => {
-    while (scope_refs[SCOPE_AUTO_NAME_PREFIX + index.toString()]) {
+    while (scope_refs[SCOPE_AUTO_NAME_PREFIX2 + index.toString()]) {
       index++;
     }
-    scope_refs[SCOPE_AUTO_NAME_PREFIX + index.toString()] = unnamed_scope_element;
+    scope_refs[SCOPE_AUTO_NAME_PREFIX2 + index.toString()] = unnamed_scope_element;
   });
   return { refs, scope_refs };
 }
-function walkDomScope(root_element, callback, settings) {
-  var config = getConfig(settings);
+function walkDomScope(root_element, callback, options) {
+  const config = getConfig(options);
   function scope_filter(_node) {
     var node = (
       /** @type {HTMLElement} */
@@ -360,7 +403,9 @@ function checkRefs(refs, annotation) {
     }
     const type = typeof annotation[prop] === "function" ? annotation[prop].prototype : annotation[prop];
     if (type.isPrototypeOf(ref) === false) {
-      throw new Error(`The ref "${prop}" must be an instance of ${type.constructor.name} (actual: ${ref.constructor.name})`);
+      throw new Error(
+        `The ref "${prop}" must be an instance of ${type.constructor.name} (actual: ${ref.constructor.name})`
+      );
     }
   }
 }
@@ -368,10 +413,8 @@ function createFromHTML(html, options) {
   if (typeof html !== "string") {
     throw new Error("html must be a string");
   }
-  let wnd = options?.window || globalThis.window;
-  if (!wnd) {
-    throw new Error("window is not defined");
-  }
+  const config = getConfig(options);
+  let wnd = config.window;
   const doc = (
     /** @type {Document} */
     wnd.document
@@ -575,15 +618,40 @@ var SlotManager = class {
 
 // node_modules/@supercat1337/event-emitter/dist/event-emitter.esm.js
 var EventEmitter = class {
-  /** @type {Object.<string, Function[]>} */
+  /**
+   * Object that holds events and their listeners
+   * @type {Object.<string, Function[]>}
+   */
   events = {};
+  /** @type {Object.<"#has-listeners"|"#no-listeners"|"#listener-error", Function[]>} */
+  #internalEvents = {
+    "#has-listeners": [],
+    "#no-listeners": [],
+    "#listener-error": []
+  };
+  #isDestroyed = false;
+  /**
+   * logErrors indicates whether errors thrown by listeners should be logged to the console.
+   * @type {boolean}
+   */
+  logErrors = true;
+  /**
+   * Is the event emitter destroyed?
+   * @type {boolean}
+   */
+  get isDestroyed() {
+    return this.#isDestroyed;
+  }
   /**
    * on is used to add a callback function that's going to be executed when the event is triggered
-   * @param {T|"#has-listeners"|"#no-listeners"} event
+   * @param {T} event
    * @param {Function} listener
    * @returns {()=>void}
    */
   on(event, listener) {
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
     if (typeof this.events[event] !== "object") {
       this.events[event] = [];
     }
@@ -592,49 +660,149 @@ var EventEmitter = class {
     let unsubscriber = function() {
       that.removeListener(event, listener);
     };
-    if (!/^(#has-listeners|#no-listeners)$/.test(event) && this.events[event].length == 1) {
-      this.emit("#has-listeners", event);
+    if (this.events[event].length == 1) {
+      this.#emitInternal("#has-listeners", event);
     }
     return unsubscriber;
   }
   /**
+   * Internal method to add a listener to an internal event
+   * @param {"#has-listeners"|"#no-listeners"|"#listener-error"} event
+   * @param {Function} listener
+   * @returns {()=>void}
+   */
+  #onInternalEvent(event, listener) {
+    this.#internalEvents[event].push(listener);
+    let that = this;
+    let unsubscriber = function() {
+      that.#removeInternalListener(event, listener);
+    };
+    return unsubscriber;
+  }
+  /**
+   * Internal method to remove a listener from an internal event
+   * @param {"#has-listeners"|"#no-listeners"|"#listener-error"} event
+   * @param {Function} listener
+   */
+  #removeInternalListener(event, listener) {
+    var idx;
+    if (typeof this.#internalEvents[event] === "object") {
+      idx = this.#internalEvents[event].indexOf(listener);
+      if (idx > -1) {
+        this.#internalEvents[event].splice(idx, 1);
+      }
+    }
+  }
+  /**
+   * off is an alias for removeListener
+   * @param {T} event
+   * @param {Function} listener
+   */
+  off(event, listener) {
+    return this.removeListener(event, listener);
+  }
+  /**
    * Remove an event listener from an event
-   * @param {T|"#has-listeners"|"#no-listeners"} event
+   * @param {T} event
    * @param {Function} listener
    */
   removeListener(event, listener) {
+    if (this.#isDestroyed) {
+      return;
+    }
     var idx;
-    if (typeof this.events[event] === "object") {
-      idx = this.events[event].indexOf(listener);
-      if (idx > -1) {
-        this.events[event].splice(idx, 1);
-        if (!/^(#has-listeners|#no-listeners)$/.test(event) && this.events[event].length == 0) {
-          this.emit("#no-listeners", event);
-        }
+    if (!this.events[event]) return;
+    idx = this.events[event].indexOf(listener);
+    if (idx > -1) {
+      this.events[event].splice(idx, 1);
+      if (this.events[event].length == 0) {
+        this.#emitInternal("#no-listeners", event);
       }
     }
   }
   /**
    * emit is used to trigger an event
-   * @param {T|"#has-listeners"|"#no-listeners"} event
+   * @param {T} event
+   * @param {...any} args
    */
-  emit(event) {
+  emit(event, ...args) {
+    if (this.#isDestroyed) {
+      return;
+    }
     if (typeof this.events[event] !== "object") return;
-    var i, listeners, length, args = [].slice.call(arguments, 1);
-    listeners = this.events[event].slice();
-    length = listeners.length;
-    for (i = 0; i < length; i++) {
+    var listeners = this.events[event];
+    var length = listeners.length;
+    for (var i = 0; i < length; i++) {
       try {
         listeners[i].apply(this, args);
       } catch (e) {
-        console.error(event, args);
-        console.error(e);
+        this.#emitInternal("#listener-error", e, event, ...args);
+        if (this.logErrors) {
+          console.error(`Error in listener for event "${event}":`, e);
+        }
+      }
+    }
+  }
+  /**
+   * Internal function to emit an event
+   * @param {"#has-listeners"|"#no-listeners"|"#listener-error"} event
+   * @param {...any} args
+   */
+  #emitInternal(event, ...args) {
+    var listeners = this.#internalEvents[event];
+    var length = listeners.length;
+    for (var i = 0; i < length; i++) {
+      try {
+        listeners[i].apply(this, args);
+      } catch (e) {
+        let listenerError = e;
+        listenerError.cause = {
+          event,
+          args
+        };
+        if (event === "#listener-error") {
+          if (this.logErrors) {
+            console.error(
+              `Error in listener for internal event "${event}":`,
+              listenerError
+            );
+          }
+          continue;
+        }
+        if (event === "#has-listeners") {
+          if (this.logErrors) {
+            console.error(
+              `Error in listener for internal event "${event}":`,
+              listenerError
+            );
+          }
+          this.#emitInternal(
+            "#listener-error",
+            listenerError,
+            "#has-listeners",
+            ...args
+          );
+        }
+        if (event === "#no-listeners") {
+          if (this.logErrors) {
+            console.error(
+              `Error in listener for internal event "${event}":`,
+              listenerError
+            );
+          }
+          this.#emitInternal(
+            "#listener-error",
+            listenerError,
+            "#no-listeners",
+            ...args
+          );
+        }
       }
     }
   }
   /**
    * Add a one-time listener
-   * @param {T|"#has-listeners"|"#no-listeners"} event
+   * @param {T} event
    * @param {Function} listener
    * @returns {()=>void}
    */
@@ -651,6 +819,9 @@ var EventEmitter = class {
    * @returns {Promise<boolean>} - Resolves with true if the event was emitted, false if the time ran out.
    */
   waitForEvent(event, max_wait_ms = 0) {
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
     return new Promise((resolve) => {
       let timeout;
       let unsubscriber = this.on(event, () => {
@@ -675,6 +846,9 @@ var EventEmitter = class {
    * @returns {Promise<boolean>} - Resolves with true if any event was emitted, false if the time ran out.
    */
   waitForAnyEvent(events, max_wait_ms = 0) {
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
     return new Promise((resolve) => {
       let timeout;
       let unsubscribers = [];
@@ -709,18 +883,30 @@ var EventEmitter = class {
    * @alias clear
    */
   destroy() {
-    this.clear();
+    if (this.#isDestroyed) {
+      return;
+    }
+    this.#isDestroyed = true;
+    this.#internalEvents = {
+      "#has-listeners": [],
+      "#no-listeners": [],
+      "#listener-error": []
+    };
+    this.events = {};
   }
   /**
    * Clears all listeners for a specified event.
-   * @param {T|"#has-listeners"|"#no-listeners"} event - The event for which to clear all listeners.
+   * @param {T} event - The event for which to clear all listeners.
    */
   clearEventListeners(event) {
+    if (this.#isDestroyed) {
+      return;
+    }
     let listeners = this.events[event] || [];
     let listenersCount = listeners.length;
     if (listenersCount > 0) {
       this.events[event] = [];
-      this.emit("#no-listeners", event);
+      this.#emitInternal("#no-listeners", event);
     }
   }
   /**
@@ -729,7 +915,10 @@ var EventEmitter = class {
    * @returns {()=>void}
    */
   onHasEventListeners(callback) {
-    return this.on("#has-listeners", callback);
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
+    return this.#onInternalEvent("#has-listeners", callback);
   }
   /**
    * onNoEventListeners() is used to subscribe to the "#no-listeners" event. This event is emitted when the number of listeners for any event (except "#has-listeners" and "#no-listeners") goes from 1 to 0.
@@ -737,7 +926,21 @@ var EventEmitter = class {
    * @returns {()=>void}
    */
   onNoEventListeners(callback) {
-    return this.on("#no-listeners", callback);
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
+    return this.#onInternalEvent("#no-listeners", callback);
+  }
+  /**
+   * onListenerError() is used to subscribe to the "#listener-error" event. This event is emitted when any listener throws an error.
+   * @param {Function} callback
+   * @returns {()=>void}
+   */
+  onListenerError(callback) {
+    if (this.#isDestroyed) {
+      throw new Error("EventEmitter is destroyed");
+    }
+    return this.#onInternalEvent("#listener-error", callback);
   }
 };
 
@@ -988,6 +1191,26 @@ var Component = class _Component {
     return this.on("unmount", callback);
   }
   /**
+   * Subscribes to the "collapse" event.
+   * This event is emitted after the component has collapsed.
+   * The callback is called with the component instance as the this value.
+   * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+   * @returns {()=>void} A function that can be called to unsubscribe the listener.
+   */
+  onCollapse(callback) {
+    return this.on("collapse", callback);
+  }
+  /**
+   * Subscribes to the "expand" event.
+   * This event is emitted after the component has expanded.
+   * The callback is called with the component instance as the this value.
+   * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+   * @returns {()=>void} A function that can be called to unsubscribe the listener.
+   */
+  onExpand(callback) {
+    return this.on("expand", callback);
+  }
+  /**
    * Checks if the component is connected to a root element.
    * @returns {boolean} True if the component is connected, false otherwise.
    */
@@ -1100,6 +1323,7 @@ var Component = class _Component {
   collapse() {
     this.unmount();
     this.isCollapsed = true;
+    this.emit("collapse");
   }
   /**
    * Expands the component by mounting it to the DOM.
@@ -1116,6 +1340,7 @@ var Component = class _Component {
       this.$internals.parentSlotName,
       this
     );
+    this.emit("expand");
   }
   /**
    * Shows the component.
@@ -1253,7 +1478,9 @@ var SlotToggler = class {
 };
 
 // src/index.js
-injectCoreStyles();
+if (globalThis.ui_auto_inject_core_styles !== false) {
+  injectCoreStyles(globalThis.document || null);
+}
 export {
   Component,
   DOMReady,
@@ -1268,6 +1495,7 @@ export {
   formatDateTime,
   getDefaultLanguage,
   hideElements,
+  injectCoreStyles,
   isDarkMode,
   removeSpinnerFromButton,
   scrollToBottom,

@@ -290,6 +290,28 @@ export class Component {
     }
 
     /**
+     * Subscribes to the "collapse" event.
+     * This event is emitted after the component has collapsed.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onCollapse(callback) {
+        return this.on("collapse", callback);
+    }
+
+    /**
+     * Subscribes to the "expand" event.
+     * This event is emitted after the component has expanded.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
+     * @returns {()=>void} A function that can be called to unsubscribe the listener.
+     */
+    onExpand(callback) {
+        return this.on("expand", callback);
+    }
+
+    /**
      * Checks if the component is connected to a root element.
      * @returns {boolean} True if the component is connected, false otherwise.
      */
@@ -421,6 +443,7 @@ export class Component {
     collapse() {
         this.unmount();
         this.isCollapsed = true;
+        this.emit("collapse");
     }
 
     /**
@@ -439,6 +462,7 @@ export class Component {
             this.$internals.parentSlotName,
             this
         );
+        this.emit("expand");
     }
 
     /**

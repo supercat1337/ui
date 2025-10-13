@@ -5,11 +5,12 @@
  * If the document is already loaded, the callback is executed immediately.
  * Otherwise, it is added as a listener to the 'DOMContentLoaded' event.
  * @param {() => void} callback - The function to be executed when the DOM is ready.
+ * @param {Document} [doc=window.document] - The document object to check the ready state of.
  */
-export function DOMReady(callback) {
-    document.readyState === "interactive" || document.readyState === "complete"
+export function DOMReady(callback, doc = window.document) {
+    doc.readyState === "interactive" || doc.readyState === "complete"
         ? callback()
-        : document.addEventListener("DOMContentLoaded", callback);
+        : doc.addEventListener("DOMContentLoaded", callback);
 }
 
 /**
@@ -136,13 +137,6 @@ export function removeSpinnerFromButton(button) {
     if (spinner) spinner.remove();
 }
 
-/**
- * Returns the current Unix time in seconds.
- * @returns {number}
- */
-export function unixtime() {
-    return Math.floor(new Date().getTime() / 1000);
-}
 
 /**
  * Checks if the user prefers a dark color scheme.
@@ -150,10 +144,10 @@ export function unixtime() {
  * system is set to a dark mode preference.
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
-export function isDarkMode() {
+export function isDarkMode(wnd = window) {
     if (
-        window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
+        wnd.matchMedia &&
+        wnd.matchMedia("(prefers-color-scheme: dark)").matches
     ) {
         return true;
     }
@@ -218,108 +212,6 @@ export function copyToClipboard(text) {
     return navigator.clipboard.writeText(text);
 }
 
-/**
- * Formats the given timestamp into a human-readable string representation of
- * a date and time. The date is formatted according to the user's locale, and
- * the time is formatted according to the user's locale with a 24-hour clock.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
- * @returns {string} A human-readable string representation of the given timestamp, in the form of a date and time.
- */
-export function formatDateTime(timestamp) {
-    var t = new Date(timestamp * 1000);
-    return `${t.toLocaleDateString("en-GB")} ${t.toLocaleTimeString("en-GB")}`;
-}
-
-/**
- * Formats the given timestamp into a human-readable string representation of
- * a date. The date is formatted according to the user's locale.
- * @param {number} timestamp - The timestamp to be formatted, in seconds since the Unix epoch.
- * @returns {string} A human-readable string representation of the given timestamp, in the form of a date.
- */
-export function formatDate(timestamp) {
-    var t = new Date(timestamp * 1000);
-    return `${t.toLocaleDateString("en-GB")}`;
-}
-
-export class Toggler {
-    /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
-    items = new Map();
-
-    /** @type {string} */
-    #active;
-
-    /**
-     * Adds an item to the toggler.
-     * @param {string} itemName - The name of the item to be added.
-     * @param {(itemName:string) => void} on - The function to be called when the item is set as active.
-     * @param {(itemName:string) => void} off - The function to be called when the item is set as inactive.
-     */
-    addItem(itemName, on, off) {
-        if (this.items.has(itemName)) {
-            throw new Error("Item already exists");
-        }
-
-        this.items.set(itemName, { isActive: false, on, off });
-    }
-
-    /**
-     * Removes the item with the given name from the toggler.
-     * @param {string} itemName - The name of the item to be removed.
-     */
-    removeItem(itemName) {
-        if (this.#active === itemName) {
-            this.#active = "";
-        }
-
-        this.items.delete(itemName);
-    }
-
-    /**
-     * Sets the active item to the given item name.
-     * @param {string} active - The name of the item to be set as active.
-     * @throws {Error} If the item does not exist in the toggler.
-     */
-    setActive(active) {
-        if (!this.items.has(active)) {
-            throw new Error("Item not found");
-        }
-
-        if (this.#active === active) {
-            return;
-        }
-
-        for (const [key, value] of this.items) {
-            if (key === active) {
-                this.#active = key;
-
-                if (!value.isActive) {
-                    value.isActive = true;
-                    value.on(key);
-                }
-            } else {
-                if (value.isActive) {
-                    value.off(key);
-                }
-                value.isActive = false;
-            }
-        }
-    }
-
-    /**
-     * Runs the callbacks for all items in the toggler.
-     * If an item is active, the "on" callback is called with the item name as the argument.
-     * If an item is inactive, the "off" callback is called with the item name as the argument.
-     */
-    runCallbacks() {
-        for (const [key, value] of this.items) {
-            if (value.isActive) {
-                value.on(key);
-            } else {
-                value.off(key);
-            }
-        }
-    }
-}
 
 /**
  * Fades in the given element with the given duration.
