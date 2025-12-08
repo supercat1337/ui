@@ -1,8 +1,8 @@
 // @ts-check
 
-import { checkRefs, createFromHTML, selectRefsExtended } from "dom-scope";
-import { SlotManager } from "./slot-manager.js";
-import { Internals } from "./internals.js";
+import { checkRefs, createFromHTML, selectRefsExtended } from 'dom-scope';
+import { SlotManager } from './slot-manager.js';
+import { Internals } from './internals.js';
 
 /**
  * @typedef {(component: any) => Node|string} LayoutFunction
@@ -19,7 +19,7 @@ function onConnectDefault(component) {
     try {
         component.connectedCallback();
     } catch (e) {
-        console.error("Error in connectedCallback:", e);
+        console.error('Error in connectedCallback:', e);
     }
 }
 
@@ -33,7 +33,7 @@ function onDisconnectDefault(component) {
     try {
         component.disconnectedCallback();
     } catch (e) {
-        console.error("Error in disconnectedCallback:", e);
+        console.error('Error in disconnectedCallback:', e);
     }
 }
 
@@ -50,7 +50,7 @@ export class Component {
     /** @type {string[]|undefined} */
     slots;
 
-    /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
+    /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation;
 
     /** @type {Node|null} */
@@ -101,7 +101,7 @@ export class Component {
 
         let template;
 
-        if (typeof layout === "function") {
+        if (typeof layout === 'function') {
             let _template = layout(this);
 
             if (_template instanceof Node) {
@@ -119,7 +119,7 @@ export class Component {
         }
 
         if (count !== 1) {
-            throw new Error("Layout must have exactly one root element");
+            throw new Error('Layout must have exactly one root element');
         }
 
         this.#template = template;
@@ -128,7 +128,7 @@ export class Component {
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
     setLayout(layout, annotation) {
@@ -148,7 +148,7 @@ export class Component {
      */
     getRefs() {
         if (!this.#connected) {
-            throw new Error("Component is not connected to the DOM");
+            throw new Error('Component is not connected to the DOM');
         }
 
         return this.$internals.refs;
@@ -186,12 +186,15 @@ export class Component {
      */
     updateRefs() {
         if (!this.$internals.root) {
-            throw new Error("Component is not connected to the DOM");
+            throw new Error('Component is not connected to the DOM');
         }
 
         let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
 
-        let { refs, scope_refs } = selectRefsExtended(componentRoot);
+        let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
+            scope_ref_attr_name: 'data-slot',
+            ref_attr_name: 'data-ref',
+        });
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
@@ -231,7 +234,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeConnect(callback) {
-        return this.on("beforeConnect", callback);
+        return this.on('beforeConnect', callback);
     }
 
     /**
@@ -242,7 +245,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onConnect(callback) {
-        return this.on("connect", callback);
+        return this.on('connect', callback);
     }
 
     /**
@@ -253,7 +256,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onDisconnect(callback) {
-        return this.on("disconnect", callback);
+        return this.on('disconnect', callback);
     }
 
     /**
@@ -264,7 +267,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onMount(callback) {
-        return this.on("mount", callback);
+        return this.on('mount', callback);
     }
 
     /**
@@ -275,7 +278,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeUnmount(callback) {
-        return this.on("beforeUnmount", callback);
+        return this.on('beforeUnmount', callback);
     }
 
     /**
@@ -286,7 +289,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onUnmount(callback) {
-        return this.on("unmount", callback);
+        return this.on('unmount', callback);
     }
 
     /**
@@ -297,7 +300,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onCollapse(callback) {
-        return this.on("collapse", callback);
+        return this.on('collapse', callback);
     }
 
     /**
@@ -308,7 +311,7 @@ export class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onExpand(callback) {
-        return this.on("expand", callback);
+        return this.on('expand', callback);
     }
 
     /**
@@ -327,7 +330,7 @@ export class Component {
      */
     connect(componentRoot) {
         if (this.#connected === true) {
-            throw new Error("Component is already connected");
+            throw new Error('Component is already connected');
         }
 
         this.$internals.root = componentRoot;
@@ -337,7 +340,7 @@ export class Component {
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
         this.slotManager.mountChildren();
-        this.emit("connect");
+        this.emit('connect');
     }
 
     /**
@@ -354,7 +357,7 @@ export class Component {
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
         this.$internals.slotRefs = {};
-        this.emit("disconnect");
+        this.emit('disconnect');
     }
 
     /**
@@ -379,44 +382,40 @@ export class Component {
      * If "append", the component is appended to the container.
      * If "prepend", the component is prepended to the container.
      */
-    mount(container, mode = "replace") {
+    mount(container, mode = 'replace') {
         if (!(container instanceof Element)) {
-            throw new TypeError("Container must be a DOM Element");
+            throw new TypeError('Container must be a DOM Element');
         }
 
-        const validModes = ["replace", "append", "prepend"];
+        const validModes = ['replace', 'append', 'prepend'];
         if (!validModes.includes(mode)) {
-            throw new Error(
-                `Invalid mode: ${mode}. Must be one of: ${validModes.join(
-                    ", "
-                )}`
-            );
+            throw new Error(`Invalid mode: ${mode}. Must be one of: ${validModes.join(', ')}`);
         }
 
         if (this.#template === null) {
             this.#loadTemplate();
         }
 
-        if (this.#template === null) throw new Error("Template is not set");
+        if (this.#template === null) throw new Error('Template is not set');
 
         if (this.#connected === true) {
             return;
         }
 
         let clonedTemplate = this.#template.cloneNode(true);
-        this.emit("beforeConnect", clonedTemplate);
+        this.emit('beforeConnect', clonedTemplate);
 
         let componentRoot = /** @type {HTMLElement} */ (
             // @ts-ignore
             clonedTemplate.firstElementChild
         );
 
-        if (mode === "replace") container.replaceChildren(clonedTemplate);
-        else if (mode === "append") container.append(clonedTemplate);
-        else if (mode === "prepend") container.prepend(clonedTemplate);
+        if (mode === 'replace') container.replaceChildren(clonedTemplate);
+        else if (mode === 'append') container.append(clonedTemplate);
+        else if (mode === 'prepend') container.prepend(clonedTemplate);
 
         this.connect(componentRoot);
-        this.emit("mount");
+        this.emit('mount');
     }
 
     /**
@@ -427,13 +426,13 @@ export class Component {
     unmount() {
         if (this.#connected === false) return;
 
-        this.emit("beforeUnmount");
+        this.emit('beforeUnmount');
         this.slotManager.unmountChildren();
 
         this.disconnect();
         this.$internals.root?.remove();
 
-        this.emit("unmount");
+        this.emit('unmount');
     }
 
     /**
@@ -443,7 +442,7 @@ export class Component {
     collapse() {
         this.unmount();
         this.isCollapsed = true;
-        this.emit("collapse");
+        this.emit('collapse');
     }
 
     /**
@@ -458,11 +457,8 @@ export class Component {
         if (this.#connected === true) return;
         if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addComponentToSlot(
-            this.$internals.parentSlotName,
-            this
-        );
-        this.emit("expand");
+        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
+        this.emit('expand');
     }
 
     /**
@@ -472,7 +468,7 @@ export class Component {
      */
     show() {
         if (!this.isConnected) return;
-        this.$internals.root?.classList.remove("d-none");
+        this.$internals.root?.classList.remove('d-none');
     }
 
     /**
@@ -482,7 +478,7 @@ export class Component {
      */
     hide() {
         if (!this.isConnected) return;
-        this.$internals.root?.classList.add("d-none");
+        this.$internals.root?.classList.add('d-none');
     }
 
     /**
@@ -525,11 +521,11 @@ export class Component {
      * @throws {Error} If the slot does not exist.
      */
     addComponentToSlot(slotName, ...components) {
-        if (!components.every((comp) => comp instanceof Component)) {
-            throw new Error("All components must be instances of Component");
+        if (!components.every(comp => comp instanceof Component)) {
+            throw new Error('All components must be instances of Component');
         }
 
-        if (typeof this.slots !== "undefined") {
+        if (typeof this.slots !== 'undefined') {
             this.defineSlots(...this.slots);
         }
 
@@ -556,7 +552,7 @@ export class Component {
         }
 
         childComponent.$internals.parentComponent = null;
-        childComponent.$internals.parentSlotName = "";
+        childComponent.$internals.parentSlotName = '';
 
         this.slotManager.removeChildComponent(childComponent);
     }

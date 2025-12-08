@@ -7,8 +7,8 @@ export class Component {
     layout: LayoutFunction | string | undefined;
     /** @type {string[]|undefined} */
     slots: string[] | undefined;
-    /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
-    refsAnnotation: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation | undefined;
+    /** @type {import("dom-scope").RefsAnnotation|undefined} */
+    refsAnnotation: import("dom-scope").RefsAnnotation | undefined;
     slotManager: SlotManager;
     isCollapsed: boolean;
     /**
@@ -28,10 +28,10 @@ export class Component {
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
-    setLayout(layout: LayoutFunction | string, annotation?: import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation): void;
+    setLayout(layout: LayoutFunction | string, annotation?: import("dom-scope").RefsAnnotation): void;
     /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
@@ -329,8 +329,9 @@ export function escapeHtml(unsafe: string): string;
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade in.
  * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-export function fadeIn(element: HTMLElement, duration?: number): void;
+export function fadeIn(element: HTMLElement, duration?: number, wnd?: Window): void;
 /**
  * Fades out the given element with the given duration.
  * The element is set to be block level and its opacity is set to 1.
@@ -338,18 +339,21 @@ export function fadeIn(element: HTMLElement, duration?: number): void;
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade out.
  * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-export function fadeOut(element: HTMLElement, duration?: number): void;
+export function fadeOut(element: HTMLElement, duration?: number, wnd?: Window): void;
 /**
  * Formats the given number of bytes into a human-readable string.
  *
  * @param {number} bytes - The number of bytes to be formatted.
  * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
  * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language.
- * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
+ * @param {{[key:string]: string[]}} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
  * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
  */
-export function formatBytes(bytes: number, decimals?: number, lang?: string, sizes?: any): string;
+export function formatBytes(bytes: number, decimals?: number, lang?: string, sizes?: {
+    [key: string]: string[];
+}): string;
 /**
  * Formats the given timestamp into a human-readable string representation of
  * a date. The date is formatted according to the user's locale.
@@ -421,8 +425,9 @@ export function showElements(...elements: HTMLElement[]): void;
  * @param {HTMLButtonElement} button - The button to add the spinner to.
  * @param {string|null} [customClassName] - The class name to use for the spinner.
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
+ * @param {Document} [doc=window.document] - The document object to create the spinner element in.
  */
-export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string | null): void;
+export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string | null, doc?: Document): void;
 /**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
  * @param {HTMLButtonElement} el - The button element to set the status for.
@@ -452,7 +457,7 @@ export function unixtime(dateObject?: Date): number;
  * @typedef {(component: Component) => void} TextUpdateFunction
  */
 declare class Internals {
-    /** @type {EventEmitter} */
+    /** @type {EventEmitter<any>} */
     eventEmitter: EventEmitter<any>;
     /** @type {AbortController} */
     disconnectController: AbortController;
@@ -488,7 +493,7 @@ declare class SlotManager {
     setSlotStrictMode(mode: boolean): void;
     /**
      * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "scope-ref" attribute.
+     * The slots are declared in the component's template using the "data-slot" attribute.
      * The slot names are used to access the children components of the component.
      * @param {...string} slotNames - The names of the slots.
      */

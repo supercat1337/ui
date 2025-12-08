@@ -33,7 +33,7 @@ export class SlotManager {
 
     /**
      * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "scope-ref" attribute.
+     * The slots are declared in the component's template using the "data-slot" attribute.
      * The slot names are used to access the children components of the component.
      * @param {...string} slotNames - The names of the slots.
      */

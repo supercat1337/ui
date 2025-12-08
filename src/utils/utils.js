@@ -8,9 +8,9 @@
  * @param {Document} [doc=window.document] - The document object to check the ready state of.
  */
 export function DOMReady(callback, doc = window.document) {
-    doc.readyState === "interactive" || doc.readyState === "complete"
+    doc.readyState === 'interactive' || doc.readyState === 'complete'
         ? callback()
-        : doc.addEventListener("DOMContentLoaded", callback);
+        : doc.addEventListener('DOMContentLoaded', callback);
 }
 
 /**
@@ -20,16 +20,15 @@ export function DOMReady(callback, doc = window.document) {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe) {
-    return unsafe.replace(
-        /[&<"']/g,
-        (m) =>
-            ({
-                "&": "&amp;",
-                "<": "&lt;",
-                '"': "&quot;",
-                "'": "&#39;", // ' -> &apos; for XML only
-            }[m])
-    );
+    return unsafe.replace(/[&<"']/g, function (m) {
+        let charset = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '"': '&quot;',
+            "'": '&#39;', // ' -> &apos; for XML only
+        };
+        return charset[/** @type {'&' | '<' | '"' | "'"} */ (m)];
+    });
 }
 
 /**
@@ -92,7 +91,7 @@ export function scrollToBottom(element) {
 export function hideElements(...elements) {
     for (let i = 0; i < elements.length; i++) {
         let element = elements[i];
-        element.classList.add("d-none");
+        element.classList.add('d-none');
     }
 }
 
@@ -103,7 +102,7 @@ export function hideElements(...elements) {
 export function showElements(...elements) {
     for (let i = 0; i < elements.length; i++) {
         let element = elements[i];
-        element.classList.remove("d-none");
+        element.classList.remove('d-none');
     }
 }
 
@@ -113,16 +112,17 @@ export function showElements(...elements) {
  * @param {HTMLButtonElement} button - The button to add the spinner to.
  * @param {string|null} [customClassName] - The class name to use for the spinner.
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
+ * @param {Document} [doc=window.document] - The document object to create the spinner element in.
  */
-export function showSpinnerInButton(button, customClassName = null) {
-    if (button.getElementsByClassName("spinner-border")[0]) return;
+export function showSpinnerInButton(button, customClassName = null, doc = window.document) {
+    if (button.getElementsByClassName('spinner-border')[0]) return;
 
-    let spinner = document.createElement("span");
+    let spinner = doc.createElement('span');
 
     if (customClassName) {
         spinner.className = customClassName;
     } else {
-        spinner.className = "spinner-border spinner-border-sm";
+        spinner.className = 'spinner-border spinner-border-sm';
     }
 
     button.prepend(spinner);
@@ -133,10 +133,9 @@ export function showSpinnerInButton(button, customClassName = null) {
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button) {
-    let spinner = button.querySelector(".spinner-border");
+    let spinner = button.querySelector('.spinner-border');
     if (spinner) spinner.remove();
 }
-
 
 /**
  * Checks if the user prefers a dark color scheme.
@@ -145,10 +144,7 @@ export function removeSpinnerFromButton(button) {
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
 export function isDarkMode(wnd = window) {
-    if (
-        wnd.matchMedia &&
-        wnd.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
+    if (wnd.matchMedia && wnd.matchMedia('(prefers-color-scheme: dark)').matches) {
         return true;
     }
 
@@ -162,7 +158,7 @@ export function isDarkMode(wnd = window) {
  */
 export function getDefaultLanguage() {
     let m = navigator.language.match(/^[a-z]+/);
-    let lang = m ? m[0] : "en";
+    let lang = m ? m[0] : 'en';
     return lang;
 }
 
@@ -172,35 +168,30 @@ export function getDefaultLanguage() {
  * @param {number} bytes - The number of bytes to be formatted.
  * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
  * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language.
- * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
+ * @param {{[key:string]: string[]}} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
  * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
  */
 export function formatBytes(bytes, decimals = 2, lang, sizes) {
-    lang = lang || "en";
+    lang = lang || 'en';
 
     sizes = sizes || {
-        en: ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+        en: ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
     };
 
-    const get_size = sizes[lang] ? sizes[lang] : sizes["en"];
+    const get_size = sizes[lang] ? sizes[lang] : sizes['en'];
 
     if (bytes === 0) {
-        return "0 " + get_size[0];
+        return '0 ' + get_size[0];
     }
 
-    let minus_str = bytes < 0 ? "-" : "";
+    let minus_str = bytes < 0 ? '-' : '';
     bytes = Math.abs(bytes);
 
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return (
-        minus_str +
-        parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) +
-        " " +
-        get_size[i]
-    );
+    return minus_str + parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + get_size[i];
 }
 
 /**
@@ -212,7 +203,6 @@ export function copyToClipboard(text) {
     return navigator.clipboard.writeText(text);
 }
 
-
 /**
  * Fades in the given element with the given duration.
  * The element is set to be block level and its opacity is set to 0.
@@ -220,20 +210,18 @@ export function copyToClipboard(text) {
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade in.
  * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-export function fadeIn(element, duration = 400) {
-    element.style.opacity = "0";
-    element.style.display = "block";
+export function fadeIn(element, duration = 400, wnd = window) {
+    element.style.opacity = '0';
+    element.style.display = 'block';
     let last = +new Date();
     const tick = () => {
         let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity + (date - last) / duration
-        );
+        element.style.opacity = String(+element.style.opacity + (date - last) / duration);
         last = +new Date();
         if (+element.style.opacity < 1) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
+            (wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick)) || setTimeout(tick, 16);
         }
     };
     tick();
@@ -246,19 +234,17 @@ export function fadeIn(element, duration = 400) {
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade out.
  * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-export function fadeOut(element, duration = 400) {
-    element.style.opacity = "1";
+export function fadeOut(element, duration = 400, wnd = window) {
+    element.style.opacity = '1';
     let last = +new Date();
     const tick = () => {
         let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity - (date - last) / duration
-        );
+        element.style.opacity = String(+element.style.opacity - (date - last) / duration);
         last = +new Date();
         if (+element.style.opacity > 0) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
+            (wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick)) || setTimeout(tick, 16);
         }
     };
     tick();

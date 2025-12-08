@@ -10,7 +10,7 @@
 
 export function injectCoreStyles(doc = window.document) {
     
-    if (doc === null) {
+    if (!doc) {
         throw new Error("Document is null. Cannot inject core styles.");
     }
 

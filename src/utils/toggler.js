@@ -3,7 +3,7 @@ export class Toggler {
     items = new Map();
 
     /** @type {string} */
-    #active;
+    #active = "";
 
     /**
      * Adds an item to the toggler.

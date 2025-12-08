@@ -1,3 +1,4 @@
+// @ts-check
 import { createFromHTML, selectRefsExtended, checkRefs } from 'dom-scope';
 import { EventEmitter } from '@supercat1337/event-emitter';
 
@@ -11,9 +12,9 @@ import { EventEmitter } from '@supercat1337/event-emitter';
  * @param {Document} [doc=window.document] - The document object to check the ready state of.
  */
 function DOMReady(callback, doc = window.document) {
-    doc.readyState === "interactive" || doc.readyState === "complete"
+    doc.readyState === 'interactive' || doc.readyState === 'complete'
         ? callback()
-        : doc.addEventListener("DOMContentLoaded", callback);
+        : doc.addEventListener('DOMContentLoaded', callback);
 }
 
 /**
@@ -23,16 +24,15 @@ function DOMReady(callback, doc = window.document) {
  * @returns {string} The escaped string.
  */
 function escapeHtml(unsafe) {
-    return unsafe.replace(
-        /[&<"']/g,
-        (m) =>
-            ({
-                "&": "&amp;",
-                "<": "&lt;",
-                '"': "&quot;",
-                "'": "&#39;", // ' -> &apos; for XML only
-            }[m])
-    );
+    return unsafe.replace(/[&<"']/g, function (m) {
+        let charset = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '"': '&quot;',
+            "'": '&#39;', // ' -> &apos; for XML only
+        };
+        return charset[/** @type {'&' | '<' | '"' | "'"} */ (m)];
+    });
 }
 
 /**
@@ -95,7 +95,7 @@ function scrollToBottom(element) {
 function hideElements(...elements) {
     for (let i = 0; i < elements.length; i++) {
         let element = elements[i];
-        element.classList.add("d-none");
+        element.classList.add('d-none');
     }
 }
 
@@ -106,7 +106,7 @@ function hideElements(...elements) {
 function showElements(...elements) {
     for (let i = 0; i < elements.length; i++) {
         let element = elements[i];
-        element.classList.remove("d-none");
+        element.classList.remove('d-none');
     }
 }
 
@@ -116,16 +116,17 @@ function showElements(...elements) {
  * @param {HTMLButtonElement} button - The button to add the spinner to.
  * @param {string|null} [customClassName] - The class name to use for the spinner.
  *                                      If not provided, 'spinner-border spinner-border-sm' is used.
+ * @param {Document} [doc=window.document] - The document object to create the spinner element in.
  */
-function showSpinnerInButton(button, customClassName = null) {
-    if (button.getElementsByClassName("spinner-border")[0]) return;
+function showSpinnerInButton(button, customClassName = null, doc = window.document) {
+    if (button.getElementsByClassName('spinner-border')[0]) return;
 
-    let spinner = document.createElement("span");
+    let spinner = doc.createElement('span');
 
     if (customClassName) {
         spinner.className = customClassName;
     } else {
-        spinner.className = "spinner-border spinner-border-sm";
+        spinner.className = 'spinner-border spinner-border-sm';
     }
 
     button.prepend(spinner);
@@ -136,10 +137,9 @@ function showSpinnerInButton(button, customClassName = null) {
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 function removeSpinnerFromButton(button) {
-    let spinner = button.querySelector(".spinner-border");
+    let spinner = button.querySelector('.spinner-border');
     if (spinner) spinner.remove();
 }
-
 
 /**
  * Checks if the user prefers a dark color scheme.
@@ -148,10 +148,7 @@ function removeSpinnerFromButton(button) {
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
 function isDarkMode(wnd = window) {
-    if (
-        wnd.matchMedia &&
-        wnd.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
+    if (wnd.matchMedia && wnd.matchMedia('(prefers-color-scheme: dark)').matches) {
         return true;
     }
 
@@ -165,7 +162,7 @@ function isDarkMode(wnd = window) {
  */
 function getDefaultLanguage() {
     let m = navigator.language.match(/^[a-z]+/);
-    let lang = m ? m[0] : "en";
+    let lang = m ? m[0] : 'en';
     return lang;
 }
 
@@ -175,35 +172,30 @@ function getDefaultLanguage() {
  * @param {number} bytes - The number of bytes to be formatted.
  * @param {number} [decimals] - The number of decimal places to be used in the formatted string. Defaults to 2.
  * @param {string} [lang] - The language to be used for the size units in the formatted string. Defaults to the user's default language.
- * @param {Object} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
+ * @param {{[key:string]: string[]}} [sizes] - An object containing the size units to be used in the formatted string. Defaults to the IEC standard units.
  * @returns {string} A human-readable string representation of the given number of bytes, in the form of a number followed by a unit of measurement (e.g. "3.5 KB", "1.2 GB", etc.).
  */
 function formatBytes(bytes, decimals = 2, lang, sizes) {
-    lang = lang || "en";
+    lang = lang || 'en';
 
     sizes = sizes || {
-        en: ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+        en: ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
     };
 
-    const get_size = sizes[lang] ? sizes[lang] : sizes["en"];
+    const get_size = sizes[lang] ? sizes[lang] : sizes['en'];
 
     if (bytes === 0) {
-        return "0 " + get_size[0];
+        return '0 ' + get_size[0];
     }
 
-    let minus_str = bytes < 0 ? "-" : "";
+    let minus_str = bytes < 0 ? '-' : '';
     bytes = Math.abs(bytes);
 
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return (
-        minus_str +
-        parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) +
-        " " +
-        get_size[i]
-    );
+    return minus_str + parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + get_size[i];
 }
 
 /**
@@ -215,7 +207,6 @@ function copyToClipboard(text) {
     return navigator.clipboard.writeText(text);
 }
 
-
 /**
  * Fades in the given element with the given duration.
  * The element is set to be block level and its opacity is set to 0.
@@ -223,20 +214,18 @@ function copyToClipboard(text) {
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade in.
  * @param {number} [duration=400] - The duration of the fade in in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-function fadeIn(element, duration = 400) {
-    element.style.opacity = "0";
-    element.style.display = "block";
+function fadeIn(element, duration = 400, wnd = window) {
+    element.style.opacity = '0';
+    element.style.display = 'block';
     let last = +new Date();
     const tick = () => {
         let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity + (date - last) / duration
-        );
+        element.style.opacity = String(+element.style.opacity + (date - last) / duration);
         last = +new Date();
         if (+element.style.opacity < 1) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
+            (wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick)) || setTimeout(tick, 16);
         }
     };
     tick();
@@ -249,19 +238,17 @@ function fadeIn(element, duration = 400) {
  * The time between each adjustment is the given duration.
  * @param {HTMLElement} element - The element to fade out.
  * @param {number} [duration=400] - The duration of the fade out in milliseconds.
+ * @param {Window} [wnd=window] - The window object to use for the requestAnimationFrame method.
  */
-function fadeOut(element, duration = 400) {
-    element.style.opacity = "1";
+function fadeOut(element, duration = 400, wnd = window) {
+    element.style.opacity = '1';
     let last = +new Date();
     const tick = () => {
         let date = +new Date();
-        element.style.opacity = String(
-            +element.style.opacity - (date - last) / duration
-        );
+        element.style.opacity = String(+element.style.opacity - (date - last) / duration);
         last = +new Date();
         if (+element.style.opacity > 0) {
-            (window.requestAnimationFrame && requestAnimationFrame(tick)) ||
-                setTimeout(tick, 16);
+            (wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick)) || setTimeout(tick, 16);
         }
     };
     tick();
@@ -306,7 +293,7 @@ class Toggler {
     items = new Map();
 
     /** @type {string} */
-    #active;
+    #active = "";
 
     /**
      * Adds an item to the toggler.
@@ -403,7 +390,7 @@ class Toggler {
 
 function injectCoreStyles(doc = window.document) {
     
-    if (doc === null) {
+    if (!doc) {
         throw new Error("Document is null. Cannot inject core styles.");
     }
 
@@ -457,7 +444,7 @@ class SlotManager {
 
     /**
      * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "scope-ref" attribute.
+     * The slots are declared in the component's template using the "data-slot" attribute.
      * The slot names are used to access the children components of the component.
      * @param {...string} slotNames - The names of the slots.
      */
@@ -666,7 +653,7 @@ class SlotManager {
 
 class Internals {
     constructor() {
-        /** @type {EventEmitter} */
+        /** @type {EventEmitter<any>} */
         this.eventEmitter = new EventEmitter();
         /** @type {AbortController} */
         this.disconnectController = new AbortController();
@@ -705,7 +692,7 @@ function onConnectDefault(component) {
     try {
         component.connectedCallback();
     } catch (e) {
-        console.error("Error in connectedCallback:", e);
+        console.error('Error in connectedCallback:', e);
     }
 }
 
@@ -719,7 +706,7 @@ function onDisconnectDefault(component) {
     try {
         component.disconnectedCallback();
     } catch (e) {
-        console.error("Error in disconnectedCallback:", e);
+        console.error('Error in disconnectedCallback:', e);
     }
 }
 
@@ -736,7 +723,7 @@ class Component {
     /** @type {string[]|undefined} */
     slots;
 
-    /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
+    /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation;
 
     /** @type {Node|null} */
@@ -769,7 +756,7 @@ class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
+     * @param {TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
     setTextUpdateFunction(func) {
@@ -787,7 +774,7 @@ class Component {
 
         let template;
 
-        if (typeof layout === "function") {
+        if (typeof layout === 'function') {
             let _template = layout(this);
 
             if (_template instanceof Node) {
@@ -805,7 +792,7 @@ class Component {
         }
 
         if (count !== 1) {
-            throw new Error("Layout must have exactly one root element");
+            throw new Error('Layout must have exactly one root element');
         }
 
         this.#template = template;
@@ -814,7 +801,7 @@ class Component {
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
     setLayout(layout, annotation) {
@@ -834,7 +821,7 @@ class Component {
      */
     getRefs() {
         if (!this.#connected) {
-            throw new Error("Component is not connected to the DOM");
+            throw new Error('Component is not connected to the DOM');
         }
 
         return this.$internals.refs;
@@ -872,12 +859,15 @@ class Component {
      */
     updateRefs() {
         if (!this.$internals.root) {
-            throw new Error("Component is not connected to the DOM");
+            throw new Error('Component is not connected to the DOM');
         }
 
         let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
 
-        let { refs, scope_refs } = selectRefsExtended(componentRoot);
+        let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
+            scope_ref_attr_name: 'data-slot',
+            ref_attr_name: 'data-ref',
+        });
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
@@ -917,7 +907,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeConnect(callback) {
-        return this.on("beforeConnect", callback);
+        return this.on('beforeConnect', callback);
     }
 
     /**
@@ -928,7 +918,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onConnect(callback) {
-        return this.on("connect", callback);
+        return this.on('connect', callback);
     }
 
     /**
@@ -939,7 +929,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onDisconnect(callback) {
-        return this.on("disconnect", callback);
+        return this.on('disconnect', callback);
     }
 
     /**
@@ -950,7 +940,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onMount(callback) {
-        return this.on("mount", callback);
+        return this.on('mount', callback);
     }
 
     /**
@@ -961,7 +951,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onBeforeUnmount(callback) {
-        return this.on("beforeUnmount", callback);
+        return this.on('beforeUnmount', callback);
     }
 
     /**
@@ -972,7 +962,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onUnmount(callback) {
-        return this.on("unmount", callback);
+        return this.on('unmount', callback);
     }
 
     /**
@@ -983,7 +973,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onCollapse(callback) {
-        return this.on("collapse", callback);
+        return this.on('collapse', callback);
     }
 
     /**
@@ -994,7 +984,7 @@ class Component {
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     onExpand(callback) {
-        return this.on("expand", callback);
+        return this.on('expand', callback);
     }
 
     /**
@@ -1013,7 +1003,7 @@ class Component {
      */
     connect(componentRoot) {
         if (this.#connected === true) {
-            throw new Error("Component is already connected");
+            throw new Error('Component is already connected');
         }
 
         this.$internals.root = componentRoot;
@@ -1023,7 +1013,7 @@ class Component {
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
         this.slotManager.mountChildren();
-        this.emit("connect");
+        this.emit('connect');
     }
 
     /**
@@ -1040,7 +1030,7 @@ class Component {
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
         this.$internals.slotRefs = {};
-        this.emit("disconnect");
+        this.emit('disconnect');
     }
 
     /**
@@ -1065,44 +1055,40 @@ class Component {
      * If "append", the component is appended to the container.
      * If "prepend", the component is prepended to the container.
      */
-    mount(container, mode = "replace") {
+    mount(container, mode = 'replace') {
         if (!(container instanceof Element)) {
-            throw new TypeError("Container must be a DOM Element");
+            throw new TypeError('Container must be a DOM Element');
         }
 
-        const validModes = ["replace", "append", "prepend"];
+        const validModes = ['replace', 'append', 'prepend'];
         if (!validModes.includes(mode)) {
-            throw new Error(
-                `Invalid mode: ${mode}. Must be one of: ${validModes.join(
-                    ", "
-                )}`
-            );
+            throw new Error(`Invalid mode: ${mode}. Must be one of: ${validModes.join(', ')}`);
         }
 
         if (this.#template === null) {
             this.#loadTemplate();
         }
 
-        if (this.#template === null) throw new Error("Template is not set");
+        if (this.#template === null) throw new Error('Template is not set');
 
         if (this.#connected === true) {
             return;
         }
 
         let clonedTemplate = this.#template.cloneNode(true);
-        this.emit("beforeConnect", clonedTemplate);
+        this.emit('beforeConnect', clonedTemplate);
 
         let componentRoot = /** @type {HTMLElement} */ (
             // @ts-ignore
             clonedTemplate.firstElementChild
         );
 
-        if (mode === "replace") container.replaceChildren(clonedTemplate);
-        else if (mode === "append") container.append(clonedTemplate);
-        else if (mode === "prepend") container.prepend(clonedTemplate);
+        if (mode === 'replace') container.replaceChildren(clonedTemplate);
+        else if (mode === 'append') container.append(clonedTemplate);
+        else if (mode === 'prepend') container.prepend(clonedTemplate);
 
         this.connect(componentRoot);
-        this.emit("mount");
+        this.emit('mount');
     }
 
     /**
@@ -1113,13 +1099,13 @@ class Component {
     unmount() {
         if (this.#connected === false) return;
 
-        this.emit("beforeUnmount");
+        this.emit('beforeUnmount');
         this.slotManager.unmountChildren();
 
         this.disconnect();
         this.$internals.root?.remove();
 
-        this.emit("unmount");
+        this.emit('unmount');
     }
 
     /**
@@ -1129,7 +1115,7 @@ class Component {
     collapse() {
         this.unmount();
         this.isCollapsed = true;
-        this.emit("collapse");
+        this.emit('collapse');
     }
 
     /**
@@ -1144,11 +1130,8 @@ class Component {
         if (this.#connected === true) return;
         if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addComponentToSlot(
-            this.$internals.parentSlotName,
-            this
-        );
-        this.emit("expand");
+        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
+        this.emit('expand');
     }
 
     /**
@@ -1158,7 +1141,7 @@ class Component {
      */
     show() {
         if (!this.isConnected) return;
-        this.$internals.root?.classList.remove("d-none");
+        this.$internals.root?.classList.remove('d-none');
     }
 
     /**
@@ -1168,7 +1151,7 @@ class Component {
      */
     hide() {
         if (!this.isConnected) return;
-        this.$internals.root?.classList.add("d-none");
+        this.$internals.root?.classList.add('d-none');
     }
 
     /**
@@ -1211,11 +1194,11 @@ class Component {
      * @throws {Error} If the slot does not exist.
      */
     addComponentToSlot(slotName, ...components) {
-        if (!components.every((comp) => comp instanceof Component)) {
-            throw new Error("All components must be instances of Component");
+        if (!components.every(comp => comp instanceof Component)) {
+            throw new Error('All components must be instances of Component');
         }
 
-        if (typeof this.slots !== "undefined") {
+        if (typeof this.slots !== 'undefined') {
             this.defineSlots(...this.slots);
         }
 
@@ -1242,7 +1225,7 @@ class Component {
         }
 
         childComponent.$internals.parentComponent = null;
-        childComponent.$internals.parentSlotName = "";
+        childComponent.$internals.parentSlotName = '';
 
         this.slotManager.removeChildComponent(childComponent);
     }
@@ -1308,8 +1291,8 @@ class SlotToggler {
 // @ts-check
 
 
-if (globalThis.ui_auto_inject_core_styles !== false) {
-    injectCoreStyles(globalThis.document || null);
+if (globalThis.hasOwnProperty("document")) {
+    injectCoreStyles(globalThis.document);
 }
 
 export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, injectCoreStyles, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };

@@ -14,8 +14,8 @@ import { Component } from "@supercat1337/ui";
 class ParentComponent extends Component {
     layout = /* html */ `
     <div class="parent">
-        <h1 ref="title">Parent Component</h1>
-        <div scope-ref="slot1"><!-- The child components will be inserted here --></div>
+        <h1 data-ref="title">Parent Component</h1>
+        <div data-slot="slot1"><!-- The child components will be inserted here --></div>
     </div>
 `;
     slots = ["slot1"];
@@ -29,7 +29,7 @@ class ChildComponent extends Component {
     layout = /* html */ `
     <div class="child">
         <p>This is a child component</p>
-        <div scope-ref="slot1"><!-- The nested slot --></div>
+        <div data-slot="slot1"><!-- The nested slot --></div>
     </div>
 `;
     slots = ["slot1"];

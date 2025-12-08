@@ -3,16 +3,19 @@ function DOMReady(callback, doc = window.document) {
   doc.readyState === "interactive" || doc.readyState === "complete" ? callback() : doc.addEventListener("DOMContentLoaded", callback);
 }
 function escapeHtml(unsafe) {
-  return unsafe.replace(
-    /[&<"']/g,
-    (m) => ({
+  return unsafe.replace(/[&<"']/g, function(m) {
+    let charset = {
       "&": "&amp;",
       "<": "&lt;",
       '"': "&quot;",
       "'": "&#39;"
       // ' -> &apos; for XML only
-    })[m]
-  );
+    };
+    return charset[
+      /** @type {'&' | '<' | '"' | "'"} */
+      m
+    ];
+  });
 }
 function ui_button_status_waiting_on(el, text) {
   el.disabled = true;
@@ -44,9 +47,9 @@ function showElements(...elements) {
     element.classList.remove("d-none");
   }
 }
-function showSpinnerInButton(button, customClassName = null) {
+function showSpinnerInButton(button, customClassName = null, doc = window.document) {
   if (button.getElementsByClassName("spinner-border")[0]) return;
-  let spinner = document.createElement("span");
+  let spinner = doc.createElement("span");
   if (customClassName) {
     spinner.className = customClassName;
   } else {
@@ -88,33 +91,29 @@ function formatBytes(bytes, decimals = 2, lang, sizes) {
 function copyToClipboard(text) {
   return navigator.clipboard.writeText(text);
 }
-function fadeIn(element, duration = 400) {
+function fadeIn(element, duration = 400, wnd = window) {
   element.style.opacity = "0";
   element.style.display = "block";
   let last = +/* @__PURE__ */ new Date();
   const tick = () => {
     let date = +/* @__PURE__ */ new Date();
-    element.style.opacity = String(
-      +element.style.opacity + (date - last) / duration
-    );
+    element.style.opacity = String(+element.style.opacity + (date - last) / duration);
     last = +/* @__PURE__ */ new Date();
     if (+element.style.opacity < 1) {
-      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+      wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick) || setTimeout(tick, 16);
     }
   };
   tick();
 }
-function fadeOut(element, duration = 400) {
+function fadeOut(element, duration = 400, wnd = window) {
   element.style.opacity = "1";
   let last = +/* @__PURE__ */ new Date();
   const tick = () => {
     let date = +/* @__PURE__ */ new Date();
-    element.style.opacity = String(
-      +element.style.opacity - (date - last) / duration
-    );
+    element.style.opacity = String(+element.style.opacity - (date - last) / duration);
     last = +/* @__PURE__ */ new Date();
     if (+element.style.opacity > 0) {
-      window.requestAnimationFrame && requestAnimationFrame(tick) || setTimeout(tick, 16);
+      wnd.requestAnimationFrame && wnd.requestAnimationFrame(tick) || setTimeout(tick, 16);
     }
   };
   tick();
@@ -138,7 +137,7 @@ var Toggler = class {
   /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
   items = /* @__PURE__ */ new Map();
   /** @type {string} */
-  #active;
+  #active = "";
   /**
    * Adds an item to the toggler.
    * @param {string} itemName - The name of the item to be added.
@@ -215,7 +214,7 @@ var Toggler = class {
 
 // src/utils/core-styles.js
 function injectCoreStyles(doc = window.document) {
-  if (doc === null) {
+  if (!doc) {
     throw new Error("Document is null. Cannot inject core styles.");
   }
   const css = (
@@ -236,48 +235,63 @@ html-fragment {
 }
 
 // node_modules/dom-scope/dist/dom-scope.esm.js
-var SCOPE_ATTR_NAME = "scope-ref";
-var SCOPE_AUTO_NAME_PREFIX = "$";
-var REF_ATTR_NAME = "ref";
-var defaultDomScopeConfig = {
-  scope_auto_name_prefix: SCOPE_AUTO_NAME_PREFIX,
-  scope_ref_attr_name: SCOPE_ATTR_NAME,
-  ref_attr_name: REF_ATTR_NAME,
-  window: globalThis.window,
-  is_scope_element: void 0,
-  include_root: false
-};
-var customDomScopeOptions = {};
-function isScopeElement(element, config) {
-  var value;
-  if (config.is_scope_element) {
-    value = config.is_scope_element(element, config);
-  } else {
-    value = element.getAttribute(config.scope_ref_attr_name);
+var SCOPE_ATTR_NAME = "data-scope";
+var SCOPE_AUTO_NAME_PREFIX = "unnamed-scope";
+var REF_ATTR_NAME = "data-ref";
+var ScopeConfig = class {
+  /** @type {string} */
+  ref_attr_name;
+  /** @type {string} */
+  scope_ref_attr_name;
+  /** @type {*} */
+  window;
+  /** @type {TypeIsScopeElement|null} */
+  isScopeElement;
+  /** @type {boolean} */
+  includeRoot;
+  /** @type {string} */
+  scope_auto_name_prefix;
+  constructor() {
+    this.ref_attr_name = REF_ATTR_NAME;
+    this.scope_ref_attr_name = SCOPE_ATTR_NAME;
+    this.window = globalThis.window;
+    this.isScopeElement = null;
+    this.includeRoot = false;
+    this.scope_auto_name_prefix = SCOPE_AUTO_NAME_PREFIX;
   }
-  if (value === null) return false;
+  toString() {
+    return `ScopeConfig(ref_attr_name=${this.ref_attr_name}, scope_ref_attr_name=${this.scope_ref_attr_name}, includeRoot=${this.includeRoot}, scope_auto_name_prefix=${this.scope_auto_name_prefix}, window=${this.window ? "defined" : "undefined"}, isScopeElement=${this.isScopeElement})`;
+  }
+};
+var defaultConfig = new ScopeConfig();
+function isScopeElement(element, config) {
+  var value = null;
+  if (!config) config = defaultConfig;
+  let scope_ref_attr_name = config.scope_ref_attr_name || SCOPE_ATTR_NAME;
+  let isScopeElementFunc = config.isScopeElement;
+  if (isScopeElementFunc) {
+    value = isScopeElementFunc(element, config);
+  } else {
+    value = element.getAttribute(scope_ref_attr_name);
+  }
+  if (value === null) return null;
   return value;
 }
-function getConfig(options = {}, checkWindow = true) {
-  let init_data = {
-    scope_auto_name_prefix: customDomScopeOptions.scope_auto_name_prefix || defaultDomScopeConfig.scope_auto_name_prefix,
-    scope_ref_attr_name: customDomScopeOptions.scope_ref_attr_name || defaultDomScopeConfig.scope_ref_attr_name,
-    ref_attr_name: customDomScopeOptions.ref_attr_name || defaultDomScopeConfig.ref_attr_name,
-    window: customDomScopeOptions.window || defaultDomScopeConfig.window,
-    is_scope_element: customDomScopeOptions.is_scope_element || defaultDomScopeConfig.is_scope_element,
-    include_root: customDomScopeOptions.include_root || defaultDomScopeConfig.include_root
-  };
-  let config = Object.assign({}, init_data, options);
-  if (checkWindow && !config.window) {
-    throw new Error("options.window is not defined");
-  }
+function createCustomConfig(options = {}) {
+  let config = new ScopeConfig();
+  config.includeRoot = options.hasOwnProperty("includeRoot") && typeof options.includeRoot !== "undefined" ? options.includeRoot : defaultConfig.includeRoot;
+  config.scope_auto_name_prefix = options.hasOwnProperty("scope_auto_name_prefix") && typeof options.scope_auto_name_prefix === "string" ? options.scope_auto_name_prefix : defaultConfig.scope_auto_name_prefix;
+  config.isScopeElement = options.hasOwnProperty("isScopeElement") && typeof options.isScopeElement !== "undefined" ? options.isScopeElement : defaultConfig.isScopeElement;
+  config.ref_attr_name = options.hasOwnProperty("ref_attr_name") && typeof options.ref_attr_name === "string" ? options.ref_attr_name : defaultConfig.ref_attr_name;
+  config.window = options.hasOwnProperty("window") && typeof options.window !== "undefined" ? options.window : defaultConfig.window;
+  config.scope_ref_attr_name = options.hasOwnProperty("scope_ref_attr_name") && typeof options.scope_ref_attr_name === "string" ? options.scope_ref_attr_name : defaultConfig.scope_ref_attr_name;
   return config;
 }
 function selectRefsExtended(root_element, custom_callback, options = {}) {
   var refs = {};
   var scope_refs = {};
   var unnamed_scopes = [];
-  const config = getConfig(options);
+  const config = createCustomConfig(options);
   function callback(currentNode) {
     var ref_name = currentNode.getAttribute(config.ref_attr_name);
     if (ref_name != null) {
@@ -300,10 +314,8 @@ scope root: `,
               root_element
             );
           } else {
-            console.warn(
-              `Element has reference #${ref_name} which is already used
-`
-            );
+            console.warn(`Element has reference #${ref_name} which is already used
+`);
           }
         }
       }
@@ -315,16 +327,10 @@ scope root: `,
         if (!scope_refs[ref_scope_name]) {
           scope_refs[ref_scope_name] = currentNode;
         } else {
-          if (globalThis.window) {
-            console.warn(
-              `scope #${ref_scope_name} is already used`,
-              currentNode
-            );
-          } else {
-            console.warn(
-              `scope #${ref_scope_name} is already used`
-            );
-          }
+          console.warn(
+            `scope #${ref_scope_name} is already used`,
+            globalThis.window ? currentNode : ""
+          );
           unnamed_scopes.push(currentNode);
         }
       } else {
@@ -333,7 +339,7 @@ scope root: `,
     }
     if (custom_callback) custom_callback(currentNode);
   }
-  if (config.include_root === true) {
+  if (config.includeRoot === true) {
     if (root_element instanceof config.window.HTMLElement) {
       refs.root = /** @type {HTMLElement} */
       root_element;
@@ -357,14 +363,14 @@ scope root: `,
   return { refs, scope_refs };
 }
 function walkDomScope(root_element, callback, options) {
-  const config = getConfig(options);
+  const config = createCustomConfig(options);
   function scope_filter(_node) {
     var node = (
       /** @type {HTMLElement} */
       _node
     );
     var parentElement = node.parentElement;
-    if (parentElement && parentElement != root_element && isScopeElement(parentElement, config) !== false) {
+    if (parentElement && parentElement != root_element && isScopeElement(parentElement, config) !== null) {
       return (
         /* NodeFilter.FILTER_REJECT */
         2
@@ -382,7 +388,7 @@ function walkDomScope(root_element, callback, options) {
     scope_filter
   );
   var currentNode;
-  if (config.include_root === true) {
+  if (config.includeRoot === true) {
     if (root_element instanceof config.window.HTMLElement) {
       callback(
         /** @type {HTMLElement} */
@@ -399,12 +405,12 @@ function checkRefs(refs, annotation) {
   for (let prop in annotation) {
     let ref = refs[prop];
     if (!ref) {
-      throw new Error(`Missing ref: ${prop}`);
+      throw new Error(`Missing data-ref: ${prop}`);
     }
     const type = typeof annotation[prop] === "function" ? annotation[prop].prototype : annotation[prop];
     if (type.isPrototypeOf(ref) === false) {
       throw new Error(
-        `The ref "${prop}" must be an instance of ${type.constructor.name} (actual: ${ref.constructor.name})`
+        `The data-ref "${prop}" must be an instance of ${type.constructor.name} (actual: ${ref.constructor.name})`
       );
     }
   }
@@ -413,7 +419,10 @@ function createFromHTML(html, options) {
   if (typeof html !== "string") {
     throw new Error("html must be a string");
   }
-  const config = getConfig(options);
+  const config = createCustomConfig(options);
+  if (!config.window) {
+    throw new Error("window is not defined in options");
+  }
   let wnd = config.window;
   const doc = (
     /** @type {Document} */
@@ -450,7 +459,7 @@ var SlotManager = class {
   }
   /**
    * Defines the names of the slots in the component.
-   * The slots are declared in the component's template using the "scope-ref" attribute.
+   * The slots are declared in the component's template using the "data-slot" attribute.
    * The slot names are used to access the children components of the component.
    * @param {...string} slotNames - The names of the slots.
    */
@@ -984,7 +993,7 @@ var Component = class _Component {
   layout;
   /** @type {string[]|undefined} */
   slots;
-  /** @type {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation|undefined} */
+  /** @type {import("dom-scope").RefsAnnotation|undefined} */
   refsAnnotation;
   /** @type {Node|null} */
   #template = null;
@@ -1045,7 +1054,7 @@ var Component = class _Component {
   /**
    * Sets the layout of the component by assigning the template content.
    * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-   * @param {import("dom-scope/dist/dom-scope.esm.js").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+   * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
    * The function is called with the component instance as the this value.
    */
   setLayout(layout, annotation) {
@@ -1103,7 +1112,10 @@ var Component = class _Component {
       /** @type {HTMLElement} */
       this.$internals.root
     );
-    let { refs, scope_refs } = selectRefsExtended(componentRoot);
+    let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
+      scope_ref_attr_name: "data-slot",
+      ref_attr_name: "data-ref"
+    });
     if (this.refsAnnotation) {
       checkRefs(refs, this.refsAnnotation);
     }
@@ -1277,11 +1289,7 @@ var Component = class _Component {
     }
     const validModes = ["replace", "append", "prepend"];
     if (!validModes.includes(mode)) {
-      throw new Error(
-        `Invalid mode: ${mode}. Must be one of: ${validModes.join(
-          ", "
-        )}`
-      );
+      throw new Error(`Invalid mode: ${mode}. Must be one of: ${validModes.join(", ")}`);
     }
     if (this.#template === null) {
       this.#loadTemplate();
@@ -1336,10 +1344,7 @@ var Component = class _Component {
     this.isCollapsed = false;
     if (this.#connected === true) return;
     if (this.$internals.parentComponent === null) return;
-    this.$internals.parentComponent.addComponentToSlot(
-      this.$internals.parentSlotName,
-      this
-    );
+    this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
     this.emit("expand");
   }
   /**
@@ -1478,8 +1483,8 @@ var SlotToggler = class {
 };
 
 // src/index.js
-if (globalThis.ui_auto_inject_core_styles !== false) {
-  injectCoreStyles(globalThis.document || null);
+if (globalThis.hasOwnProperty("document")) {
+  injectCoreStyles(globalThis.document);
 }
 export {
   Component,

@@ -9,7 +9,7 @@ import { Component } from "./component.js";
 
 export class Internals {
     constructor() {
-        /** @type {EventEmitter} */
+        /** @type {EventEmitter<any>} */
         this.eventEmitter = new EventEmitter();
         /** @type {AbortController} */
         this.disconnectController = new AbortController();
