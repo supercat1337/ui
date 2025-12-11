@@ -3,3 +3,4 @@ creds
 coverage
 package-lock.json
 .vscode
+.npmrc
