@@ -81,6 +81,8 @@ The following functions are included in this library:
 -   `Toggler`: A class that represents a toggler. A toggler is a collection of items that can be toggled on and off.
 -   `fadeIn`: A function that fades in an element.
 -   `fadeOut`: A function that fades out an element.
+-   `sleep`: Sleeps for the given number of milliseconds.
+-   `withMinimumTime`: Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
 
 ## License
 

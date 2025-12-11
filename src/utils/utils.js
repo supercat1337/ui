@@ -249,3 +249,61 @@ export function fadeOut(element, duration = 400, wnd = window) {
     };
     tick();
 }
+
+/**
+ * Sleeps for the given number of milliseconds.
+ * @param {number} ms - The number of milliseconds to sleep for.
+ * @returns {Promise<void>} A promise that resolves when the sleep is over.
+ */
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
+ * If the promise resolves or rejects before the minimum time has elapsed, the result or error is stored and
+ * the promise returned by this function resolves or rejects with the stored result or error when the minimum time has elapsed.
+ * @param {Promise<T>} promise - The promise to wait for.
+ * @param {number} minTime - The minimum time to wait in milliseconds.
+ * @template T
+ * @returns {Promise<T>} A promise that resolves or rejects after at least the given minimum time has elapsed.
+ */
+export function withMinimumTime(promise, minTime) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        let promiseFinished = false;
+        let timerFinished = false;
+        let result;
+        let error;
+
+        const timerId = setTimeout(() => {
+            timerFinished = true;
+            if (promiseFinished) {
+                if (error) reject(error);
+                else resolve(result);
+            }
+        }, minTime);
+
+        promise
+            .then(res => {
+                result = res;
+                promiseFinished = true;
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= minTime && timerFinished) {
+                    resolve(res);
+                }
+            })
+            .catch(err => {
+                error = err;
+                promiseFinished = true;
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= minTime && timerFinished) {
+                    reject(err);
+                }
+            });
+    });
+}
+
+export async function runWithMinimumTime(promiseFunc, ms) {}

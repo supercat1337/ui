@@ -400,6 +400,7 @@ export function isDarkMode(wnd?: Window & typeof globalThis): boolean;
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
+export function runWithMinimumTime(promiseFunc: any, ms: any): Promise<void>;
 /**
  * Scrolls the specified element to the bottom.
  * Sets the scrollTop property to the element's scrollHeight,
@@ -429,6 +430,12 @@ export function showElements(...elements: HTMLElement[]): void;
  */
 export function showSpinnerInButton(button: HTMLButtonElement, customClassName?: string | null, doc?: Document): void;
 /**
+ * Sleeps for the given number of milliseconds.
+ * @param {number} ms - The number of milliseconds to sleep for.
+ * @returns {Promise<void>} A promise that resolves when the sleep is over.
+ */
+export function sleep(ms: number): Promise<void>;
+/**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
  * @param {HTMLButtonElement} el - The button element to set the status for.
  * @param {string} text - The text to be shown in the button.
@@ -453,6 +460,16 @@ export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string)
  * @returns {number}
  */
 export function unixtime(dateObject?: Date): number;
+/**
+ * Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
+ * If the promise resolves or rejects before the minimum time has elapsed, the result or error is stored and
+ * the promise returned by this function resolves or rejects with the stored result or error when the minimum time has elapsed.
+ * @param {Promise<T>} promise - The promise to wait for.
+ * @param {number} minTime - The minimum time to wait in milliseconds.
+ * @template T
+ * @returns {Promise<T>} A promise that resolves or rejects after at least the given minimum time has elapsed.
+ */
+export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promise<T>;
 /**
  * @typedef {(component: Component) => void} TextUpdateFunction
  */

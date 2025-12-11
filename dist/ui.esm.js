@@ -1,4 +1,3 @@
-// @ts-check
 import { createFromHTML, selectRefsExtended, checkRefs } from 'dom-scope';
 import { EventEmitter } from '@supercat1337/event-emitter';
 
@@ -253,6 +252,64 @@ function fadeOut(element, duration = 400, wnd = window) {
     };
     tick();
 }
+
+/**
+ * Sleeps for the given number of milliseconds.
+ * @param {number} ms - The number of milliseconds to sleep for.
+ * @returns {Promise<void>} A promise that resolves when the sleep is over.
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
+ * If the promise resolves or rejects before the minimum time has elapsed, the result or error is stored and
+ * the promise returned by this function resolves or rejects with the stored result or error when the minimum time has elapsed.
+ * @param {Promise<T>} promise - The promise to wait for.
+ * @param {number} minTime - The minimum time to wait in milliseconds.
+ * @template T
+ * @returns {Promise<T>} A promise that resolves or rejects after at least the given minimum time has elapsed.
+ */
+function withMinimumTime(promise, minTime) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        let promiseFinished = false;
+        let timerFinished = false;
+        let result;
+        let error;
+
+        setTimeout(() => {
+            timerFinished = true;
+            if (promiseFinished) {
+                if (error) reject(error);
+                else resolve(result);
+            }
+        }, minTime);
+
+        promise
+            .then(res => {
+                result = res;
+                promiseFinished = true;
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= minTime && timerFinished) {
+                    resolve(res);
+                }
+            })
+            .catch(err => {
+                error = err;
+                promiseFinished = true;
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= minTime && timerFinished) {
+                    reject(err);
+                }
+            });
+    });
+}
+
+async function runWithMinimumTime(promiseFunc, ms) {}
 
 // @ts-check
 
@@ -756,7 +813,7 @@ class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {TextUpdateFunction|null} func - The text update function to set.
+     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
     setTextUpdateFunction(func) {
@@ -1295,4 +1352,4 @@ if (globalThis.hasOwnProperty("document")) {
     injectCoreStyles(globalThis.document);
 }
 
-export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, injectCoreStyles, isDarkMode, removeSpinnerFromButton, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime };
+export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, injectCoreStyles, isDarkMode, removeSpinnerFromButton, runWithMinimumTime, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, sleep, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime, withMinimumTime };

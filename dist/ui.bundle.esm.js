@@ -118,6 +118,42 @@ function fadeOut(element, duration = 400, wnd = window) {
   };
   tick();
 }
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function withMinimumTime(promise, minTime) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    let promiseFinished = false;
+    let timerFinished = false;
+    let result;
+    let error;
+    const timerId = setTimeout(() => {
+      timerFinished = true;
+      if (promiseFinished) {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    }, minTime);
+    promise.then((res) => {
+      result = res;
+      promiseFinished = true;
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= minTime && timerFinished) {
+        resolve(res);
+      }
+    }).catch((err) => {
+      error = err;
+      promiseFinished = true;
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= minTime && timerFinished) {
+        reject(err);
+      }
+    });
+  });
+}
+async function runWithMinimumTime(promiseFunc, ms) {
+}
 
 // src/utils/date-time.js
 function formatDateTime(unix_timestamp) {
@@ -1503,12 +1539,15 @@ export {
   injectCoreStyles,
   isDarkMode,
   removeSpinnerFromButton,
+  runWithMinimumTime,
   scrollToBottom,
   scrollToTop,
   showElements,
   showSpinnerInButton,
+  sleep,
   ui_button_status_waiting_off,
   ui_button_status_waiting_off_html,
   ui_button_status_waiting_on,
-  unixtime
+  unixtime,
+  withMinimumTime
 };
