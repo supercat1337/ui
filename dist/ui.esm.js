@@ -1345,11 +1345,4 @@ class SlotToggler {
     }
 }
 
-// @ts-check
-
-
-if (globalThis.hasOwnProperty("document")) {
-    injectCoreStyles(globalThis.document);
-}
-
 export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, injectCoreStyles, isDarkMode, removeSpinnerFromButton, runWithMinimumTime, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, sleep, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime, withMinimumTime };

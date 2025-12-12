@@ -1517,11 +1517,6 @@ var SlotToggler = class {
     }
   }
 };
-
-// src/index.js
-if (globalThis.hasOwnProperty("document")) {
-  injectCoreStyles(globalThis.document);
-}
 export {
   Component,
   DOMReady,
