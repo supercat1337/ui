@@ -9,6 +9,10 @@ import { Internals } from './internals.js';
  */
 
 /**
+ * @typedef {(component: Component) => void} _TextUpdateFunction
+ */
+
+/**
  * Default handler for the "connect" event.
  * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
  * If the `connectedCallback` method throws an error, it is caught and console.error is called with the error.
@@ -83,7 +87,7 @@ export class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
+     * @param {_TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
     setTextUpdateFunction(func) {
@@ -427,7 +431,7 @@ export class Component {
         if (this.#connected === false) return;
 
         this.emit('beforeUnmount');
-        this.slotManager.unmountChildren();
+        this.slotManager.unmountComponents();
 
         this.disconnect();
         this.$internals.root?.remove();
@@ -505,16 +509,6 @@ export class Component {
     }
 
     /**
-     * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "data-slot" attribute.
-     * The slot names are used to access the children components of the component.
-     * @param {...string} slotNames - The names of the slots.
-     */
-    defineSlots(...slotNames) {
-        this.slotManager.defineSlots(...slotNames);
-    }
-
-    /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
      * @param {...Component} components - The component to add to the slot.
@@ -525,10 +519,6 @@ export class Component {
             throw new Error('All components must be instances of Component');
         }
 
-        if (typeof this.slots !== 'undefined') {
-            this.defineSlots(...this.slots);
-        }
-
         this.slotManager.addComponentsToSlot(slotName, ...components);
 
         for (let i = 0; i < components.length; i++) {
@@ -537,7 +527,7 @@ export class Component {
         }
 
         if (this.#connected) {
-            this.slotManager.mountChildren(slotName);
+            this.slotManager.mountSlotComponents(slotName);
         }
     }
 
@@ -555,5 +545,6 @@ export class Component {
         childComponent.$internals.parentSlotName = '';
 
         this.slotManager.removeChildComponent(childComponent);
+        childComponent.unmount();
     }
 }

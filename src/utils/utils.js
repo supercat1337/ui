@@ -273,7 +273,9 @@ export function withMinimumTime(promise, minTime) {
         const startTime = Date.now();
         let promiseFinished = false;
         let timerFinished = false;
+        /** @type {T} */
         let result;
+        /** @type {Error} */
         let error;
 
         const timerId = setTimeout(() => {
@@ -306,4 +308,3 @@ export function withMinimumTime(promise, minTime) {
     });
 }
 
-export async function runWithMinimumTime(promiseFunc, ms) {}

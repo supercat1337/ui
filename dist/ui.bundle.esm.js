@@ -152,8 +152,6 @@ function withMinimumTime(promise, minTime) {
     });
   });
 }
-async function runWithMinimumTime(promiseFunc, ms) {
-}
 
 // src/utils/date-time.js
 function formatDateTime(unix_timestamp) {
@@ -470,56 +468,62 @@ function createFromHTML(html, options) {
 }
 
 // src/component/slot-manager.js
+var Slot = class {
+  /** @type {string} */
+  name;
+  /** @type {Set<Component>} */
+  components = /* @__PURE__ */ new Set();
+  /**
+   * Initializes a new instance of the Slot class.
+   * @param {string} name - The name of the slot.
+   */
+  constructor(name) {
+    this.name = name;
+  }
+};
 var SlotManager = class {
-  /** @type {Set<string>} */
-  #slotNames = /* @__PURE__ */ new Set();
-  /** @type {Map<string, Set<Component>>} */
-  #namedSlotChildren = /* @__PURE__ */ new Map();
+  /** @type {Map<string, Slot>} */
+  #slots = /* @__PURE__ */ new Map();
   /** @type {Set<Component>}  */
-  #childrenComponents = /* @__PURE__ */ new Set();
+  #allComponents = /* @__PURE__ */ new Set();
   /** @type {Component} */
-  #component;
-  /** @type {boolean} */
-  #slotStrictMode = false;
+  #parentComponent;
   /**
    * @param {Component} component
    */
   constructor(component) {
-    this.#component = component;
-  }
-  /**
-   * @param {boolean} mode
-   */
-  setSlotStrictMode(mode) {
-    this.#slotStrictMode = mode;
-  }
-  /**
-   * Defines the names of the slots in the component.
-   * The slots are declared in the component's template using the "data-slot" attribute.
-   * The slot names are used to access the children components of the component.
-   * @param {...string} slotNames - The names of the slots.
-   */
-  defineSlots(...slotNames) {
-    const newSlotNames = new Set(slotNames);
-    for (const existingSlotName of this.#slotNames) {
-      if (!newSlotNames.has(existingSlotName)) {
-        this.removeSlot(existingSlotName);
-      }
-    }
-    for (const slotName of newSlotNames) {
-      this.addSlot(slotName);
-    }
+    this.#parentComponent = component;
   }
   /**
    * Adds a slot to the component.
    * This method is used to programmatically add a slot to the component.
    * @param {string} slotName - The name of the slot to add.
+   * @returns {Slot} The set of children components associated with the slot.
    */
   addSlot(slotName) {
-    if (!this.#namedSlotChildren.has(slotName)) {
-      this.#namedSlotChildren.set(slotName, /* @__PURE__ */ new Set());
+    let slot = this.getSlot(slotName);
+    if (slot != null) {
+      return slot;
+    } else {
+      let slot2 = new Slot(slotName);
+      this.#slots.set(slotName, slot2);
+      return slot2;
     }
-    this.#slotNames.add(slotName);
+  }
+  /**
+   * @param {string} slotName
+   * @returns {Slot | null}
+   */
+  getSlot(slotName) {
+    return this.#slots.get(slotName) || null;
+  }
+  /**
+   * Checks if the given slot name exists in the component.
+   * @param {string} slotName - The name of the slot to check.
+   * @returns {boolean} True if the slot exists, false otherwise.
+   */
+  hasSlot(slotName) {
+    return this.#slots.has(slotName);
   }
   /**
    * Removes the given slot name from the component.
@@ -528,33 +532,46 @@ var SlotManager = class {
    * @param {string} slotName - The name of the slot to remove.
    */
   removeSlot(slotName) {
-    if (!this.#slotNames.has(slotName)) return;
-    let slotChildren = this.#namedSlotChildren.get(slotName);
-    if (slotChildren) {
-      slotChildren.forEach((childComponent) => {
-        this.#component.removeChildComponent(childComponent);
-        childComponent.unmount();
-        this.#childrenComponents.delete(childComponent);
-      });
-      this.#namedSlotChildren.delete(slotName);
+    let slotExists = this.hasSlot(slotName);
+    if (slotExists) {
+      this.clearSlot(slotName);
+      this.#slots.delete(slotName);
     }
-    this.#slotNames.delete(slotName);
+  }
+  /**
+   * Checks if the given slot name has any children components associated with it.
+   * @param {string} slotName - The name of the slot to check.
+   * @returns {boolean} True if the slot has children components, false otherwise.
+   */
+  hasComponents(slotName) {
+    let slot = this.getSlot(slotName);
+    if (slot == null) return false;
+    return slot.components.size > 0;
+  }
+  /**
+   * Clears the given slot name of all its children components.
+   * This method first removes all children components of the given slot name from the component,
+   * then unmounts them and finally removes them from the component's internal maps.
+   * @param {string} slotName - The name of the slot to clear.
+   * @returns {boolean} True if the slot was cleared, false otherwise.
+   */
+  clearSlot(slotName) {
+    let slot = this.getSlot(slotName);
+    if (slot == null) return false;
+    slot.components.forEach((childComponent) => {
+      this.#parentComponent.removeChildComponent(childComponent);
+      childComponent.unmount();
+      this.#allComponents.delete(childComponent);
+    });
+    return true;
   }
   /**
    * Returns an array of slot names defined in the component.
    * @type {string[]}
    */
   get slotNames() {
-    let arr = Array.from(this.#slotNames);
-    return arr;
-  }
-  /**
-   * Checks if the given slot name exists in the component.
-   * @param {string} slotName - The name of the slot to check.
-   * @returns {boolean} True if the slot exists, false otherwise.
-   */
-  slotExists(slotName) {
-    return this.#slotNames.has(slotName);
+    let names = Array.from(this.#slots.keys());
+    return names;
   }
   /**
    * Adds a child component to a slot.
@@ -563,35 +580,16 @@ var SlotManager = class {
    * @throws {Error} If the slot does not exist.
    */
   addComponentsToSlot(slotName, ...components) {
-    if (!this.slotExists(slotName)) {
-      if (this.#slotStrictMode) {
-        throw new Error(`Slot "${slotName}" does not exist`);
-      } else {
-        console.warn(
-          `Warning: Slot "${slotName}" does not exist in component "${this.#component.constructor.name}". It will be created automatically.`
-        );
-      }
-    }
-    let childrenComponentsSet = this.#namedSlotChildren.get(slotName);
-    if (!childrenComponentsSet) {
-      childrenComponentsSet = /* @__PURE__ */ new Set();
-      this.#namedSlotChildren.set(slotName, childrenComponentsSet);
+    let slot = this.getSlot(slotName);
+    if (slot == null) {
+      slot = this.addSlot(slotName);
     }
     for (let i = 0; i < components.length; i++) {
-      this.#childrenComponents.add(components[i]);
-      childrenComponentsSet.add(components[i]);
-    }
-  }
-  /**
-   * Removes the given child component from all slots.
-   * @param {Component} childComponent - The child component to remove.
-   */
-  removeChildComponent(childComponent) {
-    this.#childrenComponents.delete(childComponent);
-    for (let [slotName, childrenComponentsSet] of this.#namedSlotChildren) {
-      if (!childrenComponentsSet.has(childComponent)) continue;
-      childrenComponentsSet.delete(childComponent);
-      break;
+      if (this.#allComponents.has(components[i])) {
+        continue;
+      }
+      this.#allComponents.add(components[i]);
+      slot.components.add(components[i]);
     }
   }
   /**
@@ -599,65 +597,81 @@ var SlotManager = class {
    * @type {Set<Component>}
    */
   get children() {
-    return this.#childrenComponents;
+    return this.#allComponents;
+  }
+  /**
+   * Mounts all children components of the given slot name to the DOM.
+   * The children components are mounted to the slot ref element with the "append" mode.
+   */
+  mountChildren() {
+    if (!this.#parentComponent.isConnected) return;
+    this.#slots.forEach((slot) => {
+      this.mountSlotComponents(slot.name);
+    });
   }
   /**
    * Mounts all children components of the given slot name to the DOM.
    * The children components are mounted to the slot ref element with the "append" mode.
    * If no slot name is given, all children components of all slots are mounted to the DOM.
-   * @param {string} [slotName] - The name of the slot to mount children components for.
+   * @param {string} slotName - The name of the slot to mount children components for.
    */
-  mountChildren(slotName) {
-    if (this.#component.isConnected !== true) return;
-    const slotNames = slotName ? [slotName] : Array.from(this.#slotNames);
-    let hasInvalidSlot = slotNames.some(
-      (name) => !this.#component.$internals.slotRefs[name]
-    );
-    if (hasInvalidSlot) {
-      if (this.#slotStrictMode) {
-        throw new Error(
-          `One or more slot names do not exist in component "${this.#component.constructor.name}"`
-        );
-      } else {
-        this.#component.updateRefs();
-        let hasInvalidSlot_2 = slotNames.some(
-          (name) => !this.#component.$internals.slotRefs[name]
-        );
-        if (hasInvalidSlot_2) {
-          console.warn(
-            `One or more slot names do not exist in component "${this.#component.constructor.name}"`
-          );
-          return;
-        }
-      }
+  mountSlotComponents(slotName) {
+    if (!this.#parentComponent.isConnected) return;
+    let slot = this.getSlot(slotName);
+    if (!slot) {
+      console.warn(
+        `Slot "${slotName}" does not exist in component "${this.#parentComponent.constructor.name}"`
+      );
+      return;
     }
-    for (const currentSlotName of slotNames) {
-      const children = this.#namedSlotChildren.get(currentSlotName);
-      const slotRef = this.#component.$internals.slotRefs[currentSlotName];
-      if (!children || !slotRef) continue;
-      for (const child of children) {
-        if (!child.isCollapsed) {
-          child.mount(slotRef, "append");
-        }
-      }
+    let slotRoot = this.#parentComponent.$internals.slotRefs[slotName];
+    if (!slotRoot) {
+      console.warn(
+        `Cannot get root element for Slot "${slotName}" does not exist in component "${this.#parentComponent.constructor.name}"`
+      );
+      return;
     }
+    slot.components.forEach((childComponent) => {
+      if (!childComponent.isCollapsed) {
+        childComponent.mount(slotRoot, "append");
+      }
+    });
   }
   /**
-   * Unmounts all children components of the given slot name.
-   * This method iterates over the children components of the given slot name and calls their unmount method.
-   * @param {string} [slotName] - The name of the slot to unmount the children components for.
-   * if no slot name is given, all children components of all slots are unmounted.
+   * Unmounts all children components of the component from the DOM.
+   * This method iterates over all children components of the component and calls their unmount method.
    */
-  unmountChildren(slotName) {
-    let slotNames = slotName ? [slotName] : Array.from(this.#slotNames);
-    for (let i = 0; i < slotNames.length; i++) {
-      let children = Array.from(
-        this.#namedSlotChildren.get(slotNames[i]) || []
-      );
-      for (let y = 0; y < children.length; y++) {
-        children[y].unmount();
-      }
-    }
+  unmountComponents() {
+    this.#allComponents.forEach((childComponent) => {
+      childComponent.unmount();
+    });
+  }
+  /**
+   * Unmounts all children components of the given slot name from the DOM.
+   * @param {string} slotName - The name of the slot to unmount children components for.
+   */
+  unmountSlotComponents(slotName) {
+    let slot = this.getSlot(slotName);
+    if (slot == null) return;
+    slot.components.forEach((childComponent) => {
+      childComponent.unmount();
+    });
+  }
+  /**
+   * Removes the given child component from all slots.
+   * This method first checks if the child component exists in the component's internal maps.
+   * If it does, it removes the child component from the set of all children components and
+   * from the sets of children components of all slots.
+   * @param {Component} childComponent - The child component to remove.
+   * @returns {boolean} True if the child component was removed, false otherwise.
+   */
+  removeChildComponent(childComponent) {
+    if (!this.#allComponents.has(childComponent)) return false;
+    this.#allComponents.delete(childComponent);
+    this.#slots.forEach((slot) => {
+      slot.components.delete(childComponent);
+    });
+    return true;
   }
 };
 
@@ -1054,7 +1068,7 @@ var Component = class _Component {
    * Sets the text update function for the component.
    * The text update function is a function that is called when the reloadText method is called.
    * The function receives the component instance as the this value.
-   * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
+   * @param {_TextUpdateFunction|null} func - The text update function to set.
    * @returns {void}
    */
   setTextUpdateFunction(func) {
@@ -1355,7 +1369,7 @@ var Component = class _Component {
   unmount() {
     if (this.#connected === false) return;
     this.emit("beforeUnmount");
-    this.slotManager.unmountChildren();
+    this.slotManager.unmountComponents();
     this.disconnect();
     this.$internals.root?.remove();
     this.emit("unmount");
@@ -1423,15 +1437,6 @@ var Component = class _Component {
     return this.slotManager.slotNames;
   }
   /**
-   * Defines the names of the slots in the component.
-   * The slots are declared in the component's template using the "data-slot" attribute.
-   * The slot names are used to access the children components of the component.
-   * @param {...string} slotNames - The names of the slots.
-   */
-  defineSlots(...slotNames) {
-    this.slotManager.defineSlots(...slotNames);
-  }
-  /**
    * Adds a child component to a slot.
    * @param {string} slotName - The name of the slot to add the component to.
    * @param {...Component} components - The component to add to the slot.
@@ -1441,16 +1446,13 @@ var Component = class _Component {
     if (!components.every((comp) => comp instanceof _Component)) {
       throw new Error("All components must be instances of Component");
     }
-    if (typeof this.slots !== "undefined") {
-      this.defineSlots(...this.slots);
-    }
     this.slotManager.addComponentsToSlot(slotName, ...components);
     for (let i = 0; i < components.length; i++) {
       components[i].$internals.parentComponent = this;
       components[i].$internals.parentSlotName = slotName;
     }
     if (this.#connected) {
-      this.slotManager.mountChildren(slotName);
+      this.slotManager.mountSlotComponents(slotName);
     }
   }
   /**
@@ -1465,11 +1467,18 @@ var Component = class _Component {
     childComponent.$internals.parentComponent = null;
     childComponent.$internals.parentSlotName = "";
     this.slotManager.removeChildComponent(childComponent);
+    childComponent.unmount();
   }
 };
 
 // src/slot-toggler.js
 var SlotToggler = class {
+  /** @type {string[]} */
+  slotNames;
+  /** @type {string} */
+  activeSlotName;
+  /** @type {Component} */
+  component;
   /**
    * Creates a new instance of SlotToggler.
    * @param {Component} component - The component that owns the slots.
@@ -1477,24 +1486,16 @@ var SlotToggler = class {
    * @param {string} activeSlotName - The name of the slot that is currently active.
    */
   constructor(component, slotNames, activeSlotName) {
-    if (typeof component.slots !== "undefined") {
-      component.defineSlots(...component.slots);
-      component.slots = void 0;
-    }
+    let slotManager = component.slotManager;
     for (let i = 0; i < slotNames.length; i++) {
-      if (component.slotManager.slotExists(slotNames[i]) === false) {
+      if (!slotManager.hasSlot(slotNames[i])) {
         throw new Error(
           `Slot ${slotNames[i]} does not exist in component`
         );
       }
     }
-    if (component.slotManager.slotExists(activeSlotName) === false) {
-      throw new Error(
-        `Slot ${activeSlotName} does not exist in component`
-      );
-    }
     this.component = component;
-    this.slotNames = slotNames;
+    this.slotNames = [...slotNames];
     this.activeSlotName = activeSlotName;
   }
   /**
@@ -1509,10 +1510,10 @@ var SlotToggler = class {
     if (slotName == this.activeSlotName) return;
     for (let i = 0; i < this.slotNames.length; i++) {
       if (this.slotNames[i] == slotName) {
-        this.component.slotManager.mountChildren(slotName);
+        this.component.slotManager.mountSlotComponents(slotName);
         this.activeSlotName = slotName;
       } else {
-        this.component.slotManager.unmountChildren(this.slotNames[i]);
+        this.component.slotManager.unmountSlotComponents(this.slotNames[i]);
       }
     }
   }
@@ -1534,7 +1535,6 @@ export {
   injectCoreStyles,
   isDarkMode,
   removeSpinnerFromButton,
-  runWithMinimumTime,
   scrollToBottom,
   scrollToTop,
   showElements,

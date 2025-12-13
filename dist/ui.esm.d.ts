@@ -1,4 +1,5 @@
 export type LayoutFunction = (component: any) => Node | string;
+export type _TextUpdateFunction = (component: Component) => void;
 export type TextUpdateFunction = (component: Component) => void;
 export class Component {
     /** @type {Internals} */
@@ -21,10 +22,10 @@ export class Component {
      * Sets the text update function for the component.
      * The text update function is a function that is called when the reloadText method is called.
      * The function receives the component instance as the this value.
-     * @param {import("./internals.js").TextUpdateFunction|null} func - The text update function to set.
+     * @param {_TextUpdateFunction|null} func - The text update function to set.
      * @returns {void}
      */
-    setTextUpdateFunction(func: any | null): void;
+    setTextUpdateFunction(func: _TextUpdateFunction | null): void;
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
@@ -223,13 +224,6 @@ export class Component {
      */
     getSlotNames(): string[];
     /**
-     * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "data-slot" attribute.
-     * The slot names are used to access the children components of the component.
-     * @param {...string} slotNames - The names of the slots.
-     */
-    defineSlots(...slotNames: string[]): void;
-    /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
      * @param {...Component} components - The component to add to the slot.
@@ -260,9 +254,12 @@ export class SlotToggler {
      * @param {string} activeSlotName - The name of the slot that is currently active.
      */
     constructor(component: Component, slotNames: string[], activeSlotName: string);
-    component: Component;
+    /** @type {string[]} */
     slotNames: string[];
+    /** @type {string} */
     activeSlotName: string;
+    /** @type {Component} */
+    component: Component;
     /**
      * Toggles the active slot to the given slot name.
      * Removes the previously active slot, defines all slots, mounts the children of the given slot name, and sets the given slot name as the active slot.
@@ -400,7 +397,6 @@ export function isDarkMode(wnd?: Window & typeof globalThis): boolean;
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
-export function runWithMinimumTime(promiseFunc: any, ms: any): Promise<void>;
 /**
  * Scrolls the specified element to the bottom.
  * Sets the scrollTop property to the element's scrollHeight,
@@ -505,22 +501,23 @@ declare class SlotManager {
      */
     constructor(component: Component);
     /**
-     * @param {boolean} mode
-     */
-    setSlotStrictMode(mode: boolean): void;
-    /**
-     * Defines the names of the slots in the component.
-     * The slots are declared in the component's template using the "data-slot" attribute.
-     * The slot names are used to access the children components of the component.
-     * @param {...string} slotNames - The names of the slots.
-     */
-    defineSlots(...slotNames: string[]): void;
-    /**
      * Adds a slot to the component.
      * This method is used to programmatically add a slot to the component.
      * @param {string} slotName - The name of the slot to add.
+     * @returns {Slot} The set of children components associated with the slot.
      */
-    addSlot(slotName: string): void;
+    addSlot(slotName: string): Slot;
+    /**
+     * @param {string} slotName
+     * @returns {Slot | null}
+     */
+    getSlot(slotName: string): Slot | null;
+    /**
+     * Checks if the given slot name exists in the component.
+     * @param {string} slotName - The name of the slot to check.
+     * @returns {boolean} True if the slot exists, false otherwise.
+     */
+    hasSlot(slotName: string): boolean;
     /**
      * Removes the given slot name from the component.
      * This method first unmounts all children components of the given slot name,
@@ -529,16 +526,24 @@ declare class SlotManager {
      */
     removeSlot(slotName: string): void;
     /**
+     * Checks if the given slot name has any children components associated with it.
+     * @param {string} slotName - The name of the slot to check.
+     * @returns {boolean} True if the slot has children components, false otherwise.
+     */
+    hasComponents(slotName: string): boolean;
+    /**
+     * Clears the given slot name of all its children components.
+     * This method first removes all children components of the given slot name from the component,
+     * then unmounts them and finally removes them from the component's internal maps.
+     * @param {string} slotName - The name of the slot to clear.
+     * @returns {boolean} True if the slot was cleared, false otherwise.
+     */
+    clearSlot(slotName: string): boolean;
+    /**
      * Returns an array of slot names defined in the component.
      * @type {string[]}
      */
     get slotNames(): string[];
-    /**
-     * Checks if the given slot name exists in the component.
-     * @param {string} slotName - The name of the slot to check.
-     * @returns {boolean} True if the slot exists, false otherwise.
-     */
-    slotExists(slotName: string): boolean;
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
@@ -547,11 +552,6 @@ declare class SlotManager {
      */
     addComponentsToSlot(slotName: string, ...components: Component[]): void;
     /**
-     * Removes the given child component from all slots.
-     * @param {Component} childComponent - The child component to remove.
-     */
-    removeChildComponent(childComponent: Component): void;
-    /**
      * Returns the children components of the component.
      * @type {Set<Component>}
      */
@@ -559,18 +559,46 @@ declare class SlotManager {
     /**
      * Mounts all children components of the given slot name to the DOM.
      * The children components are mounted to the slot ref element with the "append" mode.
-     * If no slot name is given, all children components of all slots are mounted to the DOM.
-     * @param {string} [slotName] - The name of the slot to mount children components for.
      */
-    mountChildren(slotName?: string): void;
+    mountChildren(): void;
     /**
-     * Unmounts all children components of the given slot name.
-     * This method iterates over the children components of the given slot name and calls their unmount method.
-     * @param {string} [slotName] - The name of the slot to unmount the children components for.
-     * if no slot name is given, all children components of all slots are unmounted.
+     * Mounts all children components of the given slot name to the DOM.
+     * The children components are mounted to the slot ref element with the "append" mode.
+     * If no slot name is given, all children components of all slots are mounted to the DOM.
+     * @param {string} slotName - The name of the slot to mount children components for.
      */
-    unmountChildren(slotName?: string): void;
+    mountSlotComponents(slotName: string): void;
+    /**
+     * Unmounts all children components of the component from the DOM.
+     * This method iterates over all children components of the component and calls their unmount method.
+     */
+    unmountComponents(): void;
+    /**
+     * Unmounts all children components of the given slot name from the DOM.
+     * @param {string} slotName - The name of the slot to unmount children components for.
+     */
+    unmountSlotComponents(slotName: string): void;
+    /**
+     * Removes the given child component from all slots.
+     * This method first checks if the child component exists in the component's internal maps.
+     * If it does, it removes the child component from the set of all children components and
+     * from the sets of children components of all slots.
+     * @param {Component} childComponent - The child component to remove.
+     * @returns {boolean} True if the child component was removed, false otherwise.
+     */
+    removeChildComponent(childComponent: Component): boolean;
     #private;
 }
 import { EventEmitter } from '@supercat1337/event-emitter';
+declare class Slot {
+    /**
+     * Initializes a new instance of the Slot class.
+     * @param {string} name - The name of the slot.
+     */
+    constructor(name: string);
+    /** @type {string} */
+    name: string;
+    /** @type {Set<Component>} */
+    components: Set<Component>;
+}
 export {};

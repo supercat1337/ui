@@ -2,6 +2,16 @@
 import { Component } from "./component/component.js";
 
 export class SlotToggler {
+
+    /** @type {string[]} */
+    slotNames;
+
+    /** @type {string} */
+    activeSlotName;
+
+    /** @type {Component} */
+    component;
+
     /**
      * Creates a new instance of SlotToggler.
      * @param {Component} component - The component that owns the slots.
@@ -9,27 +19,19 @@ export class SlotToggler {
      * @param {string} activeSlotName - The name of the slot that is currently active.
      */
     constructor(component, slotNames, activeSlotName) {
-        if (typeof component.slots !== "undefined") {
-            component.defineSlots(...component.slots);
-            component.slots = undefined;
-        }
+
+        let slotManager = component.slotManager;
 
         for (let i = 0; i < slotNames.length; i++) {
-            if (component.slotManager.slotExists(slotNames[i]) === false) {
+            if (!slotManager.hasSlot(slotNames[i])) {
                 throw new Error(
                     `Slot ${slotNames[i]} does not exist in component`
                 );
             }
         }
 
-        if (component.slotManager.slotExists(activeSlotName) === false) {
-            throw new Error(
-                `Slot ${activeSlotName} does not exist in component`
-            );
-        }
-
         this.component = component;
-        this.slotNames = slotNames;
+        this.slotNames = [...slotNames];
         this.activeSlotName = activeSlotName;
     }
 
@@ -47,10 +49,10 @@ export class SlotToggler {
 
         for (let i = 0; i < this.slotNames.length; i++) {
             if (this.slotNames[i] == slotName) {
-                this.component.slotManager.mountChildren(slotName);
+                this.component.slotManager.mountSlotComponents(slotName);
                 this.activeSlotName = slotName;
             } else {
-                this.component.slotManager.unmountChildren(this.slotNames[i]);
+                this.component.slotManager.unmountSlotComponents(this.slotNames[i]);
             }
         }
     }
