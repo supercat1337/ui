@@ -506,7 +506,7 @@ declare class SlotManager {
      * @param {string} slotName - The name of the slot to add.
      * @returns {Slot} The set of children components associated with the slot.
      */
-    addSlot(slotName: string): Slot;
+    registerSlot(slotName: string): Slot;
     /**
      * @param {string} slotName
      * @returns {Slot | null}
@@ -530,7 +530,7 @@ declare class SlotManager {
      * @param {string} slotName - The name of the slot to check.
      * @returns {boolean} True if the slot has children components, false otherwise.
      */
-    hasComponents(slotName: string): boolean;
+    hasSlotContent(slotName: string): boolean;
     /**
      * Clears the given slot name of all its children components.
      * This method first removes all children components of the given slot name from the component,
@@ -538,7 +538,7 @@ declare class SlotManager {
      * @param {string} slotName - The name of the slot to clear.
      * @returns {boolean} True if the slot was cleared, false otherwise.
      */
-    clearSlot(slotName: string): boolean;
+    clearSlotContent(slotName: string): boolean;
     /**
      * Returns an array of slot names defined in the component.
      * @type {string[]}
@@ -550,7 +550,7 @@ declare class SlotManager {
      * @param {...Component} components - The components to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addComponentsToSlot(slotName: string, ...components: Component[]): void;
+    assignToSlot(slotName: string, ...components: Component[]): void;
     /**
      * Returns the children components of the component.
      * @type {Set<Component>}
@@ -560,24 +560,24 @@ declare class SlotManager {
      * Mounts all children components of the given slot name to the DOM.
      * The children components are mounted to the slot ref element with the "append" mode.
      */
-    mountChildren(): void;
+    mountAllSlots(): void;
     /**
      * Mounts all children components of the given slot name to the DOM.
      * The children components are mounted to the slot ref element with the "append" mode.
      * If no slot name is given, all children components of all slots are mounted to the DOM.
      * @param {string} slotName - The name of the slot to mount children components for.
      */
-    mountSlotComponents(slotName: string): void;
+    mountSlot(slotName: string): void;
     /**
      * Unmounts all children components of the component from the DOM.
      * This method iterates over all children components of the component and calls their unmount method.
      */
-    unmountComponents(): void;
+    unmountAll(): void;
     /**
      * Unmounts all children components of the given slot name from the DOM.
      * @param {string} slotName - The name of the slot to unmount children components for.
      */
-    unmountSlotComponents(slotName: string): void;
+    unmountSlot(slotName: string): void;
     /**
      * Removes the given child component from all slots.
      * This method first checks if the child component exists in the component's internal maps.

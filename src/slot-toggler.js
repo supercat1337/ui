@@ -49,10 +49,10 @@ export class SlotToggler {
 
         for (let i = 0; i < this.slotNames.length; i++) {
             if (this.slotNames[i] == slotName) {
-                this.component.slotManager.mountSlotComponents(slotName);
+                this.component.slotManager.mountSlot(slotName);
                 this.activeSlotName = slotName;
             } else {
-                this.component.slotManager.unmountSlotComponents(this.slotNames[i]);
+                this.component.slotManager.unmountSlot(this.slotNames[i]);
             }
         }
     }

@@ -204,7 +204,7 @@ export class Component {
         }
 
         for (let key in scope_refs) {
-            this.slotManager.addSlot(key);
+            this.slotManager.registerSlot(key);
         }
 
         this.$internals.refs = refs;
@@ -343,7 +343,7 @@ export class Component {
 
         this.$internals.disconnectController = new AbortController();
         this.#connected = true;
-        this.slotManager.mountChildren();
+        this.slotManager.mountAllSlots();
         this.emit('connect');
     }
 
@@ -431,7 +431,7 @@ export class Component {
         if (this.#connected === false) return;
 
         this.emit('beforeUnmount');
-        this.slotManager.unmountComponents();
+        this.slotManager.unmountAll();
 
         this.disconnect();
         this.$internals.root?.remove();
@@ -519,7 +519,7 @@ export class Component {
             throw new Error('All components must be instances of Component');
         }
 
-        this.slotManager.addComponentsToSlot(slotName, ...components);
+        this.slotManager.assignToSlot(slotName, ...components);
 
         for (let i = 0; i < components.length; i++) {
             components[i].$internals.parentComponent = this;
@@ -527,7 +527,7 @@ export class Component {
         }
 
         if (this.#connected) {
-            this.slotManager.mountSlotComponents(slotName);
+            this.slotManager.mountSlot(slotName);
         }
     }
 

@@ -39,7 +39,7 @@ export class SlotManager {
      * @param {string} slotName - The name of the slot to add.
      * @returns {Slot} The set of children components associated with the slot.
      */
-    addSlot(slotName) {
+    registerSlot(slotName) {
         let slot = this.getSlot(slotName);
         if (slot != null) {
             return slot;
@@ -76,7 +76,7 @@ export class SlotManager {
     removeSlot(slotName) {
         let slotExists = this.hasSlot(slotName);
         if (slotExists) {
-            this.clearSlot(slotName);
+            this.clearSlotContent(slotName);
             this.#slots.delete(slotName);
         }
     }
@@ -86,7 +86,7 @@ export class SlotManager {
      * @param {string} slotName - The name of the slot to check.
      * @returns {boolean} True if the slot has children components, false otherwise.
      */
-    hasComponents(slotName) {
+    hasSlotContent(slotName) {
         let slot = this.getSlot(slotName);
         if (slot == null) return false;
         return slot.components.size > 0;
@@ -99,7 +99,7 @@ export class SlotManager {
      * @param {string} slotName - The name of the slot to clear.
      * @returns {boolean} True if the slot was cleared, false otherwise.
      */
-    clearSlot(slotName) {
+    clearSlotContent(slotName) {
         let slot = this.getSlot(slotName);
         if (slot == null) return false;
 
@@ -127,11 +127,11 @@ export class SlotManager {
      * @param {...Component} components - The components to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addComponentsToSlot(slotName, ...components) {
+    assignToSlot(slotName, ...components) {
         let slot = this.getSlot(slotName);
 
         if (slot == null) {
-            slot = this.addSlot(slotName);
+            slot = this.registerSlot(slotName);
         }
 
         for (let i = 0; i < components.length; i++) {
@@ -156,11 +156,11 @@ export class SlotManager {
      * Mounts all children components of the given slot name to the DOM.
      * The children components are mounted to the slot ref element with the "append" mode.
      */
-    mountChildren() {
+    mountAllSlots() {
         if (!this.#parentComponent.isConnected) return;
 
         this.#slots.forEach(slot => {
-            this.mountSlotComponents(slot.name);
+            this.mountSlot(slot.name);
         });
     }
 
@@ -170,7 +170,7 @@ export class SlotManager {
      * If no slot name is given, all children components of all slots are mounted to the DOM.
      * @param {string} slotName - The name of the slot to mount children components for.
      */
-    mountSlotComponents(slotName) {
+    mountSlot(slotName) {
         if (!this.#parentComponent.isConnected) return;
 
         let slot = this.getSlot(slotName);
@@ -204,7 +204,7 @@ export class SlotManager {
      * Unmounts all children components of the component from the DOM.
      * This method iterates over all children components of the component and calls their unmount method.
      */
-    unmountComponents() {
+    unmountAll() {
         this.#allComponents.forEach(childComponent => {
             childComponent.unmount();
         });
@@ -214,7 +214,7 @@ export class SlotManager {
      * Unmounts all children components of the given slot name from the DOM.
      * @param {string} slotName - The name of the slot to unmount children components for.
      */
-    unmountSlotComponents(slotName) {
+    unmountSlot(slotName) {
         let slot = this.getSlot(slotName);
         if (slot == null) return;
 
