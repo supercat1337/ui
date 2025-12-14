@@ -6,12 +6,19 @@ export class Component {
     $internals: Internals;
     /** @type {LayoutFunction|string|undefined} */
     layout: LayoutFunction | string | undefined;
-    /** @type {string[]|undefined} */
-    slots: string[] | undefined;
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation: import("dom-scope").RefsAnnotation | undefined;
     slotManager: SlotManager;
-    isCollapsed: boolean;
+    /**
+     * Checks if the component is connected to a root element.
+     * @returns {boolean} True if the component is connected, false otherwise.
+     */
+    get isConnected(): boolean;
+    /**
+     * Returns whether the component is currently collapsed or not.
+     * @returns {boolean} True if the component is collapsed, false otherwise.
+     */
+    get isCollapsed(): boolean;
     /**
      * Reloads the text content of the component by calling the text update function if it is set.
      * This method is useful when the component's text content depends on external data that may change.
@@ -33,6 +40,14 @@ export class Component {
      * The function is called with the component instance as the this value.
      */
     setLayout(layout: LayoutFunction | string, annotation?: import("dom-scope").RefsAnnotation): void;
+    /**
+     * Sets the renderer for the component by assigning the template content.
+     * This is a synonym for setLayout.
+     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * The function is called with the component instance as the this value.
+     */
+    setRenderer(layout: LayoutFunction | string, annotation?: import("dom-scope").RefsAnnotation): void;
     /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
@@ -73,6 +88,15 @@ export class Component {
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event: string, ...args: any[]): void;
+    /**
+     * Attaches an event listener to the specified element.
+     * The event listener is automatically removed when the component is unmounted.
+     * @param {HTMLElement|Element} element - The element to attach the event listener to.
+     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+     * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
+     * @returns {() => void} A function that can be called to remove the event listener.
+     */
+    $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
     /**
      * Emits the "beforeConnect" event.
      * This event is emitted just before the component is connected to the DOM.
@@ -138,11 +162,6 @@ export class Component {
      */
     onExpand(callback: (component: this) => void): () => void;
     /**
-     * Checks if the component is connected to a root element.
-     * @returns {boolean} True if the component is connected, false otherwise.
-     */
-    get isConnected(): boolean;
-    /**
      * Connects the component to the specified componentRoot element.
      * Initializes the refs object and sets the component's root element.
      * Emits "connect" event through the event emitter.
@@ -151,7 +170,7 @@ export class Component {
     connect(componentRoot: HTMLElement): void;
     /**
      * Disconnects the component from the DOM.
-     * Sets the component's #connected flag to false.
+     * Sets the component's #isConnected flag to false.
      * Clears the refs and slotRefs objects.
      * Aborts all event listeners attached with the $on method.
      * Emits "disconnect" event through the event emitter.
@@ -172,12 +191,12 @@ export class Component {
     /**
      * Mounts the component to the specified container.
      * @param {Element} container - The container to mount the component to.
-     * @param {"replace"|"append"|"prepend"} [mode="replace"] - The mode to use to mount the component.
+     * @param {"replace"|"append"|"prepend"} [mountMode="replace"] - The mode to use to mount the component.
      * If "replace", the container's content is replaced.
      * If "append", the component is appended to the container.
      * If "prepend", the component is prepended to the container.
      */
-    mount(container: Element, mode?: "replace" | "append" | "prepend"): void;
+    mount(container: Element, mountMode?: "replace" | "append" | "prepend"): void;
     /**
      * Unmounts the component from the DOM.
      * Emits "beforeUnmount" and "unmount" events through the event emitter.
@@ -185,18 +204,16 @@ export class Component {
      */
     unmount(): void;
     /**
-     * Collapses the component by unmounting it from the DOM.
-     * Sets the isCollapsed flag to true.
+     * Rerenders the component.
+     * If the component is connected, it unmounts and mounts the component again.
+     * If the component is not connected, it mounts the component to the parent component's slot.
      */
-    collapse(): void;
+    rerender(): void;
     /**
-     * Expands the component by mounting it to the DOM.
-     * Sets the isCollapsed flag to false.
-     * If the component is already connected, does nothing.
-     * If the component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * This method is called when the component is updated.
+     * It is an empty method and is intended to be overridden by the user.
      */
-    expand(): void;
+    update(): void;
     /**
      * Shows the component.
      * If the component is not connected, it does nothing.
@@ -210,14 +227,18 @@ export class Component {
      */
     hide(): void;
     /**
-     * Attaches an event listener to the specified element.
-     * The event listener is automatically removed when the component is unmounted.
-     * @param {HTMLElement|Element} element - The element to attach the event listener to.
-     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
-     * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
-     * @returns {() => void} A function that can be called to remove the event listener.
+     * Collapses the component by unmounting it from the DOM.
+     * Sets the #isCollapsed flag to true.
      */
-    $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
+    collapse(): void;
+    /**
+     * Expands the component by mounting it to the DOM.
+     * Sets the #isCollapsed flag to false.
+     * If the component is already connected, does nothing.
+     * If the component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expand(): void;
     /**
      * Returns an array of the slot names defined in the component.
      * @returns {string[]}
@@ -231,11 +252,10 @@ export class Component {
      */
     addComponentToSlot(slotName: string, ...components: Component[]): void;
     /**
-     * Removes the specified child component from all slots.
-     * Delegates the removal to the SlotManager instance.
-     * @param {Component} childComponent - The child component to be removed.
+     * Returns the parent component of the current component, or null if the current component is a root component.
+     * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
      */
-    removeChildComponent(childComponent: Component): void;
+    getParentComponent(): Component | null;
     #private;
 }
 /**
@@ -494,17 +514,23 @@ declare class Internals {
     parentComponent: Component | null;
     /** @type {string} */
     parentSlotName: string;
+    /** @type {"replace"|"append"|"prepend"} */
+    mountMode: "replace" | "append" | "prepend";
 }
 declare class SlotManager {
     /**
      * @param {Component} component
      */
     constructor(component: Component);
+    /** @type {Map<string, Slot>} */
+    slots: Map<string, Slot>;
     /**
      * Adds a slot to the component.
      * This method is used to programmatically add a slot to the component.
+     * If the slot already exists, it is returned as is.
+     * Otherwise, a new slot is created and added to the component's internal maps.
      * @param {string} slotName - The name of the slot to add.
-     * @returns {Slot} The set of children components associated with the slot.
+     * @returns {Slot} Returns the slot.
      */
     registerSlot(slotName: string): Slot;
     /**
@@ -545,18 +571,6 @@ declare class SlotManager {
      */
     get slotNames(): string[];
     /**
-     * Adds a child component to a slot.
-     * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} components - The components to add to the slot.
-     * @throws {Error} If the slot does not exist.
-     */
-    assignToSlot(slotName: string, ...components: Component[]): void;
-    /**
-     * Returns the children components of the component.
-     * @type {Set<Component>}
-     */
-    get children(): Set<Component>;
-    /**
      * Mounts all children components of the given slot name to the DOM.
      * The children components are mounted to the slot ref element with the "append" mode.
      */
@@ -579,6 +593,13 @@ declare class SlotManager {
      */
     unmountSlot(slotName: string): void;
     /**
+     * Adds a child component to a slot.
+     * @param {string} slotName - The name of the slot to add the component to.
+     * @param {...Component} components - The components to add to the slot.
+     * @returns {Slot} Returns the slot.
+     */
+    attachToSlot(slotName: string, ...components: Component[]): Slot;
+    /**
      * Removes the given child component from all slots.
      * This method first checks if the child component exists in the component's internal maps.
      * If it does, it removes the child component from the set of all children components and
@@ -586,7 +607,13 @@ declare class SlotManager {
      * @param {Component} childComponent - The child component to remove.
      * @returns {boolean} True if the child component was removed, false otherwise.
      */
-    removeChildComponent(childComponent: Component): boolean;
+    removeComponent(childComponent: Component): boolean;
+    /**
+     * Finds the slot associated with the given child component.
+     * @param {Component} component - The child component to find the slot for.
+     * @returns {Slot | null} The slot associated with the child component, or null if no slot is found.
+     */
+    findSlotByComponent(component: Component): Slot | null;
     #private;
 }
 import { EventEmitter } from '@supercat1337/event-emitter';
@@ -594,11 +621,52 @@ declare class Slot {
     /**
      * Initializes a new instance of the Slot class.
      * @param {string} name - The name of the slot.
+     * @param {Component} component
      */
-    constructor(name: string);
+    constructor(name: string, component: Component);
     /** @type {string} */
     name: string;
     /** @type {Set<Component>} */
     components: Set<Component>;
+    /**
+     * Attaches a component to the slot.
+     * This method sets the given component's parent component and parent slot name,
+     * and adds the component to the slot's internal set of components.
+     * @param {Component} component - The component to attach to the slot.
+     */
+    attach(component: Component): void;
+    /**
+     * Detaches a component from the slot.
+     * This method sets the given component's parent component and parent slot name to null,
+     * and removes the component from the slot's internal set of components.
+     * @param {Component} component - The component to detach from the slot.
+     */
+    detach(component: Component): void;
+    /**
+     * Detaches all components from the slot.
+     * This method sets all components' parent component and parent slot name to null,
+     * and removes all components from the slot's internal set of components.
+     */
+    detachAll(): void;
+    /**
+     * Mounts all children components of the slot to the DOM.
+     * This method first checks if the component is connected.
+     * If not, it logs a warning and returns.
+     * Then, it gets the root element of the slot from the component's internal slot refs map.
+     * If the slot root element does not exist, it logs a warning and returns.
+     * Finally, it iterates over all children components of the slot and calls their mount method with the slot root element and the "append" mode.
+     */
+    mount(): void;
+    /**
+     * Unmounts all children components of the slot from the DOM.
+     * This method iterates over all children components of the slot and calls their unmount method.
+     */
+    unmount(): void;
+    /**
+     * Clears the slot of all its children components.
+     * This method first unmounts all children components of the slot, then detaches them from the slot.
+     */
+    clear(): void;
+    #private;
 }
 export {};

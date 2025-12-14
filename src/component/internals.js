@@ -27,5 +27,7 @@ export class Internals {
         this.parentComponent = null;
         /** @type {string} */
         this.parentSlotName = "";
+        /** @type {"replace"|"append"|"prepend"} */
+        this.mountMode = "replace";
     }
 }

@@ -51,25 +51,39 @@ export class Component {
     /** @type {LayoutFunction|string|undefined} */
     layout;
 
-    /** @type {string[]|undefined} */
-    slots;
-
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation;
 
     /** @type {Node|null} */
-
     #template = null;
 
-    #connected = false;
+    #isConnected = false;
 
     slotManager = new SlotManager(this);
 
-    isCollapsed = false;
+    #isCollapsed = false;
 
     constructor() {
         this.onConnect(onConnectDefault);
         this.onDisconnect(onDisconnectDefault);
+    }
+
+    /* State */
+
+    /**
+     * Checks if the component is connected to a root element.
+     * @returns {boolean} True if the component is connected, false otherwise.
+     */
+    get isConnected() {
+        return this.#isConnected;
+    }
+
+    /**
+     * Returns whether the component is currently collapsed or not.
+     * @returns {boolean} True if the component is collapsed, false otherwise.
+     */
+    get isCollapsed() {
+        return this.#isCollapsed;
     }
 
     /**
@@ -145,13 +159,26 @@ export class Component {
     }
 
     /**
+     * Sets the renderer for the component by assigning the template content.
+     * This is a synonym for setLayout.
+     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * The function is called with the component instance as the this value.
+     */
+    setRenderer(layout, annotation) {
+        this.setLayout(layout, annotation);
+    }
+
+    /* Refs */
+
+    /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
      * The refs object is only available after the component has been connected to the DOM.
      * @returns {any} The refs object.
      */
     getRefs() {
-        if (!this.#connected) {
+        if (!this.#isConnected) {
             throw new Error('Component is not connected to the DOM');
         }
 
@@ -211,6 +238,8 @@ export class Component {
         this.$internals.slotRefs = scope_refs;
     }
 
+    /* Events */
+
     /**
      * Subscribes to a specified event.
      * @param {string} event - The name of the event to subscribe to.
@@ -228,6 +257,21 @@ export class Component {
      */
     emit(event, ...args) {
         return this.$internals.eventEmitter.emit(event, this, ...args);
+    }
+
+    /**
+     * Attaches an event listener to the specified element.
+     * The event listener is automatically removed when the component is unmounted.
+     * @param {HTMLElement|Element} element - The element to attach the event listener to.
+     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+     * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
+     * @returns {() => void} A function that can be called to remove the event listener.
+     */
+    $on(element, event, callback) {
+        element.addEventListener(event, callback, {
+            signal: this.$internals.disconnectController.signal,
+        });
+        return () => element.removeEventListener(event, callback);
     }
 
     /**
@@ -318,13 +362,7 @@ export class Component {
         return this.on('expand', callback);
     }
 
-    /**
-     * Checks if the component is connected to a root element.
-     * @returns {boolean} True if the component is connected, false otherwise.
-     */
-    get isConnected() {
-        return this.#connected;
-    }
+    /* Lifecycle methods */
 
     /**
      * Connects the component to the specified componentRoot element.
@@ -333,7 +371,7 @@ export class Component {
      * @param {HTMLElement} componentRoot - The root element to connect the component to.
      */
     connect(componentRoot) {
-        if (this.#connected === true) {
+        if (this.#isConnected === true) {
             throw new Error('Component is already connected');
         }
 
@@ -342,22 +380,22 @@ export class Component {
         this.updateRefs();
 
         this.$internals.disconnectController = new AbortController();
-        this.#connected = true;
+        this.#isConnected = true;
         this.slotManager.mountAllSlots();
         this.emit('connect');
     }
 
     /**
      * Disconnects the component from the DOM.
-     * Sets the component's #connected flag to false.
+     * Sets the component's #isConnected flag to false.
      * Clears the refs and slotRefs objects.
      * Aborts all event listeners attached with the $on method.
      * Emits "disconnect" event through the event emitter.
      */
     disconnect() {
-        if (this.#connected === false) return;
+        if (this.#isConnected === false) return;
 
-        this.#connected = false;
+        this.#isConnected = false;
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
         this.$internals.slotRefs = {};
@@ -381,19 +419,19 @@ export class Component {
     /**
      * Mounts the component to the specified container.
      * @param {Element} container - The container to mount the component to.
-     * @param {"replace"|"append"|"prepend"} [mode="replace"] - The mode to use to mount the component.
+     * @param {"replace"|"append"|"prepend"} [mountMode="replace"] - The mode to use to mount the component.
      * If "replace", the container's content is replaced.
      * If "append", the component is appended to the container.
      * If "prepend", the component is prepended to the container.
      */
-    mount(container, mode = 'replace') {
+    mount(container, mountMode = 'replace') {
         if (!(container instanceof Element)) {
             throw new TypeError('Container must be a DOM Element');
         }
 
         const validModes = ['replace', 'append', 'prepend'];
-        if (!validModes.includes(mode)) {
-            throw new Error(`Invalid mode: ${mode}. Must be one of: ${validModes.join(', ')}`);
+        if (!validModes.includes(mountMode)) {
+            throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(', ')}`);
         }
 
         if (this.#template === null) {
@@ -402,7 +440,9 @@ export class Component {
 
         if (this.#template === null) throw new Error('Template is not set');
 
-        if (this.#connected === true) {
+        this.$internals.mountMode = mountMode;
+
+        if (this.#isConnected === true) {
             return;
         }
 
@@ -414,9 +454,9 @@ export class Component {
             clonedTemplate.firstElementChild
         );
 
-        if (mode === 'replace') container.replaceChildren(clonedTemplate);
-        else if (mode === 'append') container.append(clonedTemplate);
-        else if (mode === 'prepend') container.prepend(clonedTemplate);
+        if (mountMode === 'replace') container.replaceChildren(clonedTemplate);
+        else if (mountMode === 'append') container.append(clonedTemplate);
+        else if (mountMode === 'prepend') container.prepend(clonedTemplate);
 
         this.connect(componentRoot);
         this.emit('mount');
@@ -428,7 +468,7 @@ export class Component {
      * Disconnects the component from the DOM and removes the root element.
      */
     unmount() {
-        if (this.#connected === false) return;
+        if (this.#isConnected === false) return;
 
         this.emit('beforeUnmount');
         this.slotManager.unmountAll();
@@ -440,30 +480,52 @@ export class Component {
     }
 
     /**
-     * Collapses the component by unmounting it from the DOM.
-     * Sets the isCollapsed flag to true.
+     * Rerenders the component.
+     * If the component is connected, it unmounts and mounts the component again.
+     * If the component is not connected, it mounts the component to the parent component's slot.
      */
-    collapse() {
-        this.unmount();
-        this.isCollapsed = true;
-        this.emit('collapse');
+    rerender() {
+        let parentComponent = this.$internals.parentComponent || null;
+
+        if (this.isConnected) {
+            let container = this.$internals.root.parentElement;
+            this.unmount();
+            this.mount(container, this.$internals.mountMode);
+        } else {
+            if (parentComponent === null) {
+                console.error(
+                    'Cannot rerender a disconnected component without a parent component'
+                );
+                return;
+            }
+
+            if (parentComponent.isConnected === false) {
+                console.error('Cannot rerender a disconnected parent component');
+                return;
+            }
+
+            let container =
+                parentComponent.$internals.slotRefs[this.$internals.parentSlotName] || null;
+            if (!container) {
+                console.error(
+                    'Cannot find a rendered slot with name ' +
+                        this.$internals.parentSlotName +
+                        ' in the parent component'
+                );
+                return;
+            }
+
+            this.mount(container, this.$internals.mountMode);
+        }
     }
 
     /**
-     * Expands the component by mounting it to the DOM.
-     * Sets the isCollapsed flag to false.
-     * If the component is already connected, does nothing.
-     * If the component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * This method is called when the component is updated.
+     * It is an empty method and is intended to be overridden by the user.
      */
-    expand() {
-        this.isCollapsed = false;
-        if (this.#connected === true) return;
-        if (this.$internals.parentComponent === null) return;
+    update() {}
 
-        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
-        this.emit('expand');
-    }
+    /* Visibility */
 
     /**
      * Shows the component.
@@ -486,19 +548,32 @@ export class Component {
     }
 
     /**
-     * Attaches an event listener to the specified element.
-     * The event listener is automatically removed when the component is unmounted.
-     * @param {HTMLElement|Element} element - The element to attach the event listener to.
-     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
-     * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
-     * @returns {() => void} A function that can be called to remove the event listener.
+     * Collapses the component by unmounting it from the DOM.
+     * Sets the #isCollapsed flag to true.
      */
-    $on(element, event, callback) {
-        element.addEventListener(event, callback, {
-            signal: this.$internals.disconnectController.signal,
-        });
-        return () => element.removeEventListener(event, callback);
+    collapse() {
+        this.unmount();
+        this.#isCollapsed = true;
+        this.emit('collapse');
     }
+
+    /**
+     * Expands the component by mounting it to the DOM.
+     * Sets the #isCollapsed flag to false.
+     * If the component is already connected, does nothing.
+     * If the component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expand() {
+        this.#isCollapsed = false;
+        if (this.#isConnected === true) return;
+        if (this.$internals.parentComponent === null) return;
+
+        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
+        this.emit('expand');
+    }
+
+    /* Slots, parent, children */
 
     /**
      * Returns an array of the slot names defined in the component.
@@ -515,36 +590,18 @@ export class Component {
      * @throws {Error} If the slot does not exist.
      */
     addComponentToSlot(slotName, ...components) {
-        if (!components.every(comp => comp instanceof Component)) {
-            throw new Error('All components must be instances of Component');
-        }
+        let slot = this.slotManager.attachToSlot(slotName, ...components);
 
-        this.slotManager.assignToSlot(slotName, ...components);
-
-        for (let i = 0; i < components.length; i++) {
-            components[i].$internals.parentComponent = this;
-            components[i].$internals.parentSlotName = slotName;
-        }
-
-        if (this.#connected) {
-            this.slotManager.mountSlot(slotName);
+        if (this.#isConnected) {
+            slot.mount();
         }
     }
 
     /**
-     * Removes the specified child component from all slots.
-     * Delegates the removal to the SlotManager instance.
-     * @param {Component} childComponent - The child component to be removed.
+     * Returns the parent component of the current component, or null if the current component is a root component.
+     * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
      */
-    removeChildComponent(childComponent) {
-        if (childComponent.$internals.parentComponent !== this) {
-            return;
-        }
-
-        childComponent.$internals.parentComponent = null;
-        childComponent.$internals.parentSlotName = '';
-
-        this.slotManager.removeChildComponent(childComponent);
-        childComponent.unmount();
+    get parentComponent() {
+        return this.$internals.parentComponent || null;
     }
 }

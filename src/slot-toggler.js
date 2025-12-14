@@ -1,7 +1,8 @@
 // @ts-check
-import { Component } from "./component/component.js";
+import { Component } from './component/component.js';
 
 export class SlotToggler {
+    #isDestroyed = false;
 
     /** @type {string[]} */
     slotNames;
@@ -19,19 +20,16 @@ export class SlotToggler {
      * @param {string} activeSlotName - The name of the slot that is currently active.
      */
     constructor(component, slotNames, activeSlotName) {
-
         let slotManager = component.slotManager;
 
         for (let i = 0; i < slotNames.length; i++) {
             if (!slotManager.hasSlot(slotNames[i])) {
-                throw new Error(
-                    `Slot ${slotNames[i]} does not exist in component`
-                );
+                throw new Error(`Slot ${slotNames[i]} does not exist in component`);
             }
         }
 
         this.component = component;
-        this.slotNames = [...slotNames];
+        this.slotNames = slotNames.slice();
         this.activeSlotName = activeSlotName;
     }
 
@@ -41,6 +39,10 @@ export class SlotToggler {
      * @param {string} slotName - The name of the slot to toggle to.
      */
     toggle(slotName) {
+        if (this.#isDestroyed) {
+            throw new Error('SlotToggler is destroyed');
+        }
+
         if (this.slotNames.indexOf(slotName) === -1) {
             throw new Error(`Slot ${slotName} is not defined in SlotToggler`);
         }
@@ -55,5 +57,13 @@ export class SlotToggler {
                 this.component.slotManager.unmountSlot(this.slotNames[i]);
             }
         }
+    }
+
+    destroy() {
+        this.#isDestroyed = true;
+        // @ts-ignore
+        this.component = null;
+        this.slotNames = [];
+        this.activeSlotName = '';
     }
 }
