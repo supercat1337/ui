@@ -308,3 +308,29 @@ export function withMinimumTime(promise, minTime) {
     });
 }
 
+/**
+ * Attaches a listener to an event on the given ancestor element that targets the given target element selector.
+ * @param {string} eventType 
+ * @param {Element} ancestorElement 
+ * @param {string} targetElementSelector 
+ * @param {*} listenerFunction 
+ */
+export function delegateEvent(eventType, ancestorElement, targetElementSelector, listenerFunction) {
+
+    ancestorElement.addEventListener(eventType, function (event) {
+
+        let target;
+
+        if (event.target && event.target instanceof Element) {
+
+            target = event.target;
+
+            if (event.target.matches(targetElementSelector)) {
+                (listenerFunction)(event, target);
+            } else if (event.target.closest(targetElementSelector)) {
+                target = event.target.closest(targetElementSelector);
+                (listenerFunction)(event, target);
+            }
+        }
+    });
+}

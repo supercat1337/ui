@@ -152,6 +152,20 @@ function withMinimumTime(promise, minTime) {
     });
   });
 }
+function delegateEvent(eventType, ancestorElement, targetElementSelector, listenerFunction) {
+  ancestorElement.addEventListener(eventType, function(event) {
+    let target;
+    if (event.target && event.target instanceof Element) {
+      target = event.target;
+      if (event.target.matches(targetElementSelector)) {
+        listenerFunction(event, target);
+      } else if (event.target.closest(targetElementSelector)) {
+        target = event.target.closest(targetElementSelector);
+        listenerFunction(event, target);
+      }
+    }
+  });
+}
 
 // src/utils/date-time.js
 function formatDateTime(unix_timestamp) {
@@ -164,6 +178,73 @@ function formatDate(unix_timestamp) {
 }
 function unixtime(dateObject = /* @__PURE__ */ new Date()) {
   return Math.floor(dateObject.getTime() / 1e3);
+}
+
+// src/utils/pagination.js
+function createPaginationArray(current, total, delta = 2, gap = "...") {
+  if (total <= 1) return ["1"];
+  const center = [current];
+  for (let i = 1; i <= delta; i++) {
+    center.unshift(current - i);
+    center.push(current + i);
+  }
+  const filteredCenter = center.filter((page) => page > 1 && page < total).map((page) => page.toString());
+  const includeLeftGap = current > 3 + delta;
+  const includeLeftPages = current === 3 + delta;
+  const includeRightGap = current < total - (2 + delta);
+  const includeRightPages = current === total - (2 + delta);
+  if (includeLeftPages) filteredCenter.unshift("2");
+  if (includeRightPages) filteredCenter.push((total - 1).toString());
+  if (includeLeftGap) filteredCenter.unshift(gap);
+  if (includeRightGap) filteredCenter.push(gap);
+  let total_str = total.toString();
+  return ["1", ...filteredCenter, total_str];
+}
+function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer, onClickCallback) {
+  let ul = document.createElement("ul");
+  ul.classList.add("pagination");
+  let items = createPaginationArray(currentPageNumber, totalPages);
+  items.forEach((item) => {
+    let li = document.createElement("li");
+    li.classList.add("page-item");
+    if (item == "...") {
+      li.classList.add("disabled");
+      let span = document.createElement("span");
+      span.classList.add("page-link");
+      span.textContent = item;
+      li.appendChild(span);
+      ul.appendChild(li);
+      return;
+    }
+    let a = document.createElement("a");
+    a.classList.add("page-link");
+    if (item == currentPageNumber.toString()) {
+      li.classList.add("active");
+    }
+    if (itemUrlRenderer) {
+      a.href = itemUrlRenderer(Number(item));
+    } else {
+      a.href = "#";
+    }
+    a.textContent = item;
+    a.setAttribute("data-page-value", item);
+    li.appendChild(a);
+    ul.appendChild(li);
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      let link = (
+        /** @type {HTMLAnchorElement} */
+        e.target
+      );
+      if (!link) return;
+      if (onClickCallback) {
+        let pageValue = link.getAttribute("data-page-value");
+        if (!pageValue) return;
+        onClickCallback(Number(pageValue));
+      }
+    });
+  });
+  return ul;
 }
 
 // src/utils/toggler.js
@@ -1586,13 +1667,14 @@ var Component = class {
    * Returns the parent component of the current component, or null if the current component is a root component.
    * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
    */
-  getParentComponent() {
+  get parentComponent() {
     return this.$internals.parentComponent || null;
   }
 };
 
 // src/slot-toggler.js
 var SlotToggler = class {
+  #isDestroyed = false;
   /** @type {string[]} */
   slotNames;
   /** @type {string} */
@@ -1609,13 +1691,11 @@ var SlotToggler = class {
     let slotManager = component.slotManager;
     for (let i = 0; i < slotNames.length; i++) {
       if (!slotManager.hasSlot(slotNames[i])) {
-        throw new Error(
-          `Slot ${slotNames[i]} does not exist in component`
-        );
+        throw new Error(`Slot ${slotNames[i]} does not exist in component`);
       }
     }
     this.component = component;
-    this.slotNames = [...slotNames];
+    this.slotNames = slotNames.slice();
     this.activeSlotName = activeSlotName;
   }
   /**
@@ -1624,6 +1704,9 @@ var SlotToggler = class {
    * @param {string} slotName - The name of the slot to toggle to.
    */
   toggle(slotName) {
+    if (this.#isDestroyed) {
+      throw new Error("SlotToggler is destroyed");
+    }
     if (this.slotNames.indexOf(slotName) === -1) {
       throw new Error(`Slot ${slotName} is not defined in SlotToggler`);
     }
@@ -1637,6 +1720,12 @@ var SlotToggler = class {
       }
     }
   }
+  destroy() {
+    this.#isDestroyed = true;
+    this.component = null;
+    this.slotNames = [];
+    this.activeSlotName = "";
+  }
 };
 export {
   Component,
@@ -1644,6 +1733,8 @@ export {
   SlotToggler,
   Toggler,
   copyToClipboard,
+  createPaginationArray,
+  delegateEvent,
   escapeHtml,
   fadeIn,
   fadeOut,
@@ -1655,6 +1746,7 @@ export {
   injectCoreStyles,
   isDarkMode,
   removeSpinnerFromButton,
+  renderPaginationElement,
   scrollToBottom,
   scrollToTop,
   showElements,

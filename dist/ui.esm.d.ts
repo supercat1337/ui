@@ -255,7 +255,7 @@ export class Component {
      * Returns the parent component of the current component, or null if the current component is a root component.
      * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
      */
-    getParentComponent(): Component | null;
+    get parentComponent(): Component | null;
     #private;
 }
 /**
@@ -286,6 +286,8 @@ export class SlotToggler {
      * @param {string} slotName - The name of the slot to toggle to.
      */
     toggle(slotName: string): void;
+    destroy(): void;
+    #private;
 }
 export class Toggler {
     /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
@@ -332,6 +334,23 @@ export class Toggler {
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
 export function copyToClipboard(text: string): Promise<void>;
+/**
+ * Creates an array of page numbers to be displayed in a pagination list.
+ * @param {number} current
+ * @param {number} total
+ * @param {number} delta
+ * @param {string} [gap]
+ * @returns {string[]}
+ */
+export function createPaginationArray(current: number, total: number, delta?: number, gap?: string): string[];
+/**
+ * Attaches a listener to an event on the given ancestor element that targets the given target element selector.
+ * @param {string} eventType
+ * @param {Element} ancestorElement
+ * @param {string} targetElementSelector
+ * @param {*} listenerFunction
+ */
+export function delegateEvent(eventType: string, ancestorElement: Element, targetElementSelector: string, listenerFunction: any): void;
 /**
  * Escapes the given string from HTML interpolation.
  * Replaces the characters &, <, ", and ' with their corresponding HTML entities.
@@ -417,6 +436,15 @@ export function isDarkMode(wnd?: Window & typeof globalThis): boolean;
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
+/**
+ * Renders a pagination list with the given parameters.
+ * @param {number} currentPageNumber - The current page number.
+ * @param {number} totalPages - The total number of pages.
+ * @param {(page:number)=>string} [itemUrlRenderer] - The function to generate the URL for each page item.
+ * @param {(page:number)=>void|boolean} [onClickCallback] - The callback function to be called when a page item is clicked.
+ * @returns {HTMLUListElement} - The rendered pagination list.
+ */
+export function renderPaginationElement(currentPageNumber: number, totalPages: number, itemUrlRenderer?: (page: number) => string, onClickCallback?: (page: number) => void | boolean): HTMLUListElement;
 /**
  * Scrolls the specified element to the bottom.
  * Sets the scrollTop property to the element's scrollHeight,

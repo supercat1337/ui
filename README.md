@@ -83,6 +83,8 @@ The following functions are included in this library:
 -   `fadeOut`: A function that fades out an element.
 -   `sleep`: Sleeps for the given number of milliseconds.
 -   `withMinimumTime`: Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
+-   `createPaginationArray`: Creates an array of page numbers to be displayed in a pagination list.
+-   `renderPaginationElement`: Renders a pagination list with the given parameters.
 
 ## License
 
