@@ -421,7 +421,12 @@ function createPaginationArray(current, total, delta = 2, gap = '...') {
  * @param {(page:number)=>void|boolean} [onClickCallback] - The callback function to be called when a page item is clicked.
  * @returns {HTMLUListElement} - The rendered pagination list.
  */
-function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer, onClickCallback) {
+function renderPaginationElement(
+    currentPageNumber,
+    totalPages,
+    itemUrlRenderer,
+    onClickCallback
+) {
     let ul = document.createElement('ul');
     ul.classList.add('pagination');
 
@@ -459,18 +464,18 @@ function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer,
         li.appendChild(a);
         ul.appendChild(li);
 
-        a.addEventListener('click', e => {
-            e.preventDefault();
-            let link = /** @type {HTMLAnchorElement} */ (e.target);
-            if (!link) return;
+        if (onClickCallback) {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                let link = /** @type {HTMLAnchorElement} */ (e.target);
+                if (!link) return false;
 
-            if (onClickCallback) {
                 let pageValue = link.getAttribute('data-page-value');
-                if (!pageValue) return;
+                if (!pageValue) return false;
 
-                onClickCallback(Number(pageValue));
-            }
-        });
+                return onClickCallback(Number(pageValue));
+            });
+        }
     });
 
     return ul;

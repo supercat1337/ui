@@ -230,19 +230,19 @@ function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer,
     a.setAttribute("data-page-value", item);
     li.appendChild(a);
     ul.appendChild(li);
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      let link = (
-        /** @type {HTMLAnchorElement} */
-        e.target
-      );
-      if (!link) return;
-      if (onClickCallback) {
+    if (onClickCallback) {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        let link = (
+          /** @type {HTMLAnchorElement} */
+          e.target
+        );
+        if (!link) return false;
         let pageValue = link.getAttribute("data-page-value");
-        if (!pageValue) return;
-        onClickCallback(Number(pageValue));
-      }
-    });
+        if (!pageValue) return false;
+        return onClickCallback(Number(pageValue));
+      });
+    }
   });
   return ul;
 }
