@@ -522,8 +522,9 @@ export class Component {
     /**
      * This method is called when the component is updated.
      * It is an empty method and is intended to be overridden by the user.
+     * @param {...*} args 
      */
-    update() {}
+    update(...args) {}
 
     /* Visibility */
 
