@@ -131,13 +131,17 @@ export class Component {
             template = createFromHTML(layout);
         }
 
-        let count = 0;
-        for (let i = 0; i < template.childNodes.length; i++) {
-            if (template.childNodes[i].nodeType === 1) count++;
-        }
+        if (template instanceof DocumentFragment) {
+            let count = 0;
+            for (let i = 0; i < template.childNodes.length; i++) {
+                if (template.childNodes[i].nodeType === 1) count++;
+            }
 
-        if (count !== 1) {
-            throw new Error('Layout must have exactly one root element');
+            if (count !== 1) {
+                throw new Error('Layout must have exactly one root element');
+            }
+
+            template = template.childNodes[0];
         }
 
         this.#loadedTemplate = template;
@@ -449,15 +453,12 @@ export class Component {
         let clonedTemplate = this.#loadedTemplate.cloneNode(true);
         this.emit('prepareRender', clonedTemplate);
 
-        let componentRoot = /** @type {HTMLElement} */ (
-            // @ts-ignore
-            clonedTemplate.firstElementChild
-        );
+        let componentRoot = /** @type {HTMLElement} */ (clonedTemplate);
 
         if (mountMode === 'replace') container.replaceChildren(clonedTemplate);
         else if (mountMode === 'append') container.append(clonedTemplate);
         else if (mountMode === 'prepend') container.prepend(clonedTemplate);
-        
+
         this.connect(componentRoot);
         this.emit('mount');
     }
@@ -616,6 +617,6 @@ export class Component {
             throw new Error('Component is not connected to the DOM');
         }
 
-        return this.$internals.root;
+        return /** @type {HTMLElement} */ (this.$internals.root);
     }
 }
