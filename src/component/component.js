@@ -485,13 +485,13 @@ export class Component {
      * If the component is not connected, it mounts the component to the parent component's slot.
      */
     rerender() {
-        let parentComponent = this.$internals.parentComponent || null;
-
         if (this.isConnected) {
             let container = this.$internals.root.parentElement;
             this.unmount();
             this.mount(container, this.$internals.mountMode);
         } else {
+            let parentComponent = this.$internals.parentComponent || null;
+
             if (parentComponent === null) {
                 console.error(
                     'Cannot rerender a disconnected component without a parent component'
@@ -522,7 +522,7 @@ export class Component {
     /**
      * This method is called when the component is updated.
      * It is an empty method and is intended to be overridden by the user.
-     * @param {...*} args 
+     * @param {...*} args
      */
     update(...args) {}
 
@@ -604,5 +604,18 @@ export class Component {
      */
     get parentComponent() {
         return this.$internals.parentComponent || null;
+    }
+
+    /**
+     * Returns the root node of the component.
+     * This is the node that the component is mounted to.
+     * @returns {HTMLElement} The root node of the component.
+     */
+    getRootNode() {
+        if (!this.#isConnected) {
+            throw new Error('Component is not connected to the DOM');
+        }
+
+        return this.$internals.root;
     }
 }
