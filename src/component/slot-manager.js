@@ -220,6 +220,6 @@ export class SlotManager {
             return null;
         }
 
-        return this.getSlot(component.$internals.parentSlotName);
+        return this.getSlot(component.$internals.assignedSlotName);
     }
 }

@@ -505,11 +505,11 @@ export class Component {
             }
 
             let container =
-                parentComponent.$internals.slotRefs[this.$internals.parentSlotName] || null;
+                parentComponent.$internals.slotRefs[this.$internals.assignedSlotName] || null;
             if (!container) {
                 console.error(
                     'Cannot find a rendered slot with name ' +
-                        this.$internals.parentSlotName +
+                        this.$internals.assignedSlotName +
                         ' in the parent component'
                 );
                 return;
@@ -570,7 +570,7 @@ export class Component {
         if (this.#isConnected === true) return;
         if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
+        this.$internals.parentComponent.addComponentToSlot(this.$internals.assignedSlotName, this);
         this.emit('expand');
     }
 

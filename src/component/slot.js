@@ -28,7 +28,7 @@ export class Slot {
      */
     attach(component) {
         component.$internals.parentComponent = this.#component;
-        component.$internals.parentSlotName = this.name;
+        component.$internals.assignedSlotName = this.name;
         this.components.add(component);
     }
 
@@ -40,7 +40,7 @@ export class Slot {
      */
     detach(component) {
         component.$internals.parentComponent = null;
-        component.$internals.parentSlotName = '';
+        component.$internals.assignedSlotName = '';
         this.components.delete(component);
     }
 
@@ -52,7 +52,7 @@ export class Slot {
     detachAll() {
         this.components.forEach(component => {
             component.$internals.parentComponent = null;
-            component.$internals.parentSlotName = '';
+            component.$internals.assignedSlotName = '';
         });
         this.components.clear();
     }
