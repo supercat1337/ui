@@ -55,7 +55,7 @@ export class Component {
     refsAnnotation;
 
     /** @type {Node|null} */
-    #template = null;
+    #loadedTemplate = null;
 
     #isConnected = false;
 
@@ -140,7 +140,7 @@ export class Component {
             throw new Error('Layout must have exactly one root element');
         }
 
-        this.#template = template;
+        this.#loadedTemplate = template;
     }
 
     /**
@@ -151,7 +151,7 @@ export class Component {
      */
     setLayout(layout, annotation) {
         this.#layout = layout;
-        this.#template = null;
+        this.#loadedTemplate = null;
 
         if (annotation) {
             this.refsAnnotation = annotation;
@@ -275,14 +275,14 @@ export class Component {
     }
 
     /**
-     * Emits the "beforeConnect" event.
-     * This event is emitted just before the component is connected to the DOM.
-     * @param {(component: this, clonedTemplate: Node) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value. The second argument is the clonedTemplate - the cloned template node.
+     * Subscribes to the "prepareRender" event.
+     * This event is emitted just before the component is about to render its layout.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this, template: Node) => void} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    onBeforeConnect(callback) {
-        return this.on('beforeConnect', callback);
+    onPrepareRender(callback) {
+        return this.on('prepareRender', callback);
     }
 
     /**
@@ -434,11 +434,11 @@ export class Component {
             throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(', ')}`);
         }
 
-        if (this.#template === null) {
+        if (this.#loadedTemplate === null) {
             this.#loadTemplate();
         }
 
-        if (this.#template === null) throw new Error('Template is not set');
+        if (this.#loadedTemplate === null) throw new Error('Template is not set');
 
         this.$internals.mountMode = mountMode;
 
@@ -446,8 +446,8 @@ export class Component {
             return;
         }
 
-        let clonedTemplate = this.#template.cloneNode(true);
-        this.emit('beforeConnect', clonedTemplate);
+        let clonedTemplate = this.#loadedTemplate.cloneNode(true);
+        this.emit('prepareRender', clonedTemplate);
 
         let componentRoot = /** @type {HTMLElement} */ (
             // @ts-ignore
@@ -457,7 +457,7 @@ export class Component {
         if (mountMode === 'replace') container.replaceChildren(clonedTemplate);
         else if (mountMode === 'append') container.append(clonedTemplate);
         else if (mountMode === 'prepend') container.prepend(clonedTemplate);
-
+        
         this.connect(componentRoot);
         this.emit('mount');
     }
