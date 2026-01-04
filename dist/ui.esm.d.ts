@@ -98,13 +98,13 @@ export class Component {
      */
     $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
     /**
-     * Emits the "beforeConnect" event.
-     * This event is emitted just before the component is connected to the DOM.
-     * @param {(component: this, clonedTemplate: Node) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value. The second argument is the clonedTemplate - the cloned template node.
+     * Subscribes to the "prepareRender" event.
+     * This event is emitted just before the component is about to render its layout.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this, template: Node) => void} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    onBeforeConnect(callback: (component: this, clonedTemplate: Node) => void): () => void;
+    onPrepareRender(callback: (component: this, template: Node) => void): () => void;
     /**
      * Subscribes to the "connect" event.
      * This event is emitted just after the component is connected to the DOM.
@@ -257,6 +257,12 @@ export class Component {
      * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
      */
     get parentComponent(): Component | null;
+    /**
+     * Returns the root node of the component.
+     * This is the node that the component is mounted to.
+     * @returns {HTMLElement} The root node of the component.
+     */
+    getRootNode(): HTMLElement;
     #private;
 }
 /**
@@ -542,7 +548,7 @@ declare class Internals {
     /** @type {Component|null} */
     parentComponent: Component | null;
     /** @type {string} */
-    parentSlotName: string;
+    assignedSlotName: string;
     /** @type {"replace"|"append"|"prepend"} */
     mountMode: "replace" | "append" | "prepend";
 }

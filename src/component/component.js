@@ -125,23 +125,20 @@ export class Component {
             if (_template instanceof Node) {
                 template = _template;
             } else {
-                template = createFromHTML(_template);
+                template = createFromHTML(_template.trim());
             }
         } else {
-            template = createFromHTML(layout);
+            template = createFromHTML(layout.trim());
         }
 
         if (template instanceof DocumentFragment) {
-            let count = 0;
-            for (let i = 0; i < template.childNodes.length; i++) {
-                if (template.childNodes[i].nodeType === 1) count++;
-            }
+            let count = template.children.length;
 
             if (count !== 1) {
                 throw new Error('Layout must have exactly one root element');
             }
 
-            template = template.childNodes[0];
+            template = template.children[0];
         }
 
         this.#loadedTemplate = template;

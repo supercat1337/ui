@@ -632,7 +632,7 @@ class Slot {
      */
     attach(component) {
         component.$internals.parentComponent = this.#component;
-        component.$internals.parentSlotName = this.name;
+        component.$internals.assignedSlotName = this.name;
         this.components.add(component);
     }
 
@@ -644,7 +644,7 @@ class Slot {
      */
     detach(component) {
         component.$internals.parentComponent = null;
-        component.$internals.parentSlotName = '';
+        component.$internals.assignedSlotName = '';
         this.components.delete(component);
     }
 
@@ -656,7 +656,7 @@ class Slot {
     detachAll() {
         this.components.forEach(component => {
             component.$internals.parentComponent = null;
-            component.$internals.parentSlotName = '';
+            component.$internals.assignedSlotName = '';
         });
         this.components.clear();
     }
@@ -936,7 +936,7 @@ class SlotManager {
             return null;
         }
 
-        return this.getSlot(component.$internals.parentSlotName);
+        return this.getSlot(component.$internals.assignedSlotName);
     }
 }
 
@@ -966,7 +966,7 @@ class Internals {
         /** @type {Component|null} */
         this.parentComponent = null;
         /** @type {string} */
-        this.parentSlotName = "";
+        this.assignedSlotName = "";
         /** @type {"replace"|"append"|"prepend"} */
         this.mountMode = "replace";
     }
@@ -1026,7 +1026,7 @@ class Component {
     refsAnnotation;
 
     /** @type {Node|null} */
-    #template = null;
+    #loadedTemplate = null;
 
     #isConnected = false;
 
@@ -1096,22 +1096,23 @@ class Component {
             if (_template instanceof Node) {
                 template = _template;
             } else {
-                template = createFromHTML(_template);
+                template = createFromHTML(_template.trim());
             }
         } else {
-            template = createFromHTML(layout);
+            template = createFromHTML(layout.trim());
         }
 
-        let count = 0;
-        for (let i = 0; i < template.childNodes.length; i++) {
-            if (template.childNodes[i].nodeType === 1) count++;
+        if (template instanceof DocumentFragment) {
+            let count = template.children.length;
+
+            if (count !== 1) {
+                throw new Error('Layout must have exactly one root element');
+            }
+
+            template = template.children[0];
         }
 
-        if (count !== 1) {
-            throw new Error('Layout must have exactly one root element');
-        }
-
-        this.#template = template;
+        this.#loadedTemplate = template;
     }
 
     /**
@@ -1122,7 +1123,7 @@ class Component {
      */
     setLayout(layout, annotation) {
         this.#layout = layout;
-        this.#template = null;
+        this.#loadedTemplate = null;
 
         if (annotation) {
             this.refsAnnotation = annotation;
@@ -1246,14 +1247,14 @@ class Component {
     }
 
     /**
-     * Emits the "beforeConnect" event.
-     * This event is emitted just before the component is connected to the DOM.
-     * @param {(component: this, clonedTemplate: Node) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value. The second argument is the clonedTemplate - the cloned template node.
+     * Subscribes to the "prepareRender" event.
+     * This event is emitted just before the component is about to render its layout.
+     * The callback is called with the component instance as the this value.
+     * @param {(component: this, template: Node) => void} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    onBeforeConnect(callback) {
-        return this.on('beforeConnect', callback);
+    onPrepareRender(callback) {
+        return this.on('prepareRender', callback);
     }
 
     /**
@@ -1405,11 +1406,11 @@ class Component {
             throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(', ')}`);
         }
 
-        if (this.#template === null) {
+        if (this.#loadedTemplate === null) {
             this.#loadTemplate();
         }
 
-        if (this.#template === null) throw new Error('Template is not set');
+        if (this.#loadedTemplate === null) throw new Error('Template is not set');
 
         this.$internals.mountMode = mountMode;
 
@@ -1417,13 +1418,10 @@ class Component {
             return;
         }
 
-        let clonedTemplate = this.#template.cloneNode(true);
-        this.emit('beforeConnect', clonedTemplate);
+        let clonedTemplate = this.#loadedTemplate.cloneNode(true);
+        this.emit('prepareRender', clonedTemplate);
 
-        let componentRoot = /** @type {HTMLElement} */ (
-            // @ts-ignore
-            clonedTemplate.firstElementChild
-        );
+        let componentRoot = /** @type {HTMLElement} */ (clonedTemplate);
 
         if (mountMode === 'replace') container.replaceChildren(clonedTemplate);
         else if (mountMode === 'append') container.append(clonedTemplate);
@@ -1456,13 +1454,13 @@ class Component {
      * If the component is not connected, it mounts the component to the parent component's slot.
      */
     rerender() {
-        let parentComponent = this.$internals.parentComponent || null;
-
         if (this.isConnected) {
             let container = this.$internals.root.parentElement;
             this.unmount();
             this.mount(container, this.$internals.mountMode);
         } else {
+            let parentComponent = this.$internals.parentComponent || null;
+
             if (parentComponent === null) {
                 console.error(
                     'Cannot rerender a disconnected component without a parent component'
@@ -1476,11 +1474,11 @@ class Component {
             }
 
             let container =
-                parentComponent.$internals.slotRefs[this.$internals.parentSlotName] || null;
+                parentComponent.$internals.slotRefs[this.$internals.assignedSlotName] || null;
             if (!container) {
                 console.error(
                     'Cannot find a rendered slot with name ' +
-                        this.$internals.parentSlotName +
+                        this.$internals.assignedSlotName +
                         ' in the parent component'
                 );
                 return;
@@ -1493,7 +1491,7 @@ class Component {
     /**
      * This method is called when the component is updated.
      * It is an empty method and is intended to be overridden by the user.
-     * @param {...*} args 
+     * @param {...*} args
      */
     update(...args) {}
 
@@ -1541,7 +1539,7 @@ class Component {
         if (this.#isConnected === true) return;
         if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addComponentToSlot(this.$internals.parentSlotName, this);
+        this.$internals.parentComponent.addComponentToSlot(this.$internals.assignedSlotName, this);
         this.emit('expand');
     }
 
@@ -1575,6 +1573,19 @@ class Component {
      */
     get parentComponent() {
         return this.$internals.parentComponent || null;
+    }
+
+    /**
+     * Returns the root node of the component.
+     * This is the node that the component is mounted to.
+     * @returns {HTMLElement} The root node of the component.
+     */
+    getRootNode() {
+        if (!this.#isConnected) {
+            throw new Error('Component is not connected to the DOM');
+        }
+
+        return /** @type {HTMLElement} */ (this.$internals.root);
     }
 }
 
