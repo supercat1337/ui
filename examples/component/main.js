@@ -94,4 +94,4 @@ child.addComponentToSlot('slot-name', LeafComponentA, LeafComponentB, LeafCompon
 // 5. Mount everything in DOM
 parent.mount(document.body);
 
-globalThis.app = { parent, child, LeafComponentA, LeafComponentB };
+globalThis.app = { parent, child, LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD };
