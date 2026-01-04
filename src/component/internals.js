@@ -29,5 +29,7 @@ export class Internals {
         this.assignedSlotName = "";
         /** @type {"replace"|"append"|"prepend"} */
         this.mountMode = "replace";
+        /** @type {boolean} */
+        this.cloneTemplateOnRender = true;
     }
 }

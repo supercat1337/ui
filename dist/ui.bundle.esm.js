@@ -791,9 +791,6 @@ var SlotManager = class {
       let component = components[i];
       let usingSlot = this.findSlotByComponent(component);
       if (usingSlot != null) {
-        console.warn(
-          `Component ${component.constructor.name} is already assigned to slot ${usingSlot.name}.`
-        );
         continue;
       }
       slot.attach(component);
@@ -1170,6 +1167,7 @@ var Internals = class {
     this.parentComponent = null;
     this.assignedSlotName = "";
     this.mountMode = "replace";
+    this.cloneTemplateOnRender = true;
   }
 };
 
@@ -1192,14 +1190,10 @@ function onDisconnectDefault(component) {
 var Component = class {
   /** @type {Internals} */
   $internals = new Internals();
-  /** @type {LayoutFunction|string|undefined} */
-  #layout = void 0;
-  /** @type {LayoutFunction|string|undefined} */
+  /** @type {LayoutFunction|string|null} */
   layout;
   /** @type {import("dom-scope").RefsAnnotation|undefined} */
   refsAnnotation;
-  /** @type {Node|null} */
-  #loadedTemplate = null;
   #isConnected = false;
   slotManager = new SlotManager(this);
   #isCollapsed = false;
@@ -1242,32 +1236,35 @@ var Component = class {
   setTextUpdateFunction(func) {
     this.$internals.textUpdateFunction = func;
   }
+  /**
+   * @returns {Node|null}
+   */
   #loadTemplate() {
-    if (this.layout) {
-      this.#layout = this.layout;
-      this.layout = void 0;
-    }
-    let layout = this.#layout || void 0;
-    if (layout == void 0) return;
+    if (!this.layout) return null;
     let template;
-    if (typeof layout === "function") {
-      let _template = layout(this);
-      if (_template instanceof Node) {
-        template = _template;
-      } else {
-        template = createFromHTML(_template.trim());
+    if (typeof this.layout === "function") {
+      let returnValue = this.layout(this);
+      if (returnValue instanceof Node) {
+        template = returnValue;
+      } else if (typeof returnValue === "string") {
+        template = createFromHTML(returnValue);
       }
+    } else if (typeof this.layout === "string") {
+      template = createFromHTML(this.layout.trim());
     } else {
-      template = createFromHTML(layout.trim());
+      throw new Error(`Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`);
     }
     if (template instanceof DocumentFragment) {
       let count = template.children.length;
-      if (count !== 1) {
-        throw new Error("Layout must have exactly one root element");
+      if (count === 1) {
+        template = template.children[0];
+      } else {
+        let container = document.createElement("html-fragment");
+        container.appendChild(template);
+        template = container;
       }
-      template = template.children[0];
     }
-    this.#loadedTemplate = template;
+    return template;
   }
   /**
    * Sets the layout of the component by assigning the template content.
@@ -1276,8 +1273,7 @@ var Component = class {
    * The function is called with the component instance as the this value.
    */
   setLayout(layout, annotation) {
-    this.#layout = layout;
-    this.#loadedTemplate = null;
+    this.layout = layout;
     if (annotation) {
       this.refsAnnotation = annotation;
     }
@@ -1529,24 +1525,21 @@ var Component = class {
     if (!validModes.includes(mountMode)) {
       throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(", ")}`);
     }
-    if (this.#loadedTemplate === null) {
-      this.#loadTemplate();
-    }
-    if (this.#loadedTemplate === null) throw new Error("Template is not set");
+    const loadedTemplate = this.#loadTemplate();
+    if (loadedTemplate === null) throw new Error("Template is not set");
     this.$internals.mountMode = mountMode;
     if (this.#isConnected === true) {
       return;
     }
-    let clonedTemplate = this.#loadedTemplate.cloneNode(true);
-    this.emit("prepareRender", clonedTemplate);
-    let componentRoot = (
+    let componentRoot = this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate;
+    this.emit("prepareRender", componentRoot);
+    if (mountMode === "replace") container.replaceChildren(componentRoot);
+    else if (mountMode === "append") container.append(componentRoot);
+    else if (mountMode === "prepend") container.prepend(componentRoot);
+    this.connect(
       /** @type {HTMLElement} */
-      clonedTemplate
+      componentRoot
     );
-    if (mountMode === "replace") container.replaceChildren(clonedTemplate);
-    else if (mountMode === "append") container.append(clonedTemplate);
-    else if (mountMode === "prepend") container.prepend(clonedTemplate);
-    this.connect(componentRoot);
     this.emit("mount");
   }
   /**

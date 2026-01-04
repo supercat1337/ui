@@ -168,9 +168,6 @@ export class SlotManager {
             let component = components[i];
             let usingSlot = this.findSlotByComponent(component);
             if (usingSlot != null) {
-                console.warn(
-                    `Component ${component.constructor.name} is already assigned to slot ${usingSlot.name}.`
-                );
                 continue;
             }
 

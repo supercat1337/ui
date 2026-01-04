@@ -4,8 +4,8 @@ export type TextUpdateFunction = (component: Component) => void;
 export class Component {
     /** @type {Internals} */
     $internals: Internals;
-    /** @type {LayoutFunction|string|undefined} */
-    layout: LayoutFunction | string | undefined;
+    /** @type {LayoutFunction|string|null} */
+    layout: LayoutFunction | string | null;
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation: import("dom-scope").RefsAnnotation | undefined;
     slotManager: SlotManager;
@@ -551,6 +551,8 @@ declare class Internals {
     assignedSlotName: string;
     /** @type {"replace"|"append"|"prepend"} */
     mountMode: "replace" | "append" | "prepend";
+    /** @type {boolean} */
+    cloneTemplateOnRender: boolean;
 }
 declare class SlotManager {
     /**
