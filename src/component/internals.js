@@ -13,7 +13,7 @@ export class Internals {
         this.eventEmitter = new EventEmitter();
         /** @type {AbortController} */
         this.disconnectController = new AbortController();
-        /** @type {HTMLElement|null} */
+        /** @type {Element|null} */
         this.root = null;
         /** @type {TextUpdateFunction|null} */
         this.textUpdateFunction = null;
@@ -31,5 +31,9 @@ export class Internals {
         this.mountMode = "replace";
         /** @type {boolean} */
         this.cloneTemplateOnRender = true;
+        /** @type {Element|null} */
+        this.parentElement = null;
+        /** @type {Set<Element>} */
+        this.elementsToRemove = new Set();
     }
 }

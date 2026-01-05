@@ -25,9 +25,9 @@ function ui_button_status_waiting_off(el, text) {
   el.disabled = false;
   el.innerText = text;
 }
-function ui_button_status_waiting_off_html(el, html) {
+function ui_button_status_waiting_off_html(el, html2) {
   el.disabled = false;
-  el.innerHTML = html;
+  el.innerHTML = html2;
 }
 function scrollToTop(element) {
   element.scrollTop = 0;
@@ -165,6 +165,17 @@ function delegateEvent(eventType, ancestorElement, targetElementSelector, listen
       }
     }
   });
+}
+function html(str, ...values) {
+  let result = [];
+  let strings = Array.isArray(str) ? str : [str];
+  for (let i = 0; i < values.length; i++) {
+    result.push(strings[i] + escapeHtml((values[i] || "").toString()));
+  }
+  result.push(strings[strings.length - 1]);
+  const template = document.createElement("template");
+  template.innerHTML = result.join("");
+  return template.content;
 }
 
 // src/utils/date-time.js
@@ -530,23 +541,6 @@ function checkRefs(refs, annotation) {
     }
   }
 }
-function createFromHTML(html, options) {
-  if (typeof html !== "string") {
-    throw new Error("html must be a string");
-  }
-  const config = createCustomConfig(options);
-  if (!config.window) {
-    throw new Error("window is not defined in options");
-  }
-  let wnd = config.window;
-  const doc = (
-    /** @type {Document} */
-    wnd.document
-  );
-  const template = doc.createElement("template");
-  template.innerHTML = html;
-  return template.content;
-}
 
 // src/component/slot.js
 var Slot = class {
@@ -622,7 +616,7 @@ var Slot = class {
       return;
     }
     this.components.forEach((childComponent) => {
-      if (!childComponent.isCollapsed) {
+      if (!childComponent.isConnected && !childComponent.isCollapsed) {
         childComponent.mount(slotRoot, "append");
       }
     });
@@ -1168,6 +1162,8 @@ var Internals = class {
     this.assignedSlotName = "";
     this.mountMode = "replace";
     this.cloneTemplateOnRender = true;
+    this.parentElement = null;
+    this.elementsToRemove = /* @__PURE__ */ new Set();
   }
 };
 
@@ -1191,7 +1187,7 @@ var Component = class {
   /** @type {Internals} */
   $internals = new Internals();
   /** @type {LayoutFunction|string|null} */
-  layout;
+  layout = null;
   /** @type {import("dom-scope").RefsAnnotation|undefined} */
   refsAnnotation;
   #isConnected = false;
@@ -1247,12 +1243,18 @@ var Component = class {
       if (returnValue instanceof Node) {
         template = returnValue;
       } else if (typeof returnValue === "string") {
-        template = createFromHTML(returnValue);
+        template = html(returnValue);
+      } else {
+        throw new Error(
+          `Invalid layout function return type: must be a Node or a string. Got ${typeof returnValue}.`
+        );
       }
     } else if (typeof this.layout === "string") {
-      template = createFromHTML(this.layout.trim());
+      template = html(this.layout.trim());
     } else {
-      throw new Error(`Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`);
+      throw new Error(
+        `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
+      );
     }
     if (template instanceof DocumentFragment) {
       let count = template.children.length;
@@ -1528,6 +1530,7 @@ var Component = class {
     const loadedTemplate = this.#loadTemplate();
     if (loadedTemplate === null) throw new Error("Template is not set");
     this.$internals.mountMode = mountMode;
+    this.$internals.parentElement = this.parentComponent ? null : container;
     if (this.#isConnected === true) {
       return;
     }
@@ -1553,6 +1556,10 @@ var Component = class {
     this.slotManager.unmountAll();
     this.disconnect();
     this.$internals.root?.remove();
+    this.$internals.elementsToRemove.forEach((el) => {
+      el.remove();
+    });
+    this.$internals.elementsToRemove.clear();
     this.emit("unmount");
   }
   /**
@@ -1561,31 +1568,8 @@ var Component = class {
    * If the component is not connected, it mounts the component to the parent component's slot.
    */
   rerender() {
-    if (this.isConnected) {
-      let container = this.$internals.root.parentElement;
-      this.unmount();
-      this.mount(container, this.$internals.mountMode);
-    } else {
-      let parentComponent = this.$internals.parentComponent || null;
-      if (parentComponent === null) {
-        console.error(
-          "Cannot rerender a disconnected component without a parent component"
-        );
-        return;
-      }
-      if (parentComponent.isConnected === false) {
-        console.error("Cannot rerender a disconnected parent component");
-        return;
-      }
-      let container = parentComponent.$internals.slotRefs[this.$internals.assignedSlotName] || null;
-      if (!container) {
-        console.error(
-          "Cannot find a rendered slot with name " + this.$internals.assignedSlotName + " in the parent component"
-        );
-        return;
-      }
-      this.mount(container, this.$internals.mountMode);
-    }
+    this.collapse();
+    this.expand();
   }
   /**
    * This method is called when the component is updated.
@@ -1632,9 +1616,56 @@ var Component = class {
   expand() {
     this.#isCollapsed = false;
     if (this.#isConnected === true) return;
-    if (this.$internals.parentComponent === null) return;
-    this.$internals.parentComponent.addComponentToSlot(this.$internals.assignedSlotName, this);
+    let parentComponent = this.$internals.parentComponent;
+    if (parentComponent === null) {
+      if (this.$internals.parentElement) {
+        if (this.$internals.parentElement.isConnected) {
+          this.mount(this.$internals.parentElement, this.$internals.mountMode);
+        } else {
+          console.warn(
+            "Cannot expand a disconnected component without a parent element (parent element is not connected)"
+          );
+          return;
+        }
+      } else {
+        console.warn(
+          "Cannot expand a disconnected component without a parent element (no parent element specified)"
+        );
+        return;
+      }
+    } else {
+      if (parentComponent.isConnected === false) {
+        console.warn("Cannot expand a disconnected parent component");
+        return;
+      }
+      let assignedSlotRef = parentComponent.$internals.slotRefs[this.$internals.assignedSlotName];
+      if (!assignedSlotRef) {
+        console.warn(
+          `Cannot find a rendered slot with name "${this.$internals.assignedSlotName}" in the parent component`
+        );
+        return;
+      }
+      this.mount(assignedSlotRef, this.$internals.mountMode);
+    }
     this.emit("expand");
+  }
+  /**
+   * Expands all components in the hierarchy, starting from the current component.
+   * If a component is already connected, does nothing.
+   * If a component does not have a parent component, does nothing.
+   * Otherwise, mounts the component to the parent component's slot.
+   */
+  expandForce() {
+    let components = [];
+    let currentComponent = this;
+    while (currentComponent) {
+      components.push(currentComponent);
+      currentComponent = currentComponent.$internals.parentComponent;
+    }
+    for (let i = components.length - 1; i >= 0; i--) {
+      let component = components[i];
+      component.expand();
+    }
   }
   /* Slots, parent, children */
   /**
@@ -1663,6 +1694,7 @@ var Component = class {
   get parentComponent() {
     return this.$internals.parentComponent || null;
   }
+  /* DOM */
   /**
    * Returns the root node of the component.
    * This is the node that the component is mounted to.
@@ -1676,6 +1708,14 @@ var Component = class {
       /** @type {HTMLElement} */
       this.$internals.root
     );
+  }
+  /**
+   * Removes an element from the DOM when the component is unmounted.
+   * The element is stored in an internal set and removed from the DOM when the component is unmounted.
+   * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+   */
+  removeOnUnmount(element) {
+    this.$internals.elementsToRemove.add(element);
   }
 };
 
@@ -1750,6 +1790,7 @@ export {
   formatDateTime,
   getDefaultLanguage,
   hideElements,
+  html,
   injectCoreStyles,
   isDarkMode,
   removeSpinnerFromButton,

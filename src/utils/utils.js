@@ -310,27 +310,47 @@ export function withMinimumTime(promise, minTime) {
 
 /**
  * Attaches a listener to an event on the given ancestor element that targets the given target element selector.
- * @param {string} eventType 
- * @param {Element} ancestorElement 
- * @param {string} targetElementSelector 
- * @param {*} listenerFunction 
+ * @param {string} eventType
+ * @param {Element} ancestorElement
+ * @param {string} targetElementSelector
+ * @param {*} listenerFunction
  */
 export function delegateEvent(eventType, ancestorElement, targetElementSelector, listenerFunction) {
-
     ancestorElement.addEventListener(eventType, function (event) {
-
         let target;
 
         if (event.target && event.target instanceof Element) {
-
             target = event.target;
 
             if (event.target.matches(targetElementSelector)) {
-                (listenerFunction)(event, target);
+                listenerFunction(event, target);
             } else if (event.target.closest(targetElementSelector)) {
                 target = event.target.closest(targetElementSelector);
-                (listenerFunction)(event, target);
+                listenerFunction(event, target);
             }
         }
     });
+}
+
+/**
+ * Creates an HTML element from a template string and values.
+ * @param {string} str
+ * @param  {...any} values
+ * @returns {DocumentFragment} The created HTML element.
+ */
+export function html(str, ...values) {
+    /** @type {string[]} */
+    let result = [];
+
+    let strings = Array.isArray(str) ? str : [str];
+
+    for (let i = 0; i < values.length; i++) {
+        result.push(strings[i] + escapeHtml((values[i] || '').toString()));
+    }
+    result.push(strings[strings.length - 1]);
+
+    const template = document.createElement('template');
+    template.innerHTML = result.join('');
+
+    return template.content;
 }

@@ -1,5 +1,5 @@
 // @ts-check
-import { Component } from '../../dist/ui.bundle.esm.js';
+import { Component, html } from '../../dist/ui.bundle.esm.js';
 
 // 1. Child component
 class ChildComponent extends Component {
@@ -61,9 +61,14 @@ LeafComponentB.layout = () => /* html */ `<span>🍂 Leaf B ${new Date().toLocal
 const LeafComponentC = new Component();
 // set layout as a function that returns an HTMLElement
 LeafComponentC.layout = function () {
+    /*
     let leaf = document.createElement('span');
     let currentDateTime = new Date().toLocaleTimeString();
     leaf.textContent = `🌸 Leaf C ${currentDateTime}`;
+    return leaf;
+    */
+
+    let leaf = html`<span>🌸 Leaf C ${new Date().toLocaleTimeString()}</span>`;
     return leaf;
 };
 

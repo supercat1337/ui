@@ -1,8 +1,9 @@
 // @ts-check
 
-import { checkRefs, createFromHTML, selectRefsExtended } from 'dom-scope';
+import { checkRefs, selectRefsExtended } from 'dom-scope';
 import { SlotManager } from './slot-manager.js';
 import { Internals } from './internals.js';
+import { html } from '../utils/utils.js';
 
 /**
  * @typedef {(component: any) => Node|string} LayoutFunction
@@ -46,7 +47,7 @@ export class Component {
     $internals = new Internals();
 
     /** @type {LayoutFunction|string|null} */
-    layout;
+    layout = null;
 
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation;
@@ -117,12 +118,18 @@ export class Component {
             if (returnValue instanceof Node) {
                 template = returnValue;
             } else if (typeof returnValue === 'string') {
-                template = createFromHTML(returnValue);
+                template = html(returnValue);
+            } else {
+                throw new Error(
+                    `Invalid layout function return type: must be a Node or a string. Got ${typeof returnValue}.`
+                );
             }
         } else if (typeof this.layout === 'string') {
-            template = createFromHTML(this.layout.trim());
+            template = html(this.layout.trim());
         } else {
-            throw new Error(`Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`);
+            throw new Error(
+                `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
+            );
         }
 
         if (template instanceof DocumentFragment) {
@@ -436,13 +443,16 @@ export class Component {
 
         this.$internals.mountMode = mountMode;
 
+        this.$internals.parentElement = this.parentComponent ? null : container;
+
         if (this.#isConnected === true) {
             return;
         }
 
-        let componentRoot = this.$internals.cloneTemplateOnRender?  loadedTemplate.cloneNode(true): loadedTemplate;
+        let componentRoot = this.$internals.cloneTemplateOnRender
+            ? loadedTemplate.cloneNode(true)
+            : loadedTemplate;
         this.emit('prepareRender', componentRoot);
-
 
         if (mountMode === 'replace') container.replaceChildren(componentRoot);
         else if (mountMode === 'append') container.append(componentRoot);
@@ -466,6 +476,11 @@ export class Component {
         this.disconnect();
         this.$internals.root?.remove();
 
+        this.$internals.elementsToRemove.forEach(el => {
+            el.remove();
+        });
+        this.$internals.elementsToRemove.clear();
+
         this.emit('unmount');
     }
 
@@ -475,38 +490,8 @@ export class Component {
      * If the component is not connected, it mounts the component to the parent component's slot.
      */
     rerender() {
-        if (this.isConnected) {
-            let container = this.$internals.root.parentElement;
-            this.unmount();
-            this.mount(container, this.$internals.mountMode);
-        } else {
-            let parentComponent = this.$internals.parentComponent || null;
-
-            if (parentComponent === null) {
-                console.error(
-                    'Cannot rerender a disconnected component without a parent component'
-                );
-                return;
-            }
-
-            if (parentComponent.isConnected === false) {
-                console.error('Cannot rerender a disconnected parent component');
-                return;
-            }
-
-            let container =
-                parentComponent.$internals.slotRefs[this.$internals.assignedSlotName] || null;
-            if (!container) {
-                console.error(
-                    'Cannot find a rendered slot with name ' +
-                        this.$internals.assignedSlotName +
-                        ' in the parent component'
-                );
-                return;
-            }
-
-            this.mount(container, this.$internals.mountMode);
-        }
+        this.collapse();
+        this.expand();
     }
 
     /**
@@ -558,10 +543,69 @@ export class Component {
     expand() {
         this.#isCollapsed = false;
         if (this.#isConnected === true) return;
-        if (this.$internals.parentComponent === null) return;
 
-        this.$internals.parentComponent.addComponentToSlot(this.$internals.assignedSlotName, this);
+        let parentComponent = this.$internals.parentComponent;
+
+        if (parentComponent === null) {
+            if (this.$internals.parentElement) {
+                if (this.$internals.parentElement.isConnected) {
+                    this.mount(this.$internals.parentElement, this.$internals.mountMode);
+                } else {
+                    console.warn(
+                        'Cannot expand a disconnected component without a parent element (parent element is not connected)'
+                    );
+                    return;
+                }
+            } else {
+                console.warn(
+                    'Cannot expand a disconnected component without a parent element (no parent element specified)'
+                );
+                return;
+            }
+        } else {
+            if (parentComponent.isConnected === false) {
+                console.warn('Cannot expand a disconnected parent component');
+                return;
+            }
+
+            let assignedSlotRef =
+                parentComponent.$internals.slotRefs[this.$internals.assignedSlotName];
+
+            if (!assignedSlotRef) {
+                console.warn(
+                    `Cannot find a rendered slot with name "${this.$internals.assignedSlotName}" in the parent component`
+                );
+                return;
+            }
+
+            this.mount(assignedSlotRef, this.$internals.mountMode);
+        }
+
         this.emit('expand');
+    }
+
+    /**
+     * Expands all components in the hierarchy, starting from the current component.
+     * If a component is already connected, does nothing.
+     * If a component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expandForce() {
+        /** @type {Component[]} */
+        let components = [];
+
+        /** @type {Component} */
+        let currentComponent = this;
+
+        while (currentComponent) {
+            components.push(currentComponent);
+            currentComponent = currentComponent.$internals.parentComponent;
+        }
+
+        for (let i = components.length - 1; i >= 0; i--) {
+            let component = components[i];
+            component.expand();
+        }
     }
 
     /* Slots, parent, children */
@@ -596,6 +640,8 @@ export class Component {
         return this.$internals.parentComponent || null;
     }
 
+    /* DOM */
+
     /**
      * Returns the root node of the component.
      * This is the node that the component is mounted to.
@@ -607,5 +653,14 @@ export class Component {
         }
 
         return /** @type {HTMLElement} */ (this.$internals.root);
+    }
+
+    /**
+     * Removes an element from the DOM when the component is unmounted.
+     * The element is stored in an internal set and removed from the DOM when the component is unmounted.
+     * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+     */
+    removeOnUnmount(element) {
+        this.$internals.elementsToRemove.add(element);
     }
 }

@@ -241,6 +241,13 @@ export class Component {
      */
     expand(): void;
     /**
+     * Expands all components in the hierarchy, starting from the current component.
+     * If a component is already connected, does nothing.
+     * If a component does not have a parent component, does nothing.
+     * Otherwise, mounts the component to the parent component's slot.
+     */
+    expandForce(): void;
+    /**
      * Returns an array of the slot names defined in the component.
      * @returns {string[]}
      */
@@ -263,6 +270,12 @@ export class Component {
      * @returns {HTMLElement} The root node of the component.
      */
     getRootNode(): HTMLElement;
+    /**
+     * Removes an element from the DOM when the component is unmounted.
+     * The element is stored in an internal set and removed from the DOM when the component is unmounted.
+     * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+     */
+    removeOnUnmount(element: Element): void;
     #private;
 }
 /**
@@ -424,6 +437,13 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
+ * Creates an HTML element from a template string and values.
+ * @param {string} str
+ * @param  {...any} values
+ * @returns {DocumentFragment} The created HTML element.
+ */
+export function html(str: string, ...values: any[]): DocumentFragment;
+/**
  * Injects the core CSS styles into the document.
  * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.
  * The core styles also include support for the "html-fragment" element, which is used as a container for HTML fragments.
@@ -529,8 +549,8 @@ declare class Internals {
     eventEmitter: EventEmitter<any>;
     /** @type {AbortController} */
     disconnectController: AbortController;
-    /** @type {HTMLElement|null} */
-    root: HTMLElement | null;
+    /** @type {Element|null} */
+    root: Element | null;
     /** @type {TextUpdateFunction|null} */
     textUpdateFunction: TextUpdateFunction | null;
     /** @type {{[key:string]:any}}  */
@@ -553,6 +573,10 @@ declare class Internals {
     mountMode: "replace" | "append" | "prepend";
     /** @type {boolean} */
     cloneTemplateOnRender: boolean;
+    /** @type {Element|null} */
+    parentElement: Element | null;
+    /** @type {Set<Element>} */
+    elementsToRemove: Set<Element>;
 }
 declare class SlotManager {
     /**
