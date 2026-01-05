@@ -86,7 +86,7 @@ export class Slot {
         }
 
         this.components.forEach(childComponent => {
-            if (!childComponent.isCollapsed) {
+            if (!childComponent.isConnected && !childComponent.isCollapsed) {
                 childComponent.mount(slotRoot, 'append');
             }
         });
