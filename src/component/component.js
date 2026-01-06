@@ -662,9 +662,11 @@ export class Component {
     /**
      * Removes an element from the DOM when the component is unmounted.
      * The element is stored in an internal set and removed from the DOM when the component is unmounted.
-     * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+     * @param {...Element} elements - The elements to remove from the DOM when the component is unmounted.
      */
-    removeOnUnmount(element) {
-        this.$internals.elementsToRemove.add(element);
+    removeOnUnmount(...elements) {
+        for (let i = 0; i < elements.length; i++) {
+            this.$internals.elementsToRemove.add(elements[i]);
+        }
     }
 }
