@@ -137,7 +137,7 @@ export class Component {
         }
 
         if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE) {
+            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && !template.firstChild.nextSibling) {
                 return /** @type {Element} */ (template.firstChild);
             }
         }
