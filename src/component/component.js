@@ -137,15 +137,14 @@ export class Component {
         }
 
         if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && !template.firstChild.nextSibling) {
+            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && template.childNodes.length === 1) {
                 return /** @type {Element} */ (template.firstChild);
             }
         }
 
         let container = document.createElement('html-fragment');
         container.appendChild(template);
-        template = container;
-        return /** @type {Element} */ (template);
+        return /** @type {Element} */ (container);
     }
 
     /**

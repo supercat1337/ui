@@ -273,9 +273,9 @@ export class Component {
     /**
      * Removes an element from the DOM when the component is unmounted.
      * The element is stored in an internal set and removed from the DOM when the component is unmounted.
-     * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+     * @param {...Element} elements - The elements to remove from the DOM when the component is unmounted.
      */
-    removeOnUnmount(element: Element): void;
+    removeOnUnmount(...elements: Element[]): void;
     #private;
 }
 /**

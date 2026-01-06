@@ -52,39 +52,29 @@ class ParentComponent extends Component {
 // 3. Simple components for insertion
 const LeafComponentA = new Component();
 // set layout as a static string
-LeafComponentA.layout = /* html */ `<span>🍃 Leaf A</span>`;
+LeafComponentA.layout = /* html */ `<div>🍃 Leaf A</div>`;
 
 const LeafComponentB = new Component();
 // set layout as an arrow function that returns a string
-LeafComponentB.layout = () => /* html */ `<span>🍂 Leaf B ${new Date().toLocaleTimeString()}</span>`;
-
+LeafComponentB.layout = () => /* html */ `<div>🍂 Leaf B ${new Date().toLocaleTimeString()}</div>`;
 const LeafComponentC = new Component();
 // set layout as a function that returns an HTMLElement
 LeafComponentC.layout = function () {
     /*
-    let leaf = document.createElement('span');
+    let leaf = document.createElement('div');
     let currentDateTime = new Date().toLocaleTimeString();
     leaf.textContent = `🌸 Leaf C ${currentDateTime}`;
     return leaf;
     */
 
-    let leaf = html`<span>🌸 Leaf C ${new Date().toLocaleTimeString()}</span>`;
+    let leaf = html`<div>🌸 Leaf C ${new Date().toLocaleTimeString()}</div>`;
     return leaf;
 };
 
 const LeafComponentD = new Component();
 // set layout as a function that returns a DocumentFragment. DocumentFragment contains multiple root elements. 
 LeafComponentD.layout = function () {
-    let fragment = document.createDocumentFragment();
-    let leaf1 = document.createElement('span');
-    let currentDateTime1 = new Date().toLocaleTimeString();
-    leaf1.textContent = `🌸 Leaf D1 ${currentDateTime1}`;
-    fragment.appendChild(leaf1);
-
-    let leaf2 = document.createElement('span');
-    let currentDateTime2 = new Date().toLocaleTimeString();
-    leaf2.textContent = `🌸 Leaf D2 ${currentDateTime2}`;
-    fragment.appendChild(leaf2);
+    let fragment = html`<div>🌻 Leaf D1</div><div>🌻 Leaf D2</div><div>🌻 Leaf D3</div>`;
 
     return fragment;
 };

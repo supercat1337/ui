@@ -1263,7 +1263,7 @@ var Component = class {
       );
     }
     if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-      if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE) {
+      if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && template.childNodes.length === 1) {
         return (
           /** @type {Element} */
           template.firstChild
@@ -1272,10 +1272,9 @@ var Component = class {
     }
     let container = document.createElement("html-fragment");
     container.appendChild(template);
-    template = container;
     return (
       /** @type {Element} */
-      template
+      container
     );
   }
   /**
@@ -1726,10 +1725,12 @@ var Component = class {
   /**
    * Removes an element from the DOM when the component is unmounted.
    * The element is stored in an internal set and removed from the DOM when the component is unmounted.
-   * @param {Element} element - The element to remove from the DOM when the component is unmounted.
+   * @param {...Element} elements - The elements to remove from the DOM when the component is unmounted.
    */
-  removeOnUnmount(element) {
-    this.$internals.elementsToRemove.add(element);
+  removeOnUnmount(...elements) {
+    for (let i = 0; i < elements.length; i++) {
+      this.$internals.elementsToRemove.add(elements[i]);
+    }
   }
 };
 
