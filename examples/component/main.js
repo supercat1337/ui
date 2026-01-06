@@ -89,14 +89,17 @@ LeafComponentD.layout = function () {
     return fragment;
 };
 
+const TextComponent = new Component();
+TextComponent.layout = () => 'Just a text node component';
+
 // 4. Assemble the structure:
 const parent = new ParentComponent();
 const child = parent.child;
 
 // Insert Leaf components into ChildComponent
-child.addComponentToSlot('slot-name', LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD);
+child.addComponentToSlot('slot-name', LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD, TextComponent);
 
 // 5. Mount everything in DOM
 parent.mount(document.body);
 
-globalThis.app = { parent, child, LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD };
+globalThis.app = { parent, child, LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD, TextComponent};

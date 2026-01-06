@@ -1097,7 +1097,7 @@ class Component {
     }
 
     /**
-     * @returns {Node|null}
+     * @returns {Element|null}
      */
     #loadTemplate() {
         if (!this.layout) return null;
@@ -1125,19 +1125,20 @@ class Component {
             );
         }
 
-        if (template instanceof DocumentFragment) {
-            let count = template.children.length;
+        if (template.nodeType === Node.ELEMENT_NODE) {
+            return /** @type {Element} */ (template);
+        }
 
-            if (count === 1) {
-                template = template.children[0];
-            } else {
-                let container = document.createElement('html-fragment');
-                container.appendChild(template);
-                template = container;
+        if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE) {
+                return /** @type {Element} */ (template.firstChild);
             }
         }
 
-        return template;
+        let container = document.createElement('html-fragment');
+        container.appendChild(template);
+        template = container;
+        return /** @type {Element} */ (template);
     }
 
     /**
@@ -1442,9 +1443,12 @@ class Component {
             return;
         }
 
-        let componentRoot = this.$internals.cloneTemplateOnRender
-            ? loadedTemplate.cloneNode(true)
-            : loadedTemplate;
+        let componentRoot = /** @type {HTMLElement} */ (
+            this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
+        );
+
+        componentRoot.setAttribute('data-component-root', 'true');
+
         this.emit('prepareRender', componentRoot);
 
         if (mountMode === 'replace') container.replaceChildren(componentRoot);

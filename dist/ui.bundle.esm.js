@@ -1233,7 +1233,7 @@ var Component = class {
     this.$internals.textUpdateFunction = func;
   }
   /**
-   * @returns {Node|null}
+   * @returns {Element|null}
    */
   #loadTemplate() {
     if (!this.layout) return null;
@@ -1256,17 +1256,27 @@ var Component = class {
         `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
       );
     }
-    if (template instanceof DocumentFragment) {
-      let count = template.children.length;
-      if (count === 1) {
-        template = template.children[0];
-      } else {
-        let container = document.createElement("html-fragment");
-        container.appendChild(template);
-        template = container;
+    if (template.nodeType === Node.ELEMENT_NODE) {
+      return (
+        /** @type {Element} */
+        template
+      );
+    }
+    if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE) {
+        return (
+          /** @type {Element} */
+          template.firstChild
+        );
       }
     }
-    return template;
+    let container = document.createElement("html-fragment");
+    container.appendChild(template);
+    template = container;
+    return (
+      /** @type {Element} */
+      template
+    );
   }
   /**
    * Sets the layout of the component by assigning the template content.
@@ -1534,7 +1544,11 @@ var Component = class {
     if (this.#isConnected === true) {
       return;
     }
-    let componentRoot = this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate;
+    let componentRoot = (
+      /** @type {HTMLElement} */
+      this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
+    );
+    componentRoot.setAttribute("data-component-root", "true");
     this.emit("prepareRender", componentRoot);
     if (mountMode === "replace") container.replaceChildren(componentRoot);
     else if (mountMode === "append") container.append(componentRoot);
