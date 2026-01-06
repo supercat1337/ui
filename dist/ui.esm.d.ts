@@ -2,6 +2,14 @@ export type LayoutFunction = (component: any) => Node | string;
 export type _TextUpdateFunction = (component: Component) => void;
 export type TextUpdateFunction = (component: Component) => void;
 export class Component {
+    /**
+     * Initializes a new instance of the Component class.
+     * @param {Object} [options] - An object with the following optional properties:
+     * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
+     */
+    constructor(options?: {
+        instanceId?: string;
+    });
     /** @type {Internals} */
     $internals: Internals;
     /** @type {LayoutFunction|string|null} */
@@ -9,6 +17,8 @@ export class Component {
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation: import("dom-scope").RefsAnnotation | undefined;
     slotManager: SlotManager;
+    /** @returns {string} */
+    get instanceId(): string;
     /**
      * Checks if the component is connected to a root element.
      * @returns {boolean} True if the component is connected, false otherwise.
@@ -171,7 +181,7 @@ export class Component {
     /**
      * Disconnects the component from the DOM.
      * Sets the component's #isConnected flag to false.
-     * Clears the refs and slotRefs objects.
+     * Clears the refs and scopeRefs objects.
      * Aborts all event listeners attached with the $on method.
      * Emits "disconnect" event through the event emitter.
      */
@@ -276,6 +286,15 @@ export class Component {
      * @param {...Element} elements - The elements to remove from the DOM when the component is unmounted.
      */
     removeOnUnmount(...elements: Element[]): void;
+    /**
+     * Returns an array of elements matching the given tag name, optionally filtered by a CSS selector.
+     * If no query selector is given, all elements matching the tag name are returned.
+     * If a query selector is given, only elements matching the tag name and the query selector are returned.
+     * @param {string} tagName - The tag name to search for.
+     * @param {string} [querySelector] - An optional CSS selector to filter the results by.
+     * @returns {Element[]} An array of elements matching the tag name and query selector.
+     */
+    searchElements(tagName: string, querySelector?: string): Element[];
     #private;
 }
 /**
@@ -545,6 +564,12 @@ export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promis
  * @typedef {(component: Component) => void} TextUpdateFunction
  */
 declare class Internals {
+    static "__#private@#instanceIdCounter": number;
+    /**
+     * Generates a unique instance ID.
+     * @returns {string} The unique instance ID.
+     */
+    static generateInstanceId(): string;
     /** @type {EventEmitter<any>} */
     eventEmitter: EventEmitter<any>;
     /** @type {AbortController} */
@@ -562,7 +587,7 @@ declare class Internals {
         [key: string]: HTMLElement;
     };
     /** @type {{[key:string]:HTMLElement}} */
-    slotRefs: {
+    scopeRefs: {
         [key: string]: HTMLElement;
     };
     /** @type {Component|null} */

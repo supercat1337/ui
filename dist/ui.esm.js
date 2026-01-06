@@ -1,4 +1,4 @@
-import { selectRefsExtended, checkRefs } from 'dom-scope';
+import { selectRefsExtended, checkRefs, walkDomScope } from 'dom-scope';
 import { EventEmitter } from '@supercat1337/event-emitter';
 
 // @ts-check
@@ -699,7 +699,7 @@ class Slot {
             return;
         }
 
-        let slotRoot = this.#component.$internals.slotRefs[this.name];
+        let slotRoot = this.#component.$internals.scopeRefs[this.name];
         if (!slotRoot) {
             console.warn(
                 `Cannot get root element for Slot "${this.name}" does not exist in component "${
@@ -979,7 +979,7 @@ class Internals {
         /** @type {{[key:string]:HTMLElement}} */
         this.refs = {};
         /** @type {{[key:string]:HTMLElement}} */
-        this.slotRefs = {};
+        this.scopeRefs = {};
         /** @type {Component|null} */
         this.parentComponent = null;
         /** @type {string} */
@@ -992,6 +992,17 @@ class Internals {
         this.parentElement = null;
         /** @type {Set<Element>} */
         this.elementsToRemove = new Set();
+    }
+
+    static #instanceIdCounter = 0;
+
+    /**
+     * Generates a unique instance ID.
+     * @returns {string} The unique instance ID.
+     */
+    static generateInstanceId() {
+        let counter = ++Internals.#instanceIdCounter;
+        return `c${counter}`;
     }
 }
 
@@ -1051,9 +1062,27 @@ class Component {
 
     #isCollapsed = false;
 
-    constructor() {
+    /** @type {string} */
+    #instanceId;
+
+    /**
+     * Initializes a new instance of the Component class.
+     * @param {Object} [options] - An object with the following optional properties:
+     * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
+     */
+    constructor(
+        options = {
+            instanceId: undefined,
+        }
+    ) {
+        this.#instanceId = options.instanceId || Internals.generateInstanceId();
         this.onConnect(onConnectDefault);
         this.onDisconnect(onDisconnectDefault);
+    }
+
+    /** @returns {string} */
+    get instanceId() {
+        return this.#instanceId;
     }
 
     /* State */
@@ -1130,7 +1159,11 @@ class Component {
         }
 
         if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-            if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && template.childNodes.length === 1) {
+            if (
+                template.firstChild &&
+                template.firstChild.nodeType === Node.ELEMENT_NODE &&
+                template.childNodes.length === 1
+            ) {
                 return /** @type {Element} */ (template.firstChild);
             }
         }
@@ -1219,7 +1252,7 @@ class Component {
         let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
 
         let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
-            scope_ref_attr_name: 'data-slot',
+            scope_ref_attr_name: ['data-slot', 'data-component-root'],
             ref_attr_name: 'data-ref',
         });
         if (this.refsAnnotation) {
@@ -1231,7 +1264,7 @@ class Component {
         }
 
         this.$internals.refs = refs;
-        this.$internals.slotRefs = scope_refs;
+        this.$internals.scopeRefs = scope_refs;
     }
 
     /* Events */
@@ -1384,7 +1417,7 @@ class Component {
     /**
      * Disconnects the component from the DOM.
      * Sets the component's #isConnected flag to false.
-     * Clears the refs and slotRefs objects.
+     * Clears the refs and scopeRefs objects.
      * Aborts all event listeners attached with the $on method.
      * Emits "disconnect" event through the event emitter.
      */
@@ -1394,7 +1427,7 @@ class Component {
         this.#isConnected = false;
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
-        this.$internals.slotRefs = {};
+        this.$internals.scopeRefs = {};
         this.emit('disconnect');
     }
 
@@ -1446,7 +1479,7 @@ class Component {
             this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
         );
 
-        componentRoot.setAttribute('data-component-root', 'true');
+        componentRoot.setAttribute('data-component-root', this.#instanceId);
 
         this.emit('prepareRender', componentRoot);
 
@@ -1565,7 +1598,7 @@ class Component {
             }
 
             let assignedSlotRef =
-                parentComponent.$internals.slotRefs[this.$internals.assignedSlotName];
+                parentComponent.$internals.scopeRefs[this.$internals.assignedSlotName];
 
             if (!assignedSlotRef) {
                 console.warn(
@@ -1659,6 +1692,60 @@ class Component {
     removeOnUnmount(...elements) {
         for (let i = 0; i < elements.length; i++) {
             this.$internals.elementsToRemove.add(elements[i]);
+        }
+    }
+
+    /**
+     * Internal method to get elements by tag name, filtering out those within scoped refs.
+     * @param {string} tagName - The tag name to search for.
+     * @returns {Element[]} An array of elements matching the tag name, excluding those within scoped refs.
+     */
+    #getElementsByTagName(tagName) {
+        if (!this.#isConnected) {
+            throw new Error('Component is not connected to the DOM');
+        }
+
+        tagName = tagName.toLowerCase().trim();
+
+        /** @type {Element[]} */
+        let filteredElements = [];
+
+        walkDomScope(
+            this.$internals.root,
+            node => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    let el = /** @type {Element} */ (node);
+                    if (tagName === '*') {
+                        filteredElements.push(el);
+                    } else if (el.tagName.toLowerCase() === tagName) {
+                        filteredElements.push(el);
+                    }
+                }
+            },
+            {
+                includeRoot: false,
+                scope_ref_attr_name: ['data-slot', 'data-component-root'],
+                ref_attr_name: 'data-ref',
+            }
+        );
+
+        return filteredElements;
+    }
+
+    /**
+     * Returns an array of elements matching the given tag name, optionally filtered by a CSS selector.
+     * If no query selector is given, all elements matching the tag name are returned.
+     * If a query selector is given, only elements matching the tag name and the query selector are returned.
+     * @param {string} tagName - The tag name to search for.
+     * @param {string} [querySelector] - An optional CSS selector to filter the results by.
+     * @returns {Element[]} An array of elements matching the tag name and query selector.
+     */
+    searchElements(tagName, querySelector = '') {
+        let elements = this.#getElementsByTagName(tagName);
+        if (querySelector === '') {
+            return elements;
+        } else {
+            return elements.filter(el => el.matches(querySelector));
         }
     }
 }

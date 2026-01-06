@@ -367,7 +367,7 @@ var REF_ATTR_NAME = "data-ref";
 var ScopeConfig = class {
   /** @type {string} */
   ref_attr_name;
-  /** @type {string} */
+  /** @type {string|string[]} */
   scope_ref_attr_name;
   /** @type {*} */
   window;
@@ -385,20 +385,24 @@ var ScopeConfig = class {
     this.includeRoot = false;
     this.scope_auto_name_prefix = SCOPE_AUTO_NAME_PREFIX;
   }
-  toString() {
-    return `ScopeConfig(ref_attr_name=${this.ref_attr_name}, scope_ref_attr_name=${this.scope_ref_attr_name}, includeRoot=${this.includeRoot}, scope_auto_name_prefix=${this.scope_auto_name_prefix}, window=${this.window ? "defined" : "undefined"}, isScopeElement=${this.isScopeElement})`;
-  }
 };
 var defaultConfig = new ScopeConfig();
 function isScopeElement(element, config) {
   var value = null;
   if (!config) config = defaultConfig;
-  let scope_ref_attr_name = config.scope_ref_attr_name || SCOPE_ATTR_NAME;
+  let scope_ref_attr_name = config.scope_ref_attr_name || [SCOPE_ATTR_NAME];
   let isScopeElementFunc = config.isScopeElement;
   if (isScopeElementFunc) {
     value = isScopeElementFunc(element, config);
   } else {
-    value = element.getAttribute(scope_ref_attr_name);
+    if (Array.isArray(scope_ref_attr_name)) {
+      for (let i = 0; i < scope_ref_attr_name.length; i++) {
+        value = element.getAttribute(scope_ref_attr_name[i]);
+        if (value !== null) break;
+      }
+    } else {
+      value = element.getAttribute(scope_ref_attr_name);
+    }
   }
   if (value === null) return null;
   return value;
@@ -410,7 +414,13 @@ function createCustomConfig(options = {}) {
   config.isScopeElement = options.hasOwnProperty("isScopeElement") && typeof options.isScopeElement !== "undefined" ? options.isScopeElement : defaultConfig.isScopeElement;
   config.ref_attr_name = options.hasOwnProperty("ref_attr_name") && typeof options.ref_attr_name === "string" ? options.ref_attr_name : defaultConfig.ref_attr_name;
   config.window = options.hasOwnProperty("window") && typeof options.window !== "undefined" ? options.window : defaultConfig.window;
-  config.scope_ref_attr_name = options.hasOwnProperty("scope_ref_attr_name") && typeof options.scope_ref_attr_name === "string" ? options.scope_ref_attr_name : defaultConfig.scope_ref_attr_name;
+  if (options.hasOwnProperty("scope_ref_attr_name")) {
+    if (typeof options.scope_ref_attr_name === "string" || Array.isArray(options.scope_ref_attr_name)) {
+      config.scope_ref_attr_name = options.scope_ref_attr_name;
+    }
+  } else {
+    config.scope_ref_attr_name = defaultConfig.scope_ref_attr_name;
+  }
   return config;
 }
 function selectRefsExtended(root_element, custom_callback, options = {}) {
@@ -608,7 +618,7 @@ var Slot = class {
       );
       return;
     }
-    let slotRoot = this.#component.$internals.slotRefs[this.name];
+    let slotRoot = this.#component.$internals.scopeRefs[this.name];
     if (!slotRoot) {
       console.warn(
         `Cannot get root element for Slot "${this.name}" does not exist in component "${this.#component.constructor.name}"`
@@ -1149,7 +1159,7 @@ var EventEmitter = class {
 };
 
 // src/component/internals.js
-var Internals = class {
+var Internals = class _Internals {
   constructor() {
     this.eventEmitter = new EventEmitter();
     this.disconnectController = new AbortController();
@@ -1157,13 +1167,22 @@ var Internals = class {
     this.textUpdateFunction = null;
     this.textResources = {};
     this.refs = {};
-    this.slotRefs = {};
+    this.scopeRefs = {};
     this.parentComponent = null;
     this.assignedSlotName = "";
     this.mountMode = "replace";
     this.cloneTemplateOnRender = true;
     this.parentElement = null;
     this.elementsToRemove = /* @__PURE__ */ new Set();
+  }
+  static #instanceIdCounter = 0;
+  /**
+   * Generates a unique instance ID.
+   * @returns {string} The unique instance ID.
+   */
+  static generateInstanceId() {
+    let counter = ++_Internals.#instanceIdCounter;
+    return `c${counter}`;
   }
 };
 
@@ -1193,9 +1212,23 @@ var Component = class {
   #isConnected = false;
   slotManager = new SlotManager(this);
   #isCollapsed = false;
-  constructor() {
+  /** @type {string} */
+  #instanceId;
+  /**
+   * Initializes a new instance of the Component class.
+   * @param {Object} [options] - An object with the following optional properties:
+   * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
+   */
+  constructor(options = {
+    instanceId: void 0
+  }) {
+    this.#instanceId = options.instanceId || Internals.generateInstanceId();
     this.onConnect(onConnectDefault);
     this.onDisconnect(onDisconnectDefault);
+  }
+  /** @returns {string} */
+  get instanceId() {
+    return this.#instanceId;
   }
   /* State */
   /**
@@ -1349,7 +1382,7 @@ var Component = class {
       this.$internals.root
     );
     let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
-      scope_ref_attr_name: "data-slot",
+      scope_ref_attr_name: ["data-slot", "data-component-root"],
       ref_attr_name: "data-ref"
     });
     if (this.refsAnnotation) {
@@ -1359,7 +1392,7 @@ var Component = class {
       this.slotManager.registerSlot(key);
     }
     this.$internals.refs = refs;
-    this.$internals.slotRefs = scope_refs;
+    this.$internals.scopeRefs = scope_refs;
   }
   /* Events */
   /**
@@ -1494,7 +1527,7 @@ var Component = class {
   /**
    * Disconnects the component from the DOM.
    * Sets the component's #isConnected flag to false.
-   * Clears the refs and slotRefs objects.
+   * Clears the refs and scopeRefs objects.
    * Aborts all event listeners attached with the $on method.
    * Emits "disconnect" event through the event emitter.
    */
@@ -1503,7 +1536,7 @@ var Component = class {
     this.#isConnected = false;
     this.$internals.disconnectController.abort();
     this.$internals.refs = {};
-    this.$internals.slotRefs = {};
+    this.$internals.scopeRefs = {};
     this.emit("disconnect");
   }
   /**
@@ -1547,7 +1580,7 @@ var Component = class {
       /** @type {HTMLElement} */
       this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
     );
-    componentRoot.setAttribute("data-component-root", "true");
+    componentRoot.setAttribute("data-component-root", this.#instanceId);
     this.emit("prepareRender", componentRoot);
     if (mountMode === "replace") container.replaceChildren(componentRoot);
     else if (mountMode === "append") container.append(componentRoot);
@@ -1651,7 +1684,7 @@ var Component = class {
         console.warn("Cannot expand a disconnected parent component");
         return;
       }
-      let assignedSlotRef = parentComponent.$internals.slotRefs[this.$internals.assignedSlotName];
+      let assignedSlotRef = parentComponent.$internals.scopeRefs[this.$internals.assignedSlotName];
       if (!assignedSlotRef) {
         console.warn(
           `Cannot find a rendered slot with name "${this.$internals.assignedSlotName}" in the parent component`
@@ -1730,6 +1763,56 @@ var Component = class {
   removeOnUnmount(...elements) {
     for (let i = 0; i < elements.length; i++) {
       this.$internals.elementsToRemove.add(elements[i]);
+    }
+  }
+  /**
+   * Internal method to get elements by tag name, filtering out those within scoped refs.
+   * @param {string} tagName - The tag name to search for.
+   * @returns {Element[]} An array of elements matching the tag name, excluding those within scoped refs.
+   */
+  #getElementsByTagName(tagName) {
+    if (!this.#isConnected) {
+      throw new Error("Component is not connected to the DOM");
+    }
+    tagName = tagName.toLowerCase().trim();
+    let filteredElements = [];
+    walkDomScope(
+      this.$internals.root,
+      (node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          let el = (
+            /** @type {Element} */
+            node
+          );
+          if (tagName === "*") {
+            filteredElements.push(el);
+          } else if (el.tagName.toLowerCase() === tagName) {
+            filteredElements.push(el);
+          }
+        }
+      },
+      {
+        includeRoot: false,
+        scope_ref_attr_name: ["data-slot", "data-component-root"],
+        ref_attr_name: "data-ref"
+      }
+    );
+    return filteredElements;
+  }
+  /**
+   * Returns an array of elements matching the given tag name, optionally filtered by a CSS selector.
+   * If no query selector is given, all elements matching the tag name are returned.
+   * If a query selector is given, only elements matching the tag name and the query selector are returned.
+   * @param {string} tagName - The tag name to search for.
+   * @param {string} [querySelector] - An optional CSS selector to filter the results by.
+   * @returns {Element[]} An array of elements matching the tag name and query selector.
+   */
+  searchElements(tagName, querySelector = "") {
+    let elements = this.#getElementsByTagName(tagName);
+    if (querySelector === "") {
+      return elements;
+    } else {
+      return elements.filter((el) => el.matches(querySelector));
     }
   }
 };

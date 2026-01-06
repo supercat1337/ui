@@ -22,7 +22,7 @@ export class Internals {
         /** @type {{[key:string]:HTMLElement}} */
         this.refs = {};
         /** @type {{[key:string]:HTMLElement}} */
-        this.slotRefs = {};
+        this.scopeRefs = {};
         /** @type {Component|null} */
         this.parentComponent = null;
         /** @type {string} */
@@ -35,5 +35,16 @@ export class Internals {
         this.parentElement = null;
         /** @type {Set<Element>} */
         this.elementsToRemove = new Set();
+    }
+
+    static #instanceIdCounter = 0;
+
+    /**
+     * Generates a unique instance ID.
+     * @returns {string} The unique instance ID.
+     */
+    static generateInstanceId() {
+        let counter = ++Internals.#instanceIdCounter;
+        return `c${counter}`;
     }
 }

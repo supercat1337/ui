@@ -87,9 +87,15 @@ const parent = new ParentComponent();
 const child = parent.child;
 
 // Insert Leaf components into ChildComponent
-child.addComponentToSlot('slot-name', LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD, TextComponent);
+//child.addComponentToSlot('slot-name', LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD, TextComponent);
 
 // 5. Mount everything in DOM
 parent.mount(document.body);
+
+LeafComponentA.mount(child.getRootNode(), "append");
+LeafComponentB.mount(child.getRootNode(), "append");
+LeafComponentC.mount(child.getRootNode(), "append");
+LeafComponentD.mount(child.getRootNode(), "append");
+TextComponent.mount(child.getRootNode(), "append");
 
 globalThis.app = { parent, child, LeafComponentA, LeafComponentB, LeafComponentC, LeafComponentD, TextComponent};

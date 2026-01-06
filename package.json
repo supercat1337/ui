@@ -1,6 +1,6 @@
 {
     "name": "@supercat1337/ui",
-    "version": "1.0.25",
+    "version": "1.0.26",
     "description": "A lightweight, modern JavaScript library for managing the DOM.",
     "license": "MIT",
     "author": "SuperCat1337",
@@ -20,6 +20,6 @@
     },
     "dependencies": {
         "@supercat1337/event-emitter": "^1.0.12",
-        "dom-scope": "^2.0.0"
+        "dom-scope": "^2.0.2"
     }
 }

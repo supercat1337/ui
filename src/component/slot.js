@@ -75,7 +75,7 @@ export class Slot {
             return;
         }
 
-        let slotRoot = this.#component.$internals.slotRefs[this.name];
+        let slotRoot = this.#component.$internals.scopeRefs[this.name];
         if (!slotRoot) {
             console.warn(
                 `Cannot get root element for Slot "${this.name}" does not exist in component "${
