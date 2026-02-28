@@ -12,8 +12,8 @@ export class Component {
     });
     /** @type {Internals} */
     $internals: Internals;
-    /** @type {LayoutFunction|string|null} */
-    layout: LayoutFunction | string | null;
+    /** @type {LayoutFunction|string|null|Node} */
+    layout: LayoutFunction | string | null | Node;
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
     refsAnnotation: import("dom-scope").RefsAnnotation | undefined;
     slotManager: SlotManager;
@@ -29,6 +29,11 @@ export class Component {
      * @returns {boolean} True if the component is collapsed, false otherwise.
      */
     get isCollapsed(): boolean;
+    /**
+     * Returns whether the component is currently running on a server or not.
+     * @returns {boolean} True if the component is running on a server, false otherwise.
+     */
+    get isServer(): boolean;
     /**
      * Reloads the text content of the component by calling the text update function if it is set.
      * This method is useful when the component's text content depends on external data that may change.
@@ -199,14 +204,24 @@ export class Component {
      */
     disconnectedCallback(): void;
     /**
-     * Mounts the component to the specified container.
-     * @param {Element} container - The container to mount the component to.
-     * @param {"replace"|"append"|"prepend"} [mountMode="replace"] - The mode to use to mount the component.
-     * If "replace", the container's content is replaced.
-     * If "append", the component is appended to the container.
-     * If "prepend", the component is prepended to the container.
+     * Default implementation of template getter.
+     * Can be overridden or rely on this.layout.
+     * @returns {string|Function|Node}
      */
-    mount(container: Element, mountMode?: "replace" | "append" | "prepend"): void;
+    template(): string | Function | Node;
+    /**
+     * Internal rendering engine.
+     * Separates static (cached) layouts from dynamic (functional) layouts.
+     * Ensures a single root Element is always returned.
+     * @returns {Element}
+     */
+    render(): Element;
+    /**
+     * Mounts the component to a DOM container or hydrates existing HTML.
+     * @param {Element} container - The target DOM element (the "hole").
+     * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
+     */
+    mount(container: Element, mode?: "replace" | "append" | "prepend" | "hydrate"): void;
     /**
      * Unmounts the component from the DOM.
      * Emits "beforeUnmount" and "unmount" events through the event emitter.
@@ -456,12 +471,20 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
- * Creates an HTML element from a template string and values.
- * @param {string} str
- * @param  {...any} values
- * @returns {DocumentFragment} The created HTML element.
+ * Creates a DocumentFragment from a template string.
+ * Supports arrays, SafeHTML objects, and automatic escaping of untrusted values.
+ * * @param {TemplateStringsArray} strings - Template strings from the tagged template.
+ * @param {...any} values - Values to interpolate.
+ * @returns {DocumentFragment}
  */
-export function html(str: string, ...values: any[]): DocumentFragment;
+/**
+ * Creates a DocumentFragment from a template string or a tagged template.
+ * High-performance: uses <template> and handles arrays/SafeHTML.
+ * * @param {TemplateStringsArray | string} strings - Template strings array or a single string.
+ * @param {...any} values - Values to interpolate.
+ * @returns {DocumentFragment}
+ */
+export function html(strings: TemplateStringsArray | string, ...values: any[]): DocumentFragment;
 /**
  * Injects the core CSS styles into the document.
  * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.
@@ -550,6 +573,12 @@ export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string)
  * @returns {number}
  */
 export function unixtime(dateObject?: Date): number;
+/**
+ * Marks a string as safe HTML to avoid escaping.
+ * @param {string} html
+ * @returns {SafeHTML}
+ */
+export function unsafeHTML(html: string): SafeHTML;
 /**
  * Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
  * If the promise resolves or rejects before the minimum time has elapsed, the result or error is stored and
@@ -701,6 +730,15 @@ declare class SlotManager {
      */
     findSlotByComponent(component: Component): Slot | null;
     #private;
+}
+/**
+ * A wrapper class for strings that should not be escaped.
+ */
+declare class SafeHTML {
+    /** @param {string} html */
+    constructor(html: string);
+    html: string;
+    toString(): string;
 }
 import { EventEmitter } from '@supercat1337/event-emitter';
 declare class Slot {

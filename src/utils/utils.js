@@ -333,24 +333,88 @@ export function delegateEvent(eventType, ancestorElement, targetElementSelector,
 }
 
 /**
- * Creates an HTML element from a template string and values.
- * @param {string} str
- * @param  {...any} values
- * @returns {DocumentFragment} The created HTML element.
+ * A wrapper class for strings that should not be escaped.
  */
-export function html(str, ...values) {
-    /** @type {string[]} */
-    let result = [];
-
-    let strings = Array.isArray(str) ? str : [str];
-
-    for (let i = 0; i < values.length; i++) {
-        result.push(strings[i] + escapeHtml((values[i] || '').toString()));
+class SafeHTML {
+    /** @param {string} html */
+    constructor(html) {
+        this.html = html;
     }
-    result.push(strings[strings.length - 1]);
-
-    const template = document.createElement('template');
-    template.innerHTML = result.join('');
-
-    return template.content;
+    toString() {
+        return this.html;
+    }
 }
+
+/**
+ * Marks a string as safe HTML to avoid escaping.
+ * @param {string} html 
+ * @returns {SafeHTML}
+ */
+export function unsafeHTML(html) {
+    return new SafeHTML(html);
+}
+
+/**
+ * Creates a DocumentFragment from a template string.
+ * Supports arrays, SafeHTML objects, and automatic escaping of untrusted values.
+ * * @param {TemplateStringsArray} strings - Template strings from the tagged template.
+ * @param {...any} values - Values to interpolate.
+ * @returns {DocumentFragment}
+ */
+/**
+ * Creates a DocumentFragment from a template string or a tagged template.
+ * High-performance: uses <template> and handles arrays/SafeHTML.
+ * * @param {TemplateStringsArray | string} strings - Template strings array or a single string.
+ * @param {...any} values - Values to interpolate.
+ * @returns {DocumentFragment}
+ */
+export function html(strings, ...values) {
+    let rawResult = '';
+
+    if (typeof strings === 'string') {
+        // Handle regular function call: html('<div>...</div>')
+        rawResult = strings;
+    } else if (Array.isArray(strings)) {
+        // Handle tagged template call: html`<div>${value}</div>`
+        rawResult = strings.reduce((acc, str, i) => {
+            let value = values[i - 1];
+
+            // 1. Handle Arrays (join elements)
+            if (Array.isArray(value)) {
+                value = value.join('');
+            }
+
+            // 2. Process value: check for SafeHTML wrapper or escape
+            const stringValue = value instanceof SafeHTML 
+                ? value.toString() 
+                : escapeHtml(String(value ?? ''));
+
+            return acc + stringValue + str;
+        });
+    }
+
+    const tmpl = document.createElement('template');
+    tmpl.innerHTML = rawResult;
+    return tmpl.content;
+}
+
+/*
+
+// 1. As a tagged template (with escaping and array support)
+const items = ['Apple', 'Banana'];
+const element = html`
+    <ul>
+        ${items.map(item => `<li>${item}</li>`)} 
+        <li>${unsafeHTML('<span>Trusted info</span>')}</li>
+    </ul>
+`;
+
+// 2. As a regular function
+const simple = html('<div>Static content</div>');
+
+*/
+
+/*
+List: 
+html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
+*/

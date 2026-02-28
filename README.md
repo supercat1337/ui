@@ -1,91 +1,89 @@
-# ui
+# 🚀 Supercat UI Library
 
-A simple UI library. This library contains a set of UI components that can be used to build web applications.
+A lightweight, **isomorphic** UI library for building high-performance web interfaces with native JavaScript. Designed for **SEO-friendly** applications with seamless **SSR to Hydration** workflow.
 
-## Usage
+## ✨ Key Features
 
-Create user interface components effortlessly using the versatile `Component` class.
+- **Isomorphic by Design**: Use the exact same component classes on Node.js (SSR) and in the Browser.
+- **Zero-Overhead Hydration**: Attach logic to pre-rendered HTML without re-painting the DOM.
+- **Scoped Refs**: Built-in `data-ref` system that eliminates `querySelector` collisions.
+- **Declarative Slots**: Easy component composition with native-like slot behavior.
+- **Lifecycle Managed**: Controlled execution with `connectedCallback` and built-in server-side guards.
 
-```js
-import { createFromHTML } from "@supercat1337/dom-scope";
-import { Component } from "@supercat1337/ui";
+---
 
-// 1. Parent component (has a slot `slot1`)
-class ParentComponent extends Component {
-    layout = /* html */ `
-    <div class="parent">
-        <h1 data-ref="title">Parent Component</h1>
-        <div data-slot="slot1"><!-- The child components will be inserted here --></div>
-    </div>
-`;
-    slots = ["slot1"];
-    refsAnnotation = {
-        title: HTMLHeadingElement,
-    };
+## 🛠 Core Concept: Isomorphic Lifecycle
+
+The library uses a "Handshake" mechanism to sync Server and Client.
+
+1. **Server (Node.js + JSDOM)**: Renders the component to a string. The library detects `window.isServer` and skips interactivity.
+2. **Client (Browser)**: "Hydrates" the existing HTML. It connects the logic to the `data-component-root` and activates event listeners.
+
+### Example: A Universal Component
+
+```javascript
+import { Component, html } from '@supercat1337/ui';
+
+export class UserProfile extends Component {
+    constructor(data) {
+        super({ instanceId: `user-${data.id}` });
+        this.data = data;
+    }
+
+    // Single source of truth for your UI
+    layout = () => html`
+        <div data-component-root="${this.instanceId}" class="card">
+            <h5 data-ref="name">${this.data.name}</h5>
+            <button data-ref="btn">Follow</button>
+        </div>
+    `;
+
+    connectedCallback() {
+        // 1. Prepare data (runs on both)
+        console.log('Component connected:', this.instanceId);
+
+        // 2. Server guard (stops execution on Node.js)
+        if (this.isServer) return;
+
+        // 3. Browser-only interactivity
+        this.getRefs().btn.onclick = () => alert('Following!');
+    }
 }
-
-// 2. Child component (also has a slot `slot1`)
-class ChildComponent extends Component {
-    layout = /* html */ `
-    <div class="child">
-        <p>This is a child component</p>
-        <div data-slot="slot1"><!-- The nested slot --></div>
-    </div>
-`;
-    slots = ["slot1"];
-}
-
-// 3. Simple components for insertion
-const LeafComponentA = new Component();
-LeafComponentA.layout = /* html */ `<span>🍃 Leaf A</span>`;
-
-const LeafComponentB = new Component();
-LeafComponentB.layout = /* html */ `<span>🍂 Leaf B</span>`;
-
-// 4. Assemble the structure:
-const parent = new ParentComponent();
-const child = new ChildComponent();
-
-// Insert Leaf components into ChildComponent
-child.addComponentToSlot("slot1", LeafComponentA, LeafComponentB);
-
-// Insert ChildComponent into ParentComponent
-parent.addComponentToSlot("slot1", child);
-// 5. Mount everything in DOM
-
-parent.mount(document.body);
 ```
 
-## Functions
+---
 
-The following functions are included in this library:
+## 📂 Examples
 
--   `DOMReady`: A function that returns a promise that resolves when the DOM is ready.
--   `escapeHtml`: A function that escapes HTML characters in a string.
--   `ui_button_status_waiting_on`: A function that returns the HTML for a waiting button.
--   `ui_button_status_waiting_off`: A function that returns the HTML for a non-waiting button.
--   `ui_button_status_waiting_off_html`: A function that returns the HTML for a non-waiting button.
--   `scrollToTop`: A function that scrolls the window to the top of the page.
--   `scrollToBottom`: A function that scrolls the window to the bottom of the page.
--   `hideElements`: A function that hides elements on the page.
--   `showElements`: A function that shows elements on the page.
--   `showSpinnerInButton`: A function that shows a spinner in a button.
--   `removeSpinnerFromButton`: A function that removes a spinner from a button.
--   `unixtime`: A function that returns the current Unix timestamp.
--   `isDarkMode`: A function that returns true if the user is in dark mode, false otherwise.
--   `getDefaultLanguage`: A function that returns the default language of the user.
--   `formatBytes`: A function that formats a number of bytes into a human-readable string.
--   `copyToClipboard`: A function that copies a string to the clipboard.
--   `formatDateTime`: A function that formats a Unix timestamp into a human-readable date and time.
--   `formatDate`: A function that formats a Unix timestamp into a human-readable date.
--   `Toggler`: A class that represents a toggler. A toggler is a collection of items that can be toggled on and off.
--   `fadeIn`: A function that fades in an element.
--   `fadeOut`: A function that fades out an element.
--   `sleep`: Sleeps for the given number of milliseconds.
--   `withMinimumTime`: Ensures that a promise resolves or rejects after at least the given minimum time has elapsed.
--   `createPaginationArray`: Creates an array of page numbers to be displayed in a pagination list.
--   `renderPaginationElement`: Renders a pagination list with the given parameters.
+Explore our [Examples Folder](./examples) to see the library in action:
 
-## License
+- **01-04**: Basic interactivity, slots, and lifecycle.
+- **05 Hydration**: Manual attachment to existing DOM.
+- **06 Isomorphic SSR**: The complete Node.js + Browser workflow using `jsdom`.
 
-MIT License
+---
+
+## 🚀 Quick Start (SSR)
+
+1. **Install JSDOM** (for server-side): `npm install jsdom`
+2. **Set the flag**: `global.window.isServer = true;`
+3. **Render**:
+
+```javascript
+const profile = new UserProfile({ id: 1, name: 'Alice' });
+profile.mount(document.body); // Renders to JSDOM
+const html = document.body.innerHTML; // Send this string to client
+```
+
+4. **Hydrate** (on client):
+
+```javascript
+const profile = new UserProfile({ id: 1, name: 'Alice' });
+profile.mount(document.body, 'hydrate');
+```
+
+---
+
+## ⚖️ License
+
+MIT

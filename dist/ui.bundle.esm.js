@@ -166,16 +166,35 @@ function delegateEvent(eventType, ancestorElement, targetElementSelector, listen
     }
   });
 }
-function html(str, ...values) {
-  let result = [];
-  let strings = Array.isArray(str) ? str : [str];
-  for (let i = 0; i < values.length; i++) {
-    result.push(strings[i] + escapeHtml((values[i] || "").toString()));
+var SafeHTML = class {
+  /** @param {string} html */
+  constructor(html2) {
+    this.html = html2;
   }
-  result.push(strings[strings.length - 1]);
-  const template = document.createElement("template");
-  template.innerHTML = result.join("");
-  return template.content;
+  toString() {
+    return this.html;
+  }
+};
+function unsafeHTML(html2) {
+  return new SafeHTML(html2);
+}
+function html(strings, ...values) {
+  let rawResult = "";
+  if (typeof strings === "string") {
+    rawResult = strings;
+  } else if (Array.isArray(strings)) {
+    rawResult = strings.reduce((acc, str, i) => {
+      let value = values[i - 1];
+      if (Array.isArray(value)) {
+        value = value.join("");
+      }
+      const stringValue = value instanceof SafeHTML ? value.toString() : escapeHtml(String(value ?? ""));
+      return acc + stringValue + str;
+    });
+  }
+  const tmpl = document.createElement("template");
+  tmpl.innerHTML = rawResult;
+  return tmpl.content;
 }
 
 // src/utils/date-time.js
@@ -1205,7 +1224,7 @@ function onDisconnectDefault(component) {
 var Component = class {
   /** @type {Internals} */
   $internals = new Internals();
-  /** @type {LayoutFunction|string|null} */
+  /** @type {LayoutFunction|string|null|Node} */
   layout = null;
   /** @type {import("dom-scope").RefsAnnotation|undefined} */
   refsAnnotation;
@@ -1214,6 +1233,7 @@ var Component = class {
   #isCollapsed = false;
   /** @type {string} */
   #instanceId;
+  #cachedElement = null;
   /**
    * Initializes a new instance of the Component class.
    * @param {Object} [options] - An object with the following optional properties:
@@ -1246,6 +1266,13 @@ var Component = class {
     return this.#isCollapsed;
   }
   /**
+   * Returns whether the component is currently running on a server or not.
+   * @returns {boolean} True if the component is running on a server, false otherwise.
+   */
+  get isServer() {
+    return typeof window !== "undefined" && window.isServer === true;
+  }
+  /**
    * Reloads the text content of the component by calling the text update function if it is set.
    * This method is useful when the component's text content depends on external data that may change.
    * @returns {void}
@@ -1273,7 +1300,7 @@ var Component = class {
     let template;
     if (typeof this.layout === "function") {
       let returnValue = this.layout(this);
-      if (returnValue instanceof Node) {
+      if (returnValue instanceof window.Node) {
         template = returnValue;
       } else if (typeof returnValue === "string") {
         template = html(returnValue);
@@ -1289,21 +1316,21 @@ var Component = class {
         `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
       );
     }
-    if (template.nodeType === Node.ELEMENT_NODE) {
+    if (template.nodeType === window.Node.ELEMENT_NODE) {
       return (
         /** @type {Element} */
         template
       );
     }
-    if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-      if (template.firstChild && template.firstChild.nodeType === Node.ELEMENT_NODE && template.childNodes.length === 1) {
+    if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
+      if (template.firstChild && template.firstChild.nodeType === window.Node.ELEMENT_NODE && template.childNodes.length === 1) {
         return (
           /** @type {Element} */
           template.firstChild
         );
       }
     }
-    let container = document.createElement("html-fragment");
+    let container = window.document.createElement("html-fragment");
     container.appendChild(template);
     return (
       /** @type {Element} */
@@ -1383,7 +1410,8 @@ var Component = class {
     );
     let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
       scope_ref_attr_name: ["data-slot", "data-component-root"],
-      ref_attr_name: "data-ref"
+      ref_attr_name: "data-ref",
+      window
     });
     if (this.refsAnnotation) {
       checkRefs(refs, this.refsAnnotation);
@@ -1554,37 +1582,120 @@ var Component = class {
   disconnectedCallback() {
   }
   /**
-   * Mounts the component to the specified container.
-   * @param {Element} container - The container to mount the component to.
-   * @param {"replace"|"append"|"prepend"} [mountMode="replace"] - The mode to use to mount the component.
-   * If "replace", the container's content is replaced.
-   * If "append", the component is appended to the container.
-   * If "prepend", the component is prepended to the container.
+   * Default implementation of template getter.
+   * Can be overridden or rely on this.layout.
+   * @returns {string|Function|Node}
    */
-  mount(container, mountMode = "replace") {
-    if (!(container instanceof Element)) {
-      throw new TypeError("Container must be a DOM Element");
+  template() {
+    return this.layout || "";
+  }
+  /**
+   * Internal rendering engine.
+   * Separates static (cached) layouts from dynamic (functional) layouts.
+   * Ensures a single root Element is always returned.
+   * @returns {Element}
+   */
+  render() {
+    const layout = this.layout;
+    if (!layout) {
+      throw new Error("Layout is not defined for the component.");
     }
-    const validModes = ["replace", "append", "prepend"];
-    if (!validModes.includes(mountMode)) {
-      throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(", ")}`);
+    const isStatic = typeof layout !== "function";
+    if (isStatic && this.$internals.cloneTemplateOnRender && this.#cachedElement) {
+      return (
+        /** @type {Element} */
+        this.#cachedElement.cloneNode(true)
+      );
     }
-    const loadedTemplate = this.#loadTemplate();
-    if (loadedTemplate === null) throw new Error("Template is not set");
-    this.$internals.mountMode = mountMode;
-    this.$internals.parentElement = this.parentComponent ? null : container;
-    if (this.#isConnected === true) {
-      return;
+    let template;
+    if (typeof layout === "function") {
+      const returnValue = layout(this);
+      if (returnValue instanceof window.Node) {
+        template = returnValue;
+      } else if (typeof returnValue === "string") {
+        template = html(returnValue);
+      } else {
+        throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
+      }
+    } else if (typeof layout === "string") {
+      template = html(layout.trim());
+    } else if (layout instanceof window.Node) {
+      template = layout;
+    } else {
+      console.warn("Unsupported layout type:", typeof layout, layout);
+      throw new Error(`Unsupported layout type: ${typeof layout}`);
     }
-    let componentRoot = (
-      /** @type {HTMLElement} */
-      this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
-    );
-    componentRoot.setAttribute("data-component-root", this.#instanceId);
+    let result;
+    if (template.nodeType === window.Node.ELEMENT_NODE) {
+      result = /** @type {Element} */
+      template;
+    } else if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
+      const children = Array.from(template.childNodes).filter(
+        (node) => node.nodeType === window.Node.ELEMENT_NODE || node.nodeType === window.Node.TEXT_NODE && node.textContent.trim() !== ""
+      );
+      if (children.length === 1 && children[0].nodeType === window.Node.ELEMENT_NODE) {
+        result = /** @type {Element} */
+        children[0];
+      } else {
+        result = document.createElement("html-fragment");
+        result.appendChild(template);
+      }
+    } else {
+      result = document.createElement("html-fragment");
+      result.appendChild(template);
+    }
+    if (this.instanceId && result.getAttribute("data-component-root") !== this.instanceId) {
+      result.setAttribute("data-component-root", this.instanceId);
+    }
+    if (isStatic && this.$internals.cloneTemplateOnRender) {
+      this.#cachedElement = result;
+      return (
+        /** @type {Element} */
+        result.cloneNode(true)
+      );
+    }
+    return result;
+  }
+  /**
+   * Mounts the component to a DOM container or hydrates existing HTML.
+   * @param {Element} container - The target DOM element (the "hole").
+   * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
+   */
+  mount(container, mode = "replace") {
+    if (!(container instanceof window.Element)) {
+      throw new TypeError("Mount target must be a valid DOM Element.");
+    }
+    const validModes = ["replace", "append", "prepend", "hydrate"];
+    if (!validModes.includes(mode)) {
+      throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(", ")}`);
+    }
+    if (this.isConnected) {
+      if (this.$internals.parentElement === container) return;
+      this.unmount();
+    }
+    this.$internals.mountMode = mode === "hydrate" ? "replace" : mode;
+    let componentRoot;
+    if (mode === "hydrate") {
+      const isRoot = container.getAttribute("data-component-root") === this.#instanceId;
+      if (isRoot) {
+        componentRoot = container;
+      } else {
+        componentRoot = container.querySelector(
+          `[data-component-root="${this.#instanceId}"]`
+        );
+      }
+      if (!componentRoot) {
+        throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
+      }
+    } else {
+      componentRoot = this.render();
+      if (mode === "replace") container.replaceChildren(componentRoot);
+      else if (mode === "append") container.append(componentRoot);
+      else if (mode === "prepend") container.prepend(componentRoot);
+    }
+    this.$internals.root = componentRoot;
+    this.$internals.parentElement = componentRoot.parentElement;
     this.emit("prepareRender", componentRoot);
-    if (mountMode === "replace") container.replaceChildren(componentRoot);
-    else if (mountMode === "append") container.append(componentRoot);
-    else if (mountMode === "prepend") container.prepend(componentRoot);
     this.connect(
       /** @type {HTMLElement} */
       componentRoot
@@ -1779,7 +1890,7 @@ var Component = class {
     walkDomScope(
       this.$internals.root,
       (node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.nodeType === window.Node.ELEMENT_NODE) {
           let el = (
             /** @type {Element} */
             node
@@ -1794,7 +1905,8 @@ var Component = class {
       {
         includeRoot: false,
         scope_ref_attr_name: ["data-slot", "data-component-root"],
-        ref_attr_name: "data-ref"
+        ref_attr_name: "data-ref",
+        window
       }
     );
     return filteredElements;
@@ -1902,5 +2014,6 @@ export {
   ui_button_status_waiting_off_html,
   ui_button_status_waiting_on,
   unixtime,
+  unsafeHTML,
   withMinimumTime
 };

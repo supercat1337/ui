@@ -46,7 +46,7 @@ export class Component {
     /** @type {Internals} */
     $internals = new Internals();
 
-    /** @type {LayoutFunction|string|null} */
+    /** @type {LayoutFunction|string|null|Node} */
     layout = null;
 
     /** @type {import("dom-scope").RefsAnnotation|undefined} */
@@ -60,6 +60,8 @@ export class Component {
 
     /** @type {string} */
     #instanceId;
+
+    #cachedElement = null;
 
     /**
      * Initializes a new instance of the Component class.
@@ -100,6 +102,15 @@ export class Component {
     }
 
     /**
+     * Returns whether the component is currently running on a server or not.
+     * @returns {boolean} True if the component is running on a server, false otherwise.
+     */
+    get isServer() {
+        // @ts-ignore
+        return typeof window !== 'undefined' && window.isServer === true;
+    }
+
+    /**
      * Reloads the text content of the component by calling the text update function if it is set.
      * This method is useful when the component's text content depends on external data that may change.
      * @returns {void}
@@ -133,7 +144,7 @@ export class Component {
         if (typeof this.layout === 'function') {
             let returnValue = this.layout(this);
 
-            if (returnValue instanceof Node) {
+            if (returnValue instanceof window.Node) {
                 template = returnValue;
             } else if (typeof returnValue === 'string') {
                 template = html(returnValue);
@@ -150,21 +161,21 @@ export class Component {
             );
         }
 
-        if (template.nodeType === Node.ELEMENT_NODE) {
+        if (template.nodeType === window.Node.ELEMENT_NODE) {
             return /** @type {Element} */ (template);
         }
 
-        if (template.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
             if (
                 template.firstChild &&
-                template.firstChild.nodeType === Node.ELEMENT_NODE &&
+                template.firstChild.nodeType === window.Node.ELEMENT_NODE &&
                 template.childNodes.length === 1
             ) {
                 return /** @type {Element} */ (template.firstChild);
             }
         }
 
-        let container = document.createElement('html-fragment');
+        let container = window.document.createElement('html-fragment');
         container.appendChild(template);
         return /** @type {Element} */ (container);
     }
@@ -250,6 +261,7 @@ export class Component {
         let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
             scope_ref_attr_name: ['data-slot', 'data-component-root'],
             ref_attr_name: 'data-ref',
+            window,
         });
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
@@ -407,6 +419,7 @@ export class Component {
         this.$internals.disconnectController = new AbortController();
         this.#isConnected = true;
         this.slotManager.mountAllSlots();
+
         this.emit('connect');
     }
 
@@ -442,48 +455,161 @@ export class Component {
     disconnectedCallback() {}
 
     /**
-     * Mounts the component to the specified container.
-     * @param {Element} container - The container to mount the component to.
-     * @param {"replace"|"append"|"prepend"} [mountMode="replace"] - The mode to use to mount the component.
-     * If "replace", the container's content is replaced.
-     * If "append", the component is appended to the container.
-     * If "prepend", the component is prepended to the container.
+     * Default implementation of template getter.
+     * Can be overridden or rely on this.layout.
+     * @returns {string|Function|Node}
      */
-    mount(container, mountMode = 'replace') {
-        if (!(container instanceof Element)) {
-            throw new TypeError('Container must be a DOM Element');
+    template() {
+        return this.layout || '';
+    }
+
+    /**
+     * Internal rendering engine.
+     * Separates static (cached) layouts from dynamic (functional) layouts.
+     * Ensures a single root Element is always returned.
+     * @returns {Element}
+     */
+    render() {
+        const layout = this.layout;
+        if (!layout) {
+            throw new Error('Layout is not defined for the component.');
         }
 
-        const validModes = ['replace', 'append', 'prepend'];
-        if (!validModes.includes(mountMode)) {
-            throw new Error(`Invalid mode: ${mountMode}. Must be one of: ${validModes.join(', ')}`);
+        // Static check: if layout is not a function, it is considered a static string
+        const isStatic = typeof layout !== 'function';
+
+        // 1. Fast path for static: return a clone from cache if available
+        if (isStatic && this.$internals.cloneTemplateOnRender && this.#cachedElement) {
+            return /** @type {Element} */ (this.#cachedElement.cloneNode(true));
         }
 
-        const loadedTemplate = this.#loadTemplate();
+        /** @type {Node} */
+        let template;
 
-        if (loadedTemplate === null) throw new Error('Template is not set');
-
-        this.$internals.mountMode = mountMode;
-
-        this.$internals.parentElement = this.parentComponent ? null : container;
-
-        if (this.#isConnected === true) {
-            return;
+        // 2. Resolve content
+        if (typeof layout === 'function') {
+            // Dynamic: always execute the function. Cannot be cached as a whole.
+            const returnValue = layout(this);
+            if (returnValue instanceof window.Node) {
+                template = returnValue;
+            } else if (typeof returnValue === 'string') {
+                template = html(returnValue);
+            } else {
+                throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
+            }
+        } else if (typeof layout === 'string') {
+            // Static: parse the string via the html helper
+            template = html(layout.trim());
+        } else if (layout instanceof window.Node) {
+            template = layout;
+        } else {
+            console.warn('Unsupported layout type:', typeof layout, layout);
+            throw new Error(`Unsupported layout type: ${typeof layout}`);
         }
 
-        let componentRoot = /** @type {HTMLElement} */ (
-            this.$internals.cloneTemplateOnRender ? loadedTemplate.cloneNode(true) : loadedTemplate
-        );
+        // 3. Normalization logic (Ensuring single root element)
+        /** @type {Element} */
+        let result;
 
-        componentRoot.setAttribute('data-component-root', this.#instanceId);
+        if (template.nodeType === window.Node.ELEMENT_NODE) {
+            result = /** @type {Element} */ (template);
+        } else if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
+            const children = Array.from(template.childNodes).filter(
+                node =>
+                    node.nodeType === window.Node.ELEMENT_NODE ||
+                    (node.nodeType === window.Node.TEXT_NODE && node.textContent.trim() !== '')
+            );
+
+            if (children.length === 1 && children[0].nodeType === window.Node.ELEMENT_NODE) {
+                result = /** @type {Element} */ (children[0]);
+            } else {
+                result = document.createElement('html-fragment');
+                result.appendChild(template);
+            }
+        } else {
+            result = document.createElement('html-fragment');
+            result.appendChild(template);
+        }
+
+        // 4. Set the data-component-root attribute
+        if (this.instanceId && result.getAttribute('data-component-root') !== this.instanceId) {
+            result.setAttribute('data-component-root', this.instanceId);
+        }
+
+        // 5. Cache the result ONLY if it was a static layout
+        if (isStatic && this.$internals.cloneTemplateOnRender) {
+            this.#cachedElement = result;
+            // Return a clone to keep the cached original "pristine"
+            return /** @type {Element} */ (result.cloneNode(true));
+        }
+
+        // For functions, return the "live" result directly without long-term caching
+        return result;
+    }
+
+    /**
+     * Mounts the component to a DOM container or hydrates existing HTML.
+     * @param {Element} container - The target DOM element (the "hole").
+     * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
+     */
+    mount(container, mode = 'replace') {
+        // Validation
+        if (!(container instanceof window.Element)) {
+            throw new TypeError('Mount target must be a valid DOM Element.');
+        }
+
+        const validModes = ['replace', 'append', 'prepend', 'hydrate'];
+        if (!validModes.includes(mode)) {
+            throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(', ')}`);
+        }
+
+        // Lifecycle & Re-mounting Logic
+        // If already connected to this exact container, do nothing.
+        // If moving to a DIFFERENT container, we unmount first to clean up.
+        if (this.isConnected) {
+            if (this.$internals.parentElement === container) return;
+            this.unmount();
+        }
+
+        this.$internals.mountMode = mode === 'hydrate' ? 'replace' : mode;
+
+        let componentRoot;
+
+        if (mode === 'hydrate') {
+            // Check if the container itself is the root
+            const isRoot = container.getAttribute('data-component-root') === this.#instanceId;
+
+            if (isRoot) {
+                componentRoot = container;
+            } else {
+                // 2. Otherwise, look inside (as we planned before)
+                componentRoot = container.querySelector(
+                    `[data-component-root="${this.#instanceId}"]`
+                );
+            }
+
+            if (!componentRoot) {
+                throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
+            }
+        } else {
+            // --- STANDARD RENDER PATH ---
+            // Get the fresh element from our optimized render()
+            componentRoot = this.render();
+
+            // 3. DOM Insertion
+            if (mode === 'replace') container.replaceChildren(componentRoot);
+            else if (mode === 'append') container.append(componentRoot);
+            else if (mode === 'prepend') container.prepend(componentRoot);
+        }
+
+        // Finalize Connection
+        this.$internals.root = componentRoot;
+        this.$internals.parentElement = componentRoot.parentElement;
 
         this.emit('prepareRender', componentRoot);
-
-        if (mountMode === 'replace') container.replaceChildren(componentRoot);
-        else if (mountMode === 'append') container.append(componentRoot);
-        else if (mountMode === 'prepend') container.prepend(componentRoot);
-
+        // Connect logic: collects refs, sets up event listeners via AbortController
         this.connect(/** @type {HTMLElement} */ (componentRoot));
+
         this.emit('mount');
     }
 
@@ -709,7 +835,7 @@ export class Component {
         walkDomScope(
             this.$internals.root,
             node => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
+                if (node.nodeType === window.Node.ELEMENT_NODE) {
                     let el = /** @type {Element} */ (node);
                     if (tagName === '*') {
                         filteredElements.push(el);
@@ -722,6 +848,7 @@ export class Component {
                 includeRoot: false,
                 scope_ref_attr_name: ['data-slot', 'data-component-root'],
                 ref_attr_name: 'data-ref',
+                window,
             }
         );
 
