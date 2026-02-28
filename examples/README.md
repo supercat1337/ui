@@ -1,23 +1,29 @@
-## 🚀 Examples Overview
-
-| #   | Name                                                                      | Key Concept                          | Complexity   |
-| --- | ------------------------------------------------------------------------- | ------------------------------------ | ------------ |
-| 01  | [Counter](./examples/01-counter)          | Reactive state and `refs`            | Basic        |
-| 02  | [Slots](./examples/02-slots)              | Nesting and content projection       | Basic        |
-| 03  | [External Logic](./examples/03-external)  | Interaction with outside state/APIs  | Intermediate |
-| 04  | [Lifecycle](./examples/04-lifecycle)      | `connectedCallback` and Cleanup      | Intermediate |
-| 05  | [Client Hydration](./examples/05-hydrate) | Attaching to existing DOM            | Advanced     |
-| 06  | **[Isomorphic SSR](./examples/06-ssr)**   | **Same class for Node.js & Browser** | **Expert**   |
+Got it. Let’s align the **README.md** exactly with your real directory structure. I've updated the titles to match your folder names and refined the "Key Concept" for each to reflect a progressive learning path.
 
 ---
 
-### 🌟 Featured: Example 06 - Isomorphic SSR & Hydration
+## 🚀 Examples Gallery
 
-This is the most powerful way to use the library. It demonstrates how to render a component on a **Node.js server** and "revive" it in the **browser** without duplicating code.
+Each example is a self-contained project demonstrating a specific feature of the library.
 
-#### 1. The Universal Component
+| Folder                   | Name                    | Key Concept                                                  |
+| ------------------------ | ----------------------- | ------------------------------------------------------------ |
+| `01-layout-diversity`    | **Layout Diversity**    | Using Strings, Functions, and DOM Nodes as layouts.          |
+| `02-interactive-counter` | **Interactive Counter** | State management, event handling, and `getRefs()`.           |
+| `03-todo-list`           | **Todo List**           | Complex state, arrays, and dynamic re-rendering.             |
+| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data and using `connectedCallback` for async tasks. |
+| `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.    |
+| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.         |
 
-Write your UI logic once. Use the `this.isServer` guard to separate structural logic from browser interactions.
+---
+
+## 🌟 Featured: 06-ssr-generator
+
+This example demonstrates the **Isomorphic Architecture**. It allows you to use the exact same Component class to generate HTML on the server and then "hydrate" it in the browser.
+
+### 1. Universal Component (`UserProfile.js`)
+
+The component is designed to be "Environment Aware". It builds the structure everywhere, but only attaches logic in the browser.
 
 ```javascript
 export class UserProfile extends Component {
@@ -26,6 +32,7 @@ export class UserProfile extends Component {
         this.data = data;
     }
 
+    // Universal Layout
     layout = () => html`
         <div data-component-root="${this.instanceId}" class="card">
             <h5 data-ref="userName">${this.data.name}</h5>
@@ -34,43 +41,68 @@ export class UserProfile extends Component {
     `;
 
     connectedCallback() {
-        // This part runs on BOTH but we stop here on the server
+        // Safe check for Server-Side Rendering
         if (this.isServer) return;
 
         // Browser-only interactive logic
-        this.getRefs().followBtn.onclick = () => console.log('Followed!');
+        this.getRefs().followBtn.onclick = () => alert('Hello from Browser!');
     }
 }
 ```
 
-#### 2. Server-Side Rendering (Node.js)
+### 2. The Server Generator (`server.js`)
 
-Using `jsdom`, you can generate the full HTML of your component on the backend. This is perfect for SEO and fast initial page loads.
+Uses `jsdom` to simulate the DOM in Node.js. It sets `window.isServer = true` to inform the library that we are in "String Generation Mode".
 
 ```javascript
-global.window.isServer = true; // Tell the library to skip events
+import { JSDOM } from 'jsdom';
+import { UserProfile } from './UserProfile.js';
+
+const dom = new JSDOM('<!DOCTYPE html><html><body><div id="app"></div></body></html>');
+global.window = dom.window;
+global.document = dom.window.document;
+global.window.isServer = true; // Activate SSR mode
+
 const profile = new UserProfile({ id: 101, name: 'Alice' });
 profile.mount(document.getElementById('app'));
-// Now export document.body.innerHTML to the client...
+
+// Result: Clean HTML string ready for the client
+const htmlOutput = document.getElementById('app').innerHTML;
 ```
 
-#### 3. Client-Side Hydration
+### 3. Client-Side Hydration
 
-The browser receives the HTML and "hydrates" it. The library finds the existing `data-component-root`, maps the `refs`, and executes the `connectedCallback` logic after the `isServer` check.
+When the page loads, the library doesn't create new elements. It finds the `data-component-root` rendered by the server and simply connects the event listeners.
 
 ```javascript
+// On the client
 const profile = new UserProfile({ id: 101, name: 'Alice' });
 profile.mount(document.getElementById('app'), 'hydrate');
 ```
 
 ---
 
-### 💡 Core Concept: The "Server-Safe" Lifecycle
+## 🛠 How to run the examples
 
-When building isomorphic components, follow this pattern in your `connectedCallback`:
+1. Navigate to the example folder:
 
-1. **Preparation**: Perform logic needed for both environments (rare).
-2. **The Guard**: `if (this.isServer) return;`.
-3. **Interaction**: Attach event listeners, start timers, or initialize `IntersectionObserver`.
+```bash
+cd examples/06-ssr-generator
 
-This ensures your server-side rendering is lightning fast and error-free, while your client-side UI remains snappy and interactive.
+```
+
+2. Install dependencies (for SSR):
+
+```bash
+npm install
+
+```
+
+3. Run the server:
+
+```bash
+node server.js
+
+```
+
+4. Open the generated `index.html` in your browser.
