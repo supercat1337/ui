@@ -849,13 +849,96 @@ var SlotManager = class {
   }
 };
 
-// node_modules/@supercat1337/event-emitter/dist/event-emitter.esm.js
-var EventEmitter = class {
+// node_modules/@supercat1337/event-emitter/src/event-emitter-lite.js
+var ORIGINAL = /* @__PURE__ */ Symbol("original");
+var EventEmitterLite = class {
   /**
-   * Object that holds events and their listeners
-   * @type {Object.<string, Function[]>}
+   * @type {Object.<Events extends string ? Events : keyof Events, Function[]>}
    */
-  events = {};
+  events = /* @__PURE__ */ Object.create(null);
+  /**
+   * logErrors indicates whether errors thrown by listeners should be logged to the console.
+   * @type {boolean}
+   */
+  logErrors = true;
+  /**
+   * on is used to add a callback function that's going to be executed when the event is triggered
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {Function} listener
+   * @returns {() => void}
+   */
+  on(event, listener) {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(listener);
+    let unsubscriber = () => this.removeListener(event, listener);
+    return unsubscriber;
+  }
+  /**
+   * Add a one-time listener
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {Function} listener
+   * @returns {()=>void}
+   */
+  once(event, listener) {
+    const wrapper = (...args) => {
+      this.removeListener(event, wrapper);
+      listener.apply(this, args);
+    };
+    wrapper[ORIGINAL] = listener;
+    return this.on(event, wrapper);
+  }
+  /**
+   * off is an alias for removeListener
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {Function} listener
+   */
+  off(event, listener) {
+    return this.removeListener(event, listener);
+  }
+  /**
+   * Remove an event listener from an event
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {Function} listener
+   */
+  removeListener(event, listener) {
+    if (typeof listener !== "function") return;
+    const listeners = this.events[event];
+    if (!listeners) return;
+    const idx = listeners.findIndex((l) => l === listener || l[ORIGINAL] === listener);
+    if (idx > -1) {
+      listeners.splice(idx, 1);
+      if (listeners.length === 0) delete this.events[event];
+    }
+  }
+  /**
+   * emit is used to trigger an event
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {...any} args
+   */
+  emit(event, ...args) {
+    const listeners = this.events[event];
+    if (!listeners) return;
+    const queue = (this.events[event] || []).slice();
+    var length = queue.length;
+    for (let i = 0; i < length; i++) {
+      try {
+        queue[i].apply(this, args);
+      } catch (e) {
+        if (this.logErrors) {
+          console.error(`Error in listener for event "${String(event)}":`, e);
+        }
+      }
+    }
+  }
+};
+
+// node_modules/@supercat1337/event-emitter/src/event-emitter.js
+var EventEmitter = class extends EventEmitterLite {
   /** @type {Object.<"#has-listeners"|"#no-listeners"|"#listener-error", Function[]>} */
   #internalEvents = {
     "#has-listeners": [],
@@ -863,11 +946,8 @@ var EventEmitter = class {
     "#listener-error": []
   };
   #isDestroyed = false;
-  /**
-   * logErrors indicates whether errors thrown by listeners should be logged to the console.
-   * @type {boolean}
-   */
-  logErrors = true;
+  #isReportingError = false;
+  // Used to prevent infinite loop
   /**
    * Is the event emitter destroyed?
    * @type {boolean}
@@ -877,26 +957,32 @@ var EventEmitter = class {
   }
   /**
    * on is used to add a callback function that's going to be executed when the event is triggered
-   * @param {T} event
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
    * @param {Function} listener
-   * @returns {()=>void}
    */
   on(event, listener) {
-    if (this.#isDestroyed) {
-      throw new Error("EventEmitter is destroyed");
-    }
-    if (typeof this.events[event] !== "object") {
-      this.events[event] = [];
-    }
-    this.events[event].push(listener);
-    let that = this;
-    let unsubscriber = function() {
-      that.removeListener(event, listener);
-    };
-    if (this.events[event].length == 1) {
+    if (this.#isDestroyed) throw new Error("EventEmitter is destroyed");
+    const isFirst = !this.events[event] || this.events[event].length === 0;
+    const unsubscriber = super.on(event, listener);
+    if (isFirst) {
       this.#emitInternal("#has-listeners", event);
     }
     return unsubscriber;
+  }
+  /**
+   * Remove an event listener from an event
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
+   * @param {Function} listener
+   */
+  removeListener(event, listener) {
+    if (typeof listener !== "function") return;
+    if (this.#isDestroyed || !this.events[event]) return;
+    super.removeListener(event, listener);
+    if (!this.events[event]) {
+      this.#emitInternal("#no-listeners", event);
+    }
   }
   /**
    * Internal method to add a listener to an internal event
@@ -918,44 +1004,15 @@ var EventEmitter = class {
    * @param {Function} listener
    */
   #removeInternalListener(event, listener) {
-    var idx;
-    if (typeof this.#internalEvents[event] === "object") {
-      idx = this.#internalEvents[event].indexOf(listener);
-      if (idx > -1) {
-        this.#internalEvents[event].splice(idx, 1);
-      }
-    }
-  }
-  /**
-   * off is an alias for removeListener
-   * @param {T} event
-   * @param {Function} listener
-   */
-  off(event, listener) {
-    return this.removeListener(event, listener);
-  }
-  /**
-   * Remove an event listener from an event
-   * @param {T} event
-   * @param {Function} listener
-   */
-  removeListener(event, listener) {
-    if (this.#isDestroyed) {
-      return;
-    }
-    var idx;
-    if (!this.events[event]) return;
-    idx = this.events[event].indexOf(listener);
-    if (idx > -1) {
-      this.events[event].splice(idx, 1);
-      if (this.events[event].length == 0) {
-        this.#emitInternal("#no-listeners", event);
-      }
-    }
+    const listeners = this.#internalEvents[event];
+    if (!listeners) return;
+    const idx = listeners.indexOf(listener);
+    if (idx > -1) listeners.splice(idx, 1);
   }
   /**
    * emit is used to trigger an event
-   * @param {T} event
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
    * @param {...any} args
    */
   emit(event, ...args) {
@@ -963,7 +1020,7 @@ var EventEmitter = class {
       return;
     }
     if (typeof this.events[event] !== "object") return;
-    var listeners = this.events[event];
+    const listeners = [...this.events[event]];
     var length = listeners.length;
     for (var i = 0; i < length; i++) {
       try {
@@ -971,7 +1028,7 @@ var EventEmitter = class {
       } catch (e) {
         this.#emitInternal("#listener-error", e, event, ...args);
         if (this.logErrors) {
-          console.error(`Error in listener for event "${event}":`, e);
+          console.error(`Error in listener for event "${String(event)}":`, e);
         }
       }
     }
@@ -982,124 +1039,65 @@ var EventEmitter = class {
    * @param {...any} args
    */
   #emitInternal(event, ...args) {
-    var listeners = this.#internalEvents[event];
-    var length = listeners.length;
-    for (var i = 0; i < length; i++) {
+    const listeners = this.#internalEvents[event];
+    if (!listeners || listeners.length === 0) return;
+    const queue = listeners.slice();
+    for (const fn of queue) {
       try {
-        listeners[i].apply(this, args);
+        fn.apply(this, args);
       } catch (e) {
-        let listenerError = e;
-        listenerError.cause = {
-          event,
-          args
-        };
-        if (event === "#listener-error") {
+        if (event === "#listener-error" || this.#isReportingError) {
           if (this.logErrors) {
-            console.error(
-              `Error in listener for internal event "${event}":`,
-              listenerError
-            );
+            console.error("Critical error in internal listener:", e);
           }
           continue;
         }
-        if (event === "#has-listeners") {
-          if (this.logErrors) {
-            console.error(
-              `Error in listener for internal event "${event}":`,
-              listenerError
-            );
-          }
-          this.#emitInternal(
-            "#listener-error",
-            listenerError,
-            "#has-listeners",
-            ...args
-          );
-        }
-        if (event === "#no-listeners") {
-          if (this.logErrors) {
-            console.error(
-              `Error in listener for internal event "${event}":`,
-              listenerError
-            );
-          }
-          this.#emitInternal(
-            "#listener-error",
-            listenerError,
-            "#no-listeners",
-            ...args
-          );
+        this.#isReportingError = true;
+        try {
+          this.#emitInternal("#listener-error", e, event, ...args);
+        } finally {
+          this.#isReportingError = false;
         }
       }
     }
   }
   /**
-   * Add a one-time listener
-   * @param {T} event
-   * @param {Function} listener
-   * @returns {()=>void}
-   */
-  once(event, listener) {
-    return this.on(event, function g() {
-      this.removeListener(event, g);
-      listener.apply(this, arguments);
-    });
-  }
-  /**
-   * Wait for an event to be emitted
-   * @param {T} event
-   * @param {number} [max_wait_ms=0] - Maximum time to wait in ms. If 0, the function will wait indefinitely.
-   * @returns {Promise<boolean>} - Resolves with true if the event was emitted, false if the time ran out.
+   * Wait for a specific event to be emitted.
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event - The event to wait for.
+   * @param {number} [max_wait_ms=0] - Maximum time to wait in ms. If 0, waits indefinitely.
+   * @returns {Promise<boolean>} - Resolves with true if event emitted, false on timeout.
    */
   waitForEvent(event, max_wait_ms = 0) {
-    if (this.#isDestroyed) {
-      throw new Error("EventEmitter is destroyed");
-    }
-    return new Promise((resolve) => {
-      let timeout;
-      let unsubscriber = this.on(event, () => {
-        if (max_wait_ms > 0) {
-          clearTimeout(timeout);
-        }
-        unsubscriber();
-        resolve(true);
-      });
-      if (max_wait_ms > 0) {
-        timeout = setTimeout(() => {
-          unsubscriber();
-          resolve(false);
-        }, max_wait_ms);
-      }
-    });
+    return this.waitForAnyEvent([event], max_wait_ms);
   }
   /**
-   * Wait for any of the specified events to be emitted
-   * @param {T[]} events - Array of event names to wait for
-   * @param {number} [max_wait_ms=0] - Maximum time to wait in ms. If 0, the function will wait indefinitely.
-   * @returns {Promise<boolean>} - Resolves with true if any event was emitted, false if the time ran out.
+   * Wait for any of the specified events to be emitted.
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K[]} events - Array of event names.
+   * @param {number} [max_wait_ms=0] - Maximum time to wait in ms.
+   * @returns {Promise<boolean>} - Resolves with true if any event emitted, false on timeout.
    */
   waitForAnyEvent(events, max_wait_ms = 0) {
-    if (this.#isDestroyed) {
-      throw new Error("EventEmitter is destroyed");
-    }
+    if (this.#isDestroyed) throw new Error("EventEmitter is destroyed");
     return new Promise((resolve) => {
       let timeout;
-      let unsubscribers = [];
-      const main_unsubscriber = () => {
-        if (max_wait_ms > 0) {
-          clearTimeout(timeout);
-        }
-        unsubscribers.forEach((unsubscriber) => {
-          unsubscriber();
-        });
+      const unsubscribers = [];
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        unsubscribers.forEach((u) => u());
+      };
+      const onEvent = () => {
+        cleanup();
         resolve(true);
       };
-      events.forEach((event) => {
-        unsubscribers.push(this.on(event, main_unsubscriber));
+      const uniqueEvents = [...new Set(events)];
+      uniqueEvents.forEach((event) => {
+        unsubscribers.push(this.on(event, onEvent));
       });
       if (max_wait_ms > 0) {
         timeout = setTimeout(() => {
-          main_unsubscriber();
+          cleanup();
           resolve(false);
         }, max_wait_ms);
       }
@@ -1109,36 +1107,36 @@ var EventEmitter = class {
    * Clear all events
    */
   clear() {
-    this.events = {};
+    if (this.#isDestroyed) return;
+    const eventNames = Object.keys(this.events);
+    eventNames.forEach((event) => {
+      this.clearEventListeners(event);
+    });
   }
   /**
    * Destroys the event emitter, clearing all events and listeners.
-   * @alias clear
    */
   destroy() {
-    if (this.#isDestroyed) {
-      return;
-    }
+    if (this.#isDestroyed) return;
+    this.clear();
     this.#isDestroyed = true;
     this.#internalEvents = {
       "#has-listeners": [],
       "#no-listeners": [],
       "#listener-error": []
     };
-    this.events = {};
+    this.events = /* @__PURE__ */ Object.create(null);
   }
   /**
    * Clears all listeners for a specified event.
-   * @param {T} event - The event for which to clear all listeners.
+   * @template {Events extends string ? Events : keyof Events} K
+   * @param {K} event
    */
   clearEventListeners(event) {
-    if (this.#isDestroyed) {
-      return;
-    }
-    let listeners = this.events[event] || [];
-    let listenersCount = listeners.length;
-    if (listenersCount > 0) {
-      this.events[event] = [];
+    if (this.#isDestroyed) return;
+    const listeners = this.events[event];
+    if (listeners && listeners.length > 0) {
+      delete this.events[event];
       this.#emitInternal("#no-listeners", event);
     }
   }
