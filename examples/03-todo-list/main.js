@@ -22,10 +22,16 @@ class TodoItem extends Component {
         </li>
     `;
 
-    /** @type {Object<string, any>} */
     refsAnnotation = {
         removeBtn: HTMLButtonElement.prototype,
     };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     connectedCallback() {
         // Self-removal: the component removes itself from the DOM and parent slot logic
@@ -59,11 +65,17 @@ class TodoApp extends Component {
         </div>
     `;
 
-    /** @type {Object<string, any>} */
     refsAnnotation = {
         taskInput: HTMLInputElement.prototype,
         addBtn: HTMLButtonElement.prototype,
     };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     connectedCallback() {
         const refs = this.getRefs();

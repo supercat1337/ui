@@ -14,10 +14,16 @@ class Header extends Component {
         </div>
     `;
 
-    /** @type {Object<string, any>} */
     refsAnnotation = {
         refreshBtn: HTMLButtonElement.prototype
     };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     connectedCallback() {
         const refs = this.getRefs();

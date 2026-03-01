@@ -14,27 +14,27 @@ class CounterApp extends Component {
         <div class="card shadow" style="width: 22rem;">
             <div class="card-body text-center">
                 <h5 class="card-title text-muted mb-4">Interactive Counter</h5>
-                
-                <div class="display-2 fw-bold mb-4 text-primary" data-ref="counterDisplay">
-                    0
-                </div>
+
+                <div class="display-2 fw-bold mb-4 text-primary" data-ref="counterDisplay">0</div>
 
                 <div class="input-group mb-4">
                     <span class="input-group-text">Step:</span>
-                    <input type="number" class="form-control" data-ref="stepInput" value="1" min="1">
+                    <input
+                        type="number"
+                        class="form-control"
+                        data-ref="stepInput"
+                        value="1"
+                        min="1"
+                    />
                 </div>
 
                 <div class="d-grid gap-2 d-md-flex justify-content-center">
-                    <button class="btn btn-outline-danger px-4" data-ref="decBtn">
-                        &minus;
-                    </button>
-                    <button class="btn btn-outline-success px-4" data-ref="incBtn">
-                        &plus;
-                    </button>
+                    <button class="btn btn-outline-danger px-4" data-ref="decBtn">&minus;</button>
+                    <button class="btn btn-outline-success px-4" data-ref="incBtn">&plus;</button>
                 </div>
 
-                <hr class="my-4">
-                
+                <hr class="my-4" />
+
                 <button class="btn btn-link btn-sm text-decoration-none" data-ref="resetBtn">
                     Reset Counter
                 </button>
@@ -43,15 +43,21 @@ class CounterApp extends Component {
     `;
 
     /** * Annotate references for type safety and validation
-     * @type {Object<string, any>} 
      */
     refsAnnotation = {
         counterDisplay: HTMLDivElement.prototype,
         stepInput: HTMLInputElement.prototype,
         incBtn: HTMLButtonElement.prototype,
         decBtn: HTMLButtonElement.prototype,
-        resetBtn: HTMLButtonElement.prototype
+        resetBtn: HTMLButtonElement.prototype,
     };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     /**
      * Component Lifecycle: Setup event listeners
@@ -62,7 +68,7 @@ class CounterApp extends Component {
         // Attach event listeners using Scoped Refs
         refs.incBtn.addEventListener('click', () => this.#changeValue(true));
         refs.decBtn.addEventListener('click', () => this.#changeValue(false));
-        
+
         refs.resetBtn.addEventListener('click', () => {
             this.#count = 0;
             this.#updateUI();
@@ -71,14 +77,14 @@ class CounterApp extends Component {
 
     /**
      * Logic: Update the internal count based on the input step
-     * @param {boolean} increment 
+     * @param {boolean} increment
      */
     #changeValue(increment) {
         const refs = this.getRefs();
-        
+
         // Read value directly from the input element ref
         const step = parseInt(refs.stepInput.value) || 0;
-        
+
         this.#count += increment ? step : -step;
         this.#updateUI();
     }
@@ -89,10 +95,10 @@ class CounterApp extends Component {
     #updateUI() {
         const refs = this.getRefs();
         refs.counterDisplay.textContent = this.#count.toString();
-        
+
         // Add a small visual feedback
         refs.counterDisplay.style.transform = 'scale(1.1)';
-        setTimeout(() => refs.counterDisplay.style.transform = 'scale(1)', 100);
+        setTimeout(() => (refs.counterDisplay.style.transform = 'scale(1)'), 100);
     }
 }
 

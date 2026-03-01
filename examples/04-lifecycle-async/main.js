@@ -16,6 +16,14 @@ class UserCard extends Component {
         this.onRemove = onRemove;
     }
 
+    refsAnnotation = {
+        loader: HTMLDivElement.prototype,
+        content: HTMLDivElement.prototype,
+        name: HTMLHeadingElement.prototype,
+        email: HTMLParagraphElement.prototype,
+        deleteBtn: HTMLButtonElement.prototype,
+    };
+
     layout = () => html`
         <div class="card mb-3 border-0 shadow-sm">
             <div class="card-body d-flex align-items-center py-2">
@@ -36,14 +44,12 @@ class UserCard extends Component {
         </div>
     `;
 
-    /** @type {Object<string, any>} */
-    refsAnnotation = {
-        loader: HTMLDivElement.prototype,
-        content: HTMLDivElement.prototype,
-        name: HTMLHeadingElement.prototype,
-        email: HTMLParagraphElement.prototype,
-        deleteBtn: HTMLButtonElement.prototype,
-    };
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     async connectedCallback() {
         const refs = this.getRefs();
@@ -109,12 +115,18 @@ class App extends Component {
         </div>
     `;
 
-    /** @type {Object<string, any>} */
     refsAnnotation = {
+        counterInfo: HTMLSpanElement.prototype,
         addBtn: HTMLButtonElement.prototype,
         emptyMessage: HTMLDivElement.prototype,
-        counterInfo: HTMLSpanElement.prototype,
     };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
 
     connectedCallback() {
         const refs = this.getRefs();
