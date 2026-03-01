@@ -32,7 +32,7 @@ export class UserProfile extends Component {
 
     // Single source of truth for your UI
     layout = () => html`
-        <div data-component-root="${this.instanceId}" class="card">
+        <div class="card">
             <h5 data-ref="name">${this.data.name}</h5>
             <button data-ref="btn">Follow</button>
         </div>

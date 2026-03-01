@@ -13,7 +13,7 @@ export class UserProfile extends Component {
 
     // This layout is used both by SSR string generator and Client mounting
     layout = () => html`
-        <div data-component-root="${this.instanceId}" class="card shadow-sm" style="width: 18rem;">
+        <div class="card shadow-sm" style="width: 18rem;">
             <div class="card-body text-center">
                 <h5 class="card-title" data-ref="userName">${this.data.name}</h5>
                 <p class="text-muted" data-ref="userRole">${this.data.role}</p>
@@ -21,11 +21,24 @@ export class UserProfile extends Component {
             </div>
         </div>
     `;
+
+    refsAnnotation = {
+        userName: HTMLHeadingElement.prototype,
+        userRole: HTMLParagraphElement.prototype,
+        followBtn: HTMLButtonElement.prototype,
+    };
+
+    /**
+     * @returns {this['refsAnnotation']}
+     */
+    getRefs() {
+        return super.getRefs();
+    }
+
     connectedCallback() {
         if (this.isServer) return;
 
         const refs = this.getRefs();
-
         refs.followBtn.onclick = () => {
             refs.followBtn.classList.replace('btn-outline-primary', 'btn-success');
             refs.followBtn.textContent = 'Following';
