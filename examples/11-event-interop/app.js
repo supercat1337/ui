@@ -15,7 +15,6 @@ export class App extends Component {
 
         // 2. Subscribe to its internal emitter directly
         sender.on('custom-event', (/** @type {{text:string, time:string}} */ data) => {
-            console.log(data);
             this.state.log.push(`Received: ${data.text} at ${data.time}`);
             this.update();
         });

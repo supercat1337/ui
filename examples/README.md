@@ -1,174 +1,73 @@
-## 🚀 Examples Gallery
+# 🚀 Component Library Examples
 
-Each example is a self-contained project demonstrating a specific feature of the library.
+This directory contains a curated set of examples designed to demonstrate the power, flexibility, and performance of the library. Each example focuses on a specific core concept, moving from basic UI rendering to advanced architectural patterns.
 
-| Folder                   | Name                    | Key Concept                                                  |
-| ------------------------ | ----------------------- | ------------------------------------------------------------ |
-| `01-layout-diversity`    | **Layout Diversity**    | Using Strings, Functions, and DOM Nodes as layouts.          |
-| `02-interactive-counter` | **Interactive Counter** | State management, event handling, and `getRefs()`.           |
-| `03-todo-list`           | **Todo List**           | Complex state, arrays, and dynamic re-rendering.             |
-| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data and using `connectedCallback` for async tasks. |
-| `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.    |
-| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.         |
-| `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.    |
-| `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.         |
-| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.    |
-| `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and adoptedStyleSheets.     |
+## 📋 Summary Table
 
----
-
-## 🌟 Featured: 06-ssr-generator
-
-This example demonstrates the **Isomorphic Architecture**. It allows you to use the exact same Component class to generate HTML on the server and then "hydrate" it in the browser.
-
-### 1. Universal Component (`UserProfile.js`)
-
-The component is designed to be "Environment Aware". It builds the structure everywhere, but only attaches logic in the browser.
-
-```javascript
-export class UserProfile extends Component {
-    constructor(data) {
-        super({ instanceId: `user-${data.id}` });
-        this.data = data;
-    }
-
-    // Universal Layout
-    layout = () => html`
-        <div data-component-root="${this.instanceId}" class="card">
-            <h5 data-ref="userName">${this.data.name}</h5>
-            <button data-ref="followBtn">Follow</button>
-        </div>
-    `;
-
-    connectedCallback() {
-        // Safe check for Server-Side Rendering
-        if (this.isServer) return;
-
-        // Browser-only interactive logic
-        this.getRefs().followBtn.onclick = () => alert('Hello from Browser!');
-    }
-}
-```
-
-### 2. The Server Generator (`server.js`)
-
-Uses `jsdom` to simulate the DOM in Node.js. It sets `window.isServer = true` to inform the library that we are in "String Generation Mode".
-
-```javascript
-import { JSDOM } from 'jsdom';
-import { UserProfile } from './UserProfile.js';
-
-const dom = new JSDOM('<!DOCTYPE html><html><body><div id="app"></div></body></html>');
-global.window = dom.window;
-global.document = dom.window.document;
-global.window.isServer = true; // Activate SSR mode
-
-const profile = new UserProfile({ id: 101, name: 'Alice' });
-profile.mount(document.getElementById('app'));
-
-// Result: Clean HTML string ready for the client
-const htmlOutput = document.getElementById('app').innerHTML;
-```
-
-### 3. Client-Side Hydration
-
-When the page loads, the library doesn't create new elements. It finds the `data-component-root` rendered by the server and simply connects the event listeners.
-
-```javascript
-// On the client
-const profile = new UserProfile({ id: 101, name: 'Alice' });
-profile.mount(document.getElementById('app'), 'hydrate');
-```
+| Folder                   | Name                    | Key Concept                                                                                               |
+| ------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `01-layout-diversity`    | **Layout Diversity**    | Using Strings, Functions, and DOM Nodes as layouts.                                                       |
+| `02-interactive-counter` | **Interactive Counter** | State management, event handling, and `getRefs()`.                                                        |
+| `03-todo-list`           | **Todo List**           | Complex state, arrays, and dynamic re-rendering.                                                          |
+| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data and using `connectedCallback` for async tasks.                                              |
+| `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.                                                 |
+| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.                                                      |
+| `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.                                                 |
+| `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.                                                      |
+| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.                                                 |
+| `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and `adoptedStyleSheets`.                                                |
+| `11-event-interop`       | **Event Interop**       | Direct component communication using `on`/`emit` and high-performance surgical DOM updates via `getRefs`. |
 
 ---
 
-## 🛠 How to run the examples
+## 🔍 Detailed Breakdown
 
-1. Navigate to the example folder:
+### 01-03: The Fundamentals
 
-```bash
-cd examples/06-ssr-generator
+- **Layout Diversity**: Learn the different ways to define your component's HTML. Whether you prefer template strings or direct DOM manipulation, the library stays out of your way.
+- **Interactive Counter**: The basics of reactivity. Understand how to bridge the gap between user actions (events) and component state.
+- **Todo List**: A deep dive into array rendering and dynamic updates.
 
-```
+### 04-06: Enterprise Features
 
-2. Install dependencies (for SSR):
+- **Lifecycle & Async**: Real-world apps need data. This example shows how to safely handle API calls within the component lifecycle.
+- **Client Hydration**: Perfect for performance-first apps. Learn how to take server-rendered HTML and "bring it to life" on the client.
+- **Isomorphic SSR**: Explore server-side rendering using Node.js. This ensures your app is SEO-friendly and fast to load.
+
+### 07-09: Optimization & Styling
+
+- **Lazy Loading**: Don't make users download what they don't see. Master dynamic imports and slot-based placeholders.
+- **CSS Strategies**: Compare modern **CSS Modules** in ESM with **Native CSSOM** manipulation via `adoptedStyleSheets`.
+
+### 10-11: Advanced Architecture
+
+- **Component Theming**: Learn how to build a design system by using CSS modifiers to create multiple visual variations of a single JS component.
+- **Event Interop**: The "Grand Finale." See how components communicate using the built-in `on`/`emit` system, and learn how to perform surgical DOM updates for maximum performance without full re-renders.
+
+---
+
+## 🛠️ How to Run
+
+1. **Install dependencies** in the root directory:
 
 ```bash
 npm install
 
 ```
 
-3. Run the server:
+2. **Serve the examples**:
+   Most examples can be viewed by running a local development server (like `live-server` or `vite`):
 
 ```bash
-node server.js
+npx serve .
 
 ```
 
-4. Open the generated `index.html` in your browser.
+3. **For SSR examples (06)**:
+   Navigate to the specific folder and run the Node.js script:
 
-## Typing your Components
+```bash
+cd 06-ssr-generator
+node generate.js
 
-The `Component` class provides powerful typing for your DOM references (`data-ref`). You can choose between **Static-only typing** (for IDE autocompletion) or **Full typing** (Static + Runtime validation).
-
-### 1. Static Typing (JSDoc only)
-
-Use this approach if you only want IDE autocompletion and want to keep your JavaScript bundle as small as possible. This does not perform any checks at runtime.
-
-To achieve this, define the types in the `@extends` block:
-
-```javascript
-/**
- * @extends {Component<{
- * submitBtn: HTMLButtonElement,
- * userName: HTMLInputElement
- * }>}
- */
-class SimpleForm extends Component {
-    connectedCallback() {
-        const refs = this.getRefs();
-        // IDE knows submitBtn is an HTMLButtonElement
-        refs.submitBtn.disabled = true;
-    }
-}
 ```
-
-### 2. Full Typing (Static + Runtime Validation)
-
-Use this approach to ensure your HTML structure perfectly matches your JavaScript logic. By defining `refsAnnotation`, the component will automatically validate that all elements exist and are of the correct type during the `getRefs()` call.
-
-```javascript
-class UserCard extends Component {
-    /**
-     * Define refs for both IDE autocompletion and Runtime validation.
-     * You can use either .prototype or the Constructor directly.
-     */
-    refsAnnotation = {
-        avatar: HTMLImageElement.prototype,
-        name: HTMLHeadingElement.prototype,
-        bio: HTMLParagraphElement.prototype,
-        followBtn: HTMLButtonElement, // Constructor works too!
-    };
-
-    connectedCallback() {
-        // Validation happens inside getRefs()
-        const refs = this.getRefs();
-
-        // If 'avatar' was actually a <div> in HTML,
-        // a descriptive Type Error would be thrown here.
-        refs.avatar.src = 'user.jpg';
-        refs.followBtn.onclick = () => this.follow();
-    }
-}
-```
-
----
-
-### Summary Table
-
-| Feature                | Static Typing      | Full Typing                     |
-| ---------------------- | ------------------ | ------------------------------- |
-| **IDE Autocomplete**   | ✅ Yes             | ✅ Yes                          |
-| **Runtime Validation** | ❌ No              | ✅ Yes                          |
-| **Setup**              | JSDoc `@extends`   | Class property `refsAnnotation` |
-| **Best for**           | Simple UI elements | Complex business logic & Forms  |
