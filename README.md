@@ -224,8 +224,6 @@ The library comes packed with high-performance utilities to handle common UI tas
 2. **Standardized UI**: Buttons, spinners, and pagination look and behave consistently.
 3. **Low-Level Access**: Functions like `delegateEvent` show that the library understands browser performance at a deep level.
 
-**Should we add one final example (Example 12) to the folder that showcases these "Utility Belt" functions in action?**
-
 ## ⚖️ License
 
 MIT
