@@ -1,0 +1,23 @@
+/* Base component styles */
+.universal-card {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+    margin-bottom: 1rem;
+    font-family: sans-serif;
+    transition: all 0.3s ease;
+}
+
+/* Modifier: Light Theme */
+.universal-card.is-light {
+    background-color: #ffffff;
+    color: #333333;
+    border-color: #dddddd;
+}
+
+/* Modifier: Dark Theme */
+.universal-card.is-dark {
+    background-color: #212529;
+    color: #f8f9fa;
+    border-color: #495057;
+}

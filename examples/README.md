@@ -12,7 +12,8 @@ Each example is a self-contained project demonstrating a specific feature of the
 | `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.         |
 | `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.    |
 | `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.         |
-| `09-native-css-scripts`  | Native CSS Scripts      | High-performance styling with manual class-based scoping.    |
+| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.    |
+| `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and adoptedStyleSheets.     |
 
 ---
 

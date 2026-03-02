@@ -1405,7 +1405,7 @@ var Component = class {
    * @param {...any} args - The arguments to be passed to the event handlers.
    */
   emit(event, ...args) {
-    return this.$internals.eventEmitter.emit(event, this, ...args);
+    return this.$internals.eventEmitter.emit(event, ...args, this);
   }
   /**
    * Attaches an event listener to the specified element.

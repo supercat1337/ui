@@ -1,0 +1,6 @@
+.card {
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    transition: transform 0.2s;
+}
