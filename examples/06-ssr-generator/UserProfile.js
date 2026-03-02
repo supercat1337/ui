@@ -28,13 +28,6 @@ export class UserProfile extends Component {
         followBtn: HTMLButtonElement.prototype,
     };
 
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
-
     connectedCallback() {
         if (this.isServer) return;
 

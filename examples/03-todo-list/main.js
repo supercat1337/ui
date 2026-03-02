@@ -26,13 +26,6 @@ class TodoItem extends Component {
         removeBtn: HTMLButtonElement.prototype,
     };
 
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
-
     connectedCallback() {
         // Self-removal: the component removes itself from the DOM and parent slot logic
         this.getRefs().removeBtn.onclick = () => this.unmount();
@@ -69,13 +62,6 @@ class TodoApp extends Component {
         taskInput: HTMLInputElement.prototype,
         addBtn: HTMLButtonElement.prototype,
     };
-
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
 
     connectedCallback() {
         const refs = this.getRefs();

@@ -44,6 +44,19 @@ export class SlotManager {
     }
 
     /**
+     * 
+     * @param {string} slotName 
+     * @returns {HTMLElement|null}
+     */
+    getSlotElement(slotName) {
+        if (!this.#component.isConnected) {
+            return null;
+        }
+
+        return this.#component.$internals.scopeRefs[slotName] || null
+    }
+
+    /**
      * Checks if the given slot name exists in the component.
      * @param {string} slotName - The name of the slot to check.
      * @returns {boolean} True if the slot exists, false otherwise.

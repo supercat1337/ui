@@ -13,7 +13,7 @@
         "stripInternal": false
     },
     "include": [
-        "./index.js"
+        "./dist/ui.esm.js"
     ],
     "exclude": []
 }

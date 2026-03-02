@@ -53,13 +53,6 @@ class CounterApp extends Component {
     };
 
     /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
-
-    /**
      * Component Lifecycle: Setup event listeners
      */
     connectedCallback() {

@@ -1,9 +1,17 @@
 // @ts-check
+// import { Component, html } from '../../dist/ui.esm.js'; 
 import { Component, html } from '../../dist/ui.bundle.esm.js'; // '@supercat1337/ui';
 
 /**
  * UserCard Component
  * Fetches user data and handles self-cleanup.
+ * @extends {Component<{
+ * loader: HTMLDivElement,
+ * content: HTMLDivElement,
+ * name: HTMLHeadingElement,
+ * email: HTMLParagraphElement,
+ * deleteBtn: HTMLButtonElement
+ * }>}
  */
 class UserCard extends Component {
     /**
@@ -43,13 +51,6 @@ class UserCard extends Component {
             </div>
         </div>
     `;
-
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
 
     async connectedCallback() {
         const refs = this.getRefs();
@@ -121,12 +122,6 @@ class App extends Component {
         emptyMessage: HTMLDivElement.prototype,
     };
 
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
 
     connectedCallback() {
         const refs = this.getRefs();

@@ -6,8 +6,7 @@ import { Component } from '../../dist/ui.bundle.esm.js'; // '@supercat1337/ui';
  * Attaches to existing DOM structure instead of creating a new one.
  */
 class HydratedWidget extends Component {
-    /** * @type {Object<string, any>} 
-     */
+
     refsAnnotation = {
         title: HTMLHeadingElement.prototype,
         status: HTMLSpanElement.prototype,

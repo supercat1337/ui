@@ -707,6 +707,17 @@ var SlotManager = class {
     return this.slots.get(slotName) || null;
   }
   /**
+   * 
+   * @param {string} slotName 
+   * @returns {HTMLElement|null}
+   */
+  getSlotElement(slotName) {
+    if (!this.#component.isConnected) {
+      return null;
+    }
+    return this.#component.$internals.scopeRefs[slotName] || null;
+  }
+  /**
    * Checks if the given slot name exists in the component.
    * @param {string} slotName - The name of the slot to check.
    * @returns {boolean} True if the slot exists, false otherwise.
@@ -1224,7 +1235,7 @@ var Component = class {
   $internals = new Internals();
   /** @type {LayoutFunction|string|null|Node} */
   layout = null;
-  /** @type {import("dom-scope").RefsAnnotation|undefined} */
+  /** @type {T} */
   refsAnnotation;
   #isConnected = false;
   slotManager = new SlotManager(this);
@@ -1291,54 +1302,9 @@ var Component = class {
     this.$internals.textUpdateFunction = func;
   }
   /**
-   * @returns {Element|null}
-   */
-  #loadTemplate() {
-    if (!this.layout) return null;
-    let template;
-    if (typeof this.layout === "function") {
-      let returnValue = this.layout(this);
-      if (returnValue instanceof window.Node) {
-        template = returnValue;
-      } else if (typeof returnValue === "string") {
-        template = html(returnValue);
-      } else {
-        throw new Error(
-          `Invalid layout function return type: must be a Node or a string. Got ${typeof returnValue}.`
-        );
-      }
-    } else if (typeof this.layout === "string") {
-      template = html(this.layout.trim());
-    } else {
-      throw new Error(
-        `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
-      );
-    }
-    if (template.nodeType === window.Node.ELEMENT_NODE) {
-      return (
-        /** @type {Element} */
-        template
-      );
-    }
-    if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
-      if (template.firstChild && template.firstChild.nodeType === window.Node.ELEMENT_NODE && template.childNodes.length === 1) {
-        return (
-          /** @type {Element} */
-          template.firstChild
-        );
-      }
-    }
-    let container = window.document.createElement("html-fragment");
-    container.appendChild(template);
-    return (
-      /** @type {Element} */
-      container
-    );
-  }
-  /**
    * Sets the layout of the component by assigning the template content.
    * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-   * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+   * @param {T} [annotation] - An array of strings representing the names of the refs.
    * The function is called with the component instance as the this value.
    */
   setLayout(layout, annotation) {
@@ -1351,7 +1317,7 @@ var Component = class {
    * Sets the renderer for the component by assigning the template content.
    * This is a synonym for setLayout.
    * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-   * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+   * @param {T} [annotation] - An array of strings representing the names of the refs.
    * The function is called with the component instance as the this value.
    */
   setRenderer(layout, annotation) {
@@ -1362,13 +1328,16 @@ var Component = class {
    * Returns the refs object.
    * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
    * The refs object is only available after the component has been connected to the DOM.
-   * @returns {any} The refs object.
+   * @returns {typeof this["refsAnnotation"]}
    */
   getRefs() {
     if (!this.#isConnected) {
       throw new Error("Component is not connected to the DOM");
     }
-    return this.$internals.refs;
+    return (
+      /** @type {any} */
+      this.$internals.refs
+    );
   }
   /**
    * Returns the ref element with the given name.
@@ -1931,9 +1900,9 @@ var Component = class {
 var SlotToggler = class {
   #isDestroyed = false;
   /** @type {string[]} */
-  slotNames;
+  #slotNames;
   /** @type {string} */
-  activeSlotName;
+  #activeSlotName;
   /** @type {Component} */
   component;
   /**
@@ -1943,43 +1912,65 @@ var SlotToggler = class {
    * @param {string} activeSlotName - The name of the slot that is currently active.
    */
   constructor(component, slotNames, activeSlotName) {
-    let slotManager = component.slotManager;
-    for (let i = 0; i < slotNames.length; i++) {
-      if (!slotManager.hasSlot(slotNames[i])) {
-        throw new Error(`Slot ${slotNames[i]} does not exist in component`);
+    this.component = component;
+    this.#slotNames = slotNames.slice();
+    this.#activeSlotName = activeSlotName;
+  }
+  get slotNames() {
+    return this.#slotNames;
+  }
+  get activeSlotName() {
+    return this.#activeSlotName;
+  }
+  init() {
+    for (let i = 0; i < this.#slotNames.length; i++) {
+      if (this.#slotNames[i] != this.activeSlotName) {
+        let slotElement2 = this.component.slotManager.getSlotElement(this.#slotNames[i]);
+        if (slotElement2) {
+          hideElements(slotElement2);
+        }
+        this.component.slotManager.unmountSlot(this.#slotNames[i]);
       }
     }
-    this.component = component;
-    this.slotNames = slotNames.slice();
-    this.activeSlotName = activeSlotName;
+    this.component.slotManager.mountSlot(this.activeSlotName);
+    let slotElement = this.component.slotManager.getSlotElement(this.activeSlotName);
+    if (slotElement) {
+      showElements(slotElement);
+    }
   }
   /**
    * Toggles the active slot to the given slot name.
    * Removes the previously active slot, defines all slots, mounts the children of the given slot name, and sets the given slot name as the active slot.
    * @param {string} slotName - The name of the slot to toggle to.
    */
+  /**
+   * Toggles the active slot to the given slot name.
+   * @param {string} slotName - The name of the slot to activate.
+   */
   toggle(slotName) {
-    if (this.#isDestroyed) {
+    if (this.#isDestroyed || !this.component) {
       throw new Error("SlotToggler is destroyed");
     }
-    if (this.slotNames.indexOf(slotName) === -1) {
-      throw new Error(`Slot ${slotName} is not defined in SlotToggler`);
+    if (!this.#slotNames.includes(slotName)) {
+      throw new Error(`Slot "${slotName}" is not defined in this SlotToggler`);
     }
-    if (slotName == this.activeSlotName) return;
-    for (let i = 0; i < this.slotNames.length; i++) {
-      if (this.slotNames[i] == slotName) {
-        this.component.slotManager.mountSlot(slotName);
-        this.activeSlotName = slotName;
-      } else {
-        this.component.slotManager.unmountSlot(this.slotNames[i]);
-      }
+    if (slotName === this.#activeSlotName) return;
+    const sm = this.component.slotManager;
+    if (this.#activeSlotName) {
+      sm.unmountSlot(this.#activeSlotName);
+      const prevElement = sm.getSlotElement(this.#activeSlotName);
+      if (prevElement) hideElements(prevElement);
     }
+    sm.mountSlot(slotName);
+    this.#activeSlotName = slotName;
+    const nextElement = sm.getSlotElement(this.#activeSlotName);
+    if (nextElement) showElements(nextElement);
   }
   destroy() {
     this.#isDestroyed = true;
     this.component = null;
-    this.slotNames = [];
-    this.activeSlotName = "";
+    this.#slotNames = [];
+    this.#activeSlotName = "";
   }
 };
 export {

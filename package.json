@@ -5,24 +5,37 @@
     "license": "MIT",
     "author": "SuperCat1337",
     "type": "module",
-    "main": "index.js",
+    "main": "dist/ui.esm.js",
     "homepage": "https://github.com/supercat1337/ui",
     "repository": {
         "url": "git+https://github.com/supercat1337/ui.git"
     },
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/ui.esm.d.ts",
+                "default": "./dist/ui.esm.js"
+            },
+            "browser": {
+                "types": "./dist/ui.bundle.esm.d.ts",
+                "default": "./dist/ui.bundle.esm.js"
+            }
+        }
+    },
     "scripts": {
-        "build": "npm run remove_type_files && npm run build_esm && npm run build_bundle_esm && npm run build_bundle_esm_min && npm run create_types",
-        "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
-        "build_bundle_esm": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.js",
+        "build": "npm run clean && npm run build_esm && npm run build_bundle_esm && npm run build_bundle_esm_min && npm run create_types",
+        "clean": "shx rm -rf ./dist && shx mkdir ./dist",
         "build_esm": "rollup ./src/index.js --file ./dist/ui.esm.js --format es",
-        "create_types": "npx -p typescript tsc --project my.tsconfig.types.json",
-        "remove_type_files": "del /q *.d.ts *.d.ts.map && cd dist && del /s /q *.d.ts *.d.ts.map && cd .."
+        "build_bundle_esm": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.js",
+        "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
+        "create_types": "tsc --project my.tsconfig.types.json && shx cp ./dist/ui.esm.d.ts ./dist/ui.bundle.esm.d.ts"
     },
     "dependencies": {
         "@supercat1337/event-emitter": "^2.0.0",
         "dom-scope": "^2.0.2"
     },
     "devDependencies": {
-        "jsdom": "^28.1.0"
+        "jsdom": "^28.1.0",
+        "shx": "^0.4.0"
     }
 }

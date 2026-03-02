@@ -18,13 +18,6 @@ class Header extends Component {
         refreshBtn: HTMLButtonElement.prototype
     };
 
-    /**
-     * @returns {this['refsAnnotation']}
-     */
-    getRefs() {
-        return super.getRefs();
-    }
-
     connectedCallback() {
         const refs = this.getRefs();
         

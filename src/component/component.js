@@ -42,6 +42,9 @@ function onDisconnectDefault(component) {
     }
 }
 
+/**
+ * @template {import("dom-scope").RefsAnnotation} [T=any]
+ */
 export class Component {
     /** @type {Internals} */
     $internals = new Internals();
@@ -49,7 +52,7 @@ export class Component {
     /** @type {LayoutFunction|string|null|Node} */
     layout = null;
 
-    /** @type {import("dom-scope").RefsAnnotation|undefined} */
+    /** @type {T} */
     refsAnnotation;
 
     #isConnected = false;
@@ -133,57 +136,9 @@ export class Component {
     }
 
     /**
-     * @returns {Element|null}
-     */
-    #loadTemplate() {
-        if (!this.layout) return null;
-
-        /** @type {Node} */
-        let template;
-
-        if (typeof this.layout === 'function') {
-            let returnValue = this.layout(this);
-
-            if (returnValue instanceof window.Node) {
-                template = returnValue;
-            } else if (typeof returnValue === 'string') {
-                template = html(returnValue);
-            } else {
-                throw new Error(
-                    `Invalid layout function return type: must be a Node or a string. Got ${typeof returnValue}.`
-                );
-            }
-        } else if (typeof this.layout === 'string') {
-            template = html(this.layout.trim());
-        } else {
-            throw new Error(
-                `Invalid layout type: must be a function or a string. Got ${typeof this.layout}.`
-            );
-        }
-
-        if (template.nodeType === window.Node.ELEMENT_NODE) {
-            return /** @type {Element} */ (template);
-        }
-
-        if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
-            if (
-                template.firstChild &&
-                template.firstChild.nodeType === window.Node.ELEMENT_NODE &&
-                template.childNodes.length === 1
-            ) {
-                return /** @type {Element} */ (template.firstChild);
-            }
-        }
-
-        let container = window.document.createElement('html-fragment');
-        container.appendChild(template);
-        return /** @type {Element} */ (container);
-    }
-
-    /**
      * Sets the layout of the component by assigning the template content.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
     setLayout(layout, annotation) {
@@ -198,7 +153,7 @@ export class Component {
      * Sets the renderer for the component by assigning the template content.
      * This is a synonym for setLayout.
      * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
-     * @param {import("dom-scope").RefsAnnotation} [annotation] - An array of strings representing the names of the refs.
+     * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
     setRenderer(layout, annotation) {
@@ -211,14 +166,14 @@ export class Component {
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
      * The refs object is only available after the component has been connected to the DOM.
-     * @returns {any} The refs object.
+     * @returns {typeof this["refsAnnotation"]}
      */
     getRefs() {
         if (!this.#isConnected) {
             throw new Error('Component is not connected to the DOM');
         }
 
-        return this.$internals.refs;
+        return /** @type {any} */ (this.$internals.refs);
     }
 
     /**
@@ -232,6 +187,8 @@ export class Component {
         if (!(refName in refs)) {
             throw new Error(`Ref "${refName}" does not exist`);
         }
+
+        // @ts-ignore
         return refs[refName];
     }
 

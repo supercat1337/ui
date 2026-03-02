@@ -1,3 +1,5 @@
+// @ts-check
+
 export class Toggler {
     /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
     items = new Map();
