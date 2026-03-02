@@ -11,6 +11,8 @@ Each example is a self-contained project demonstrating a specific feature of the
 | `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.    |
 | `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.         |
 | `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.    |
+| `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.         |
+| `09-native-css-scripts`  | Native CSS Scripts      | High-performance styling with manual class-based scoping.    |
 
 ---
 

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>CSS Modules & Encapsulation</title>
+        <style>
+            /* Global styles for the page layout */
+            body {
+                font-family: system-ui, sans-serif;
+                padding: 40px;
+                background-color: #f0f2f5;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            }
+            .button-group {
+                display: flex;
+                gap: 10px;
+                margin-top: 20px;
+            }
+        </style>
+
+        <script type="importmap">
+            {
+                "imports": {
+                    "@supercat1337/ui": "../../dist/ui.bundle.esm.js"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="app"></div>
+
+        <script type="module">
+            import { App } from './App.js';
+
+            // Initialize and mount the application
+            const app = new App();
+            app.mount(document.getElementById('app'));
+        </script>
+    </body>
+</html>

@@ -10,12 +10,22 @@
             integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
             crossorigin="anonymous"
         />
+        <script type="importmap">
+            {
+                "imports": {
+                    "@supercat1337/ui": "../../dist/ui.bundle.esm.js"
+                }
+            }
+        </script>
         <style>
-            html, body { height: 100%; margin: 0; }
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+            }
             /* Flexbox utilities from Bootstrap will handle centering in the body */
         </style>
     </head>
-    <body class="d-flex justify-content-center align-items-center bg-light">
-        </body>
+    <body class="d-flex justify-content-center align-items-center bg-light"></body>
     <script type="module" src="./main.js" async></script>
 </html>

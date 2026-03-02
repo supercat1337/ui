@@ -1,5 +1,5 @@
 // @ts-check
-import { Component, html } from '../../dist/ui.bundle.esm.js';
+import { Component, html } from '@supercat1337/ui';
 
 export class UserProfile extends Component {
     /**

@@ -1,16 +1,15 @@
 // @ts-check
-import { Component } from '../../dist/ui.bundle.esm.js'; // '@supercat1337/ui';
+import { Component } from '@supercat1337/ui';
 
 /**
  * HydratedWidget Component
  * Attaches to existing DOM structure instead of creating a new one.
  */
 class HydratedWidget extends Component {
-
     refsAnnotation = {
         title: HTMLHeadingElement.prototype,
         status: HTMLSpanElement.prototype,
-        actionBtn: HTMLButtonElement.prototype
+        actionBtn: HTMLButtonElement.prototype,
     };
 
     /**
@@ -21,7 +20,7 @@ class HydratedWidget extends Component {
 
         refs.actionBtn.onclick = () => {
             refs.title.textContent = 'Client Logic Attached! ⚡';
-            
+
             refs.status.textContent = 'Active';
             refs.status.className = 'badge bg-success';
 
@@ -38,10 +37,10 @@ class HydratedWidget extends Component {
 const existingNode = document.body;
 
 if (existingNode instanceof HTMLElement) {
-    // We pass the instanceId matching the data-component-root value if needed, 
+    // We pass the instanceId matching the data-component-root value if needed,
     // or simply mount to the target element.
-    const widget = new HydratedWidget({instanceId: "user-profile"});
-    
+    const widget = new HydratedWidget({ instanceId: 'user-profile' });
+
     /**
      * HYDRATE MODE:
      * 1. Scans the existingNode for [data-ref].

@@ -1,5 +1,5 @@
 // @ts-check
-import { Component, html } from '../../dist/ui.bundle.esm.js'; // '@supercat1337/ui';
+import { Component, html } from '@supercat1337/ui';
 
 /**
  * CounterApp Component

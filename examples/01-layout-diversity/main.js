@@ -1,5 +1,5 @@
 // @ts-check
-import { Component, html } from '../../dist/ui.bundle.esm.js'; // '@supercat1337/ui';
+import { Component, html } from '@supercat1337/ui';
 
 /**
  * Header component – demonstrates static HTML with action button.
@@ -15,12 +15,12 @@ class Header extends Component {
     `;
 
     refsAnnotation = {
-        refreshBtn: HTMLButtonElement.prototype
+        refreshBtn: HTMLButtonElement.prototype,
     };
 
     connectedCallback() {
         const refs = this.getRefs();
-        
+
         // Simple page reload logic
         refs.refreshBtn.addEventListener('click', () => {
             window.location.reload();
@@ -36,12 +36,8 @@ class DynamicBody extends Component {
     layout = () => html`
         <div class="p-4 bg-white border rounded shadow-sm text-center">
             <p class="mb-1">This content is dynamically generated:</p>
-            <code class="d-block mb-3 text-danger">
-                ${new Date().toLocaleTimeString()}
-            </code>
-            <p class="small text-muted mb-0">
-                It re-evaluates every time the layout is called.
-            </p>
+            <code class="d-block mb-3 text-danger"> ${new Date().toLocaleTimeString()} </code>
+            <p class="small text-muted mb-0">It re-evaluates every time the layout is called.</p>
         </div>
     `;
 }
@@ -73,7 +69,7 @@ class LayoutDemo extends Component {
 
     constructor() {
         super();
-        
+
         // Compose the UI structure
         this.addComponentToSlot('header-slot', new Header());
         this.addComponentToSlot('body-slot', new DynamicBody());
