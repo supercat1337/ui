@@ -3,7 +3,7 @@
 import { checkRefs, selectRefsExtended, walkDomScope } from 'dom-scope';
 import { SlotManager } from './slot-manager.js';
 import { Internals } from './internals.js';
-import { html } from '../utils/utils.js';
+import { resolveLayout } from './helpers.js';
 
 /**
  * @typedef {(component: any) => Node|string} LayoutFunction
@@ -11,6 +11,21 @@ import { html } from '../utils/utils.js';
 
 /**
  * @typedef {(component: Component) => void} _TextUpdateFunction
+ */
+
+/**
+ * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
+ */
+
+/**
+ * @typedef {Object} TeleportConfig
+ * @property {() => DocumentFragment} layout - Функция, возвращающая фрагмент разметки для телепорта.
+ * @property {Element | string | (() => Element | null)} target - Целевой элемент, селектор или функция, возвращающая элемент.
+ * @property {TeleportStrategy} [strategy] - Стратегия вставки (по умолчанию "append").
+ */
+
+/**
+ * @typedef {Object.<string, TeleportConfig>} TeleportList
  */
 
 /**
@@ -51,6 +66,11 @@ export class Component {
 
     /** @type {LayoutFunction|string|null|Node} */
     layout = null;
+
+    /**
+     * @type {TeleportList}
+     */
+    teleports = {};
 
     /** @type {T} */
     refsAnnotation;
@@ -213,13 +233,28 @@ export class Component {
             throw new Error('Component is not connected to the DOM');
         }
 
-        let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
+        const allRoots =
+            this.$internals.additionalRoots.length > 0
+                ? [this.$internals.root, ...this.$internals.additionalRoots]
+                : [this.$internals.root];
 
-        let { refs, scopeRefs } = selectRefsExtended(componentRoot, null, {
+        let { refs, scopeRefs } = selectRefsExtended(allRoots, null, {
             scopeAttribute: ['data-slot', 'data-component-root'],
             refAttribute: 'data-ref',
             window,
         });
+
+        let rootRefs = {};
+        for (let i = 0; i < allRoots.length; i++) {
+            let root = allRoots[i];
+            let refName = root.getAttribute('data-ref');
+            if (refName) {
+                rootRefs[refName] = root;
+            }
+        }
+
+        refs = {...refs, ...rootRefs};
+
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
@@ -440,53 +475,7 @@ export class Component {
             return /** @type {Element} */ (this.#cachedElement.cloneNode(true));
         }
 
-        /** @type {Node} */
-        let template;
-
-        // 2. Resolve content
-        if (typeof layout === 'function') {
-            // Dynamic: always execute the function. Cannot be cached as a whole.
-            const returnValue = layout(this);
-            if (returnValue instanceof window.Node) {
-                template = returnValue;
-            } else if (typeof returnValue === 'string') {
-                template = html(returnValue);
-            } else {
-                throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
-            }
-        } else if (typeof layout === 'string') {
-            // Static: parse the string via the html helper
-            template = html(layout.trim());
-        } else if (layout instanceof window.Node) {
-            template = layout;
-        } else {
-            console.warn('Unsupported layout type:', typeof layout, layout);
-            throw new Error(`Unsupported layout type: ${typeof layout}`);
-        }
-
-        // 3. Normalization logic (Ensuring single root element)
-        /** @type {Element} */
-        let result;
-
-        if (template.nodeType === window.Node.ELEMENT_NODE) {
-            result = /** @type {Element} */ (template);
-        } else if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
-            const children = Array.from(template.childNodes).filter(
-                node =>
-                    node.nodeType === window.Node.ELEMENT_NODE ||
-                    (node.nodeType === window.Node.TEXT_NODE && node.textContent.trim() !== '')
-            );
-
-            if (children.length === 1 && children[0].nodeType === window.Node.ELEMENT_NODE) {
-                result = /** @type {Element} */ (children[0]);
-            } else {
-                result = document.createElement('html-fragment');
-                result.appendChild(template);
-            }
-        } else {
-            result = document.createElement('html-fragment');
-            result.appendChild(template);
-        }
+        const result = resolveLayout(layout, this);
 
         // 4. Set the data-component-root attribute
         if (this.instanceId && result.getAttribute('data-component-root') !== this.instanceId) {
@@ -548,6 +537,8 @@ export class Component {
             if (!componentRoot) {
                 throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
             }
+
+            this.#hydrateTeleports();
         } else {
             // --- STANDARD RENDER PATH ---
             // Get the fresh element from our optimized render()
@@ -557,6 +548,8 @@ export class Component {
             if (mode === 'replace') container.replaceChildren(componentRoot);
             else if (mode === 'append') container.append(componentRoot);
             else if (mode === 'prepend') container.prepend(componentRoot);
+
+            this.#mountTeleports();
         }
 
         // Finalize Connection
@@ -582,6 +575,8 @@ export class Component {
         this.slotManager.unmountAll();
 
         this.disconnect();
+
+        this.#cleanupTeleports();
         this.$internals.root?.remove();
 
         this.$internals.elementsToRemove.forEach(el => {
@@ -825,6 +820,140 @@ export class Component {
             return elements;
         } else {
             return elements.filter(el => el.matches(querySelector));
+        }
+    }
+
+    /**
+     * @param {string} name - Имя телепорта из объекта teleports
+     * @param {TeleportConfig} config - Конфигурация конкретного телепорта
+     * @returns {Element}
+     */
+    #renderTeleport(name, config) {
+        const result = resolveLayout(config.layout, this);
+
+        if (this.instanceId) {
+            result.setAttribute('data-component-root', this.instanceId);
+            result.setAttribute('data-component-teleport', name);
+        }
+
+        return result;
+    }
+
+    /**
+     * @param {string} name
+     * @param {Element} root
+     */
+    #registerRemoteRoot(name, root) {
+        if (!this.$internals.additionalRoots.includes(root)) {
+            this.$internals.additionalRoots.push(root);
+        }
+        this.$internals.teleportRoots.set(name, root);
+    }
+
+    #mountTeleports() {
+        if (!this.teleports) return;
+
+        for (const [name, config] of Object.entries(this.teleports)) {
+            // 1. Generate the UI fragment/element
+            this.#mountTeleport(name, config);
+        }
+    }
+
+    /**
+     * @param {string} name
+     * @param {TeleportConfig} config
+     */
+    #mountTeleport(name, config) {
+        const fragment = this.#renderTeleport(name, config);
+        const target =
+            typeof config.target === 'function' ? config.target.call(this) : config.target;
+
+        const rootElement = this.#insertToDOM(fragment, target, config.strategy);
+        this.#registerRemoteRoot(name, rootElement);
+    }
+
+    /**
+     * Mounts a fragment or element into a specified target using a given strategy.
+     * @param {Element|DocumentFragment} fragment - The content to insert (result of resolveLayout).
+     * @param {Element|string|(() => Element|null)} target - The destination: element, selector, or provider function.
+     * @param {"prepend"|"append"|"replace"} [strategy="append"] - The insertion strategy.
+     * @returns {Element|null} The root element of the inserted content.
+     */
+    #insertToDOM(fragment, target, strategy = 'append') {
+        /** @type {Element|null} */
+        let resolvedTarget = null;
+
+        // 1. Resolve the target location
+        if (typeof target === 'function') {
+            // Bind 'this' to the component instance so it can access props/state
+            resolvedTarget = target.call(this);
+        } else if (typeof target === 'string') {
+            resolvedTarget = document.querySelector(target);
+        } else if (target instanceof window.Element) {
+            resolvedTarget = target;
+        }
+
+        if (!resolvedTarget) {
+            throw new Error(
+                `[Mounting Error] Target element not found for strategy "${strategy}".`
+            );
+        }
+
+        // 2. Identify the root element for reference tracking
+        // If it's a DocumentFragment, we take the first child; if it's an Element, it is the root.
+        const rootElement =
+            fragment instanceof window.Element ? fragment : fragment.firstElementChild;
+
+        // 3. Execute DOM manipulation based on the chosen strategy
+        switch (strategy) {
+            case 'prepend':
+                resolvedTarget.prepend(fragment);
+                break;
+            case 'replace':
+                // Clears all children and inserts the new fragment
+                resolvedTarget.replaceChildren(fragment);
+                break;
+            case 'append':
+            default:
+                resolvedTarget.append(fragment);
+                break;
+        }
+
+        return rootElement;
+    }
+
+    #cleanupTeleports() {
+        // 1. Physically remove teleported elements from the DOM
+        for (const rootElement of this.$internals.teleportRoots.values()) {
+            rootElement.remove();
+        }
+
+        // 2. Clear the tracking collections
+        this.$internals.teleportRoots.clear();
+
+        // 3. Reset additional roots so updateRefs won't look for them anymore
+        this.$internals.additionalRoots = [];
+    }
+
+    /**
+     * Synchronizes already existing teleported nodes (SSR) with the component instance.
+     */
+    #hydrateTeleports() {
+        if (!this.teleports) return;
+
+        for (const [name, config] of Object.entries(this.teleports)) {
+            // Look for the specific teleport signature in the global DOM
+            const selector = `[data-component-root="${this.#instanceId}"][data-component-teleport="${name}"]`;
+            const existingTeleport = document.querySelector(selector);
+
+            if (existingTeleport) {
+                // Found it! Register it exactly like a freshly mounted one
+                this.#registerRemoteRoot(name, existingTeleport);
+            } else {
+                // Fallback: If for some reason SSR missed a teleport, mount it now
+                console.warn(`[Hydration] Teleport "${name}" not found in DOM. Mounting manually.`);
+                this.#mountTeleport(name, config);
+            }
         }
     }
 }

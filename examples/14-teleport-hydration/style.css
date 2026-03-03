@@ -1,0 +1,50 @@
+/* Main Layout Styles */
+.product-card {
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 300px;
+    text-align: center;
+}
+
+.btn-buy {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+/* Teleport (Popup) Styles */
+.notify-popup {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    
+    /* Hidden by default */
+    display: none;
+    z-index: 1000;
+}
+
+/* The state we toggle via JS */
+.notify-popup.is-visible {
+    display: block;
+}
+
+.notify-content p {
+    margin: 0 0 10px 0;
+}
+
+.notify-content button {
+    background: white;
+    color: #28a745;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-weight: bold;
+}

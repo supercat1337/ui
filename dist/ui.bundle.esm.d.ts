@@ -1,5 +1,23 @@
 export type LayoutFunction = (component: any) => Node | string;
 export type _TextUpdateFunction = (component: Component) => void;
+export type TeleportStrategy = "append" | "prepend" | "replace";
+export type TeleportConfig = {
+    /**
+     * - Функция, возвращающая фрагмент разметки для телепорта.
+     */
+    layout: () => DocumentFragment;
+    /**
+     * - Целевой элемент, селектор или функция, возвращающая элемент.
+     */
+    target: Element | string | (() => Element | null);
+    /**
+     * - Стратегия вставки (по умолчанию "append").
+     */
+    strategy?: TeleportStrategy;
+};
+export type TeleportList = {
+    [x: string]: TeleportConfig;
+};
 export type TextUpdateFunction = (component: Component) => void;
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
@@ -17,6 +35,10 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     $internals: Internals;
     /** @type {LayoutFunction|string|null|Node} */
     layout: LayoutFunction | string | null | Node;
+    /**
+     * @type {TeleportList}
+     */
+    teleports: TeleportList;
     /** @type {T} */
     refsAnnotation: T;
     slotManager: SlotManager;
@@ -637,6 +659,10 @@ declare class Internals {
     parentElement: Element | null;
     /** @type {Set<Element>} */
     elementsToRemove: Set<Element>;
+    /** @type {Map<string, Element>} */
+    teleportRoots: Map<string, Element>;
+    /** @type {Element[]} */
+    additionalRoots: Element[];
 }
 declare class SlotManager {
     /**

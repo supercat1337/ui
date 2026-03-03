@@ -1,7 +1,7 @@
 // @ts-check
 
-import { EventEmitter } from "@supercat1337/event-emitter";
-import { Component } from "./component.js";
+import { EventEmitter } from '@supercat1337/event-emitter';
+import { Component } from './component.js';
 
 /**
  * @typedef {(component: Component) => void} TextUpdateFunction
@@ -26,15 +26,19 @@ export class Internals {
         /** @type {Component|null} */
         this.parentComponent = null;
         /** @type {string} */
-        this.assignedSlotName = "";
+        this.assignedSlotName = '';
         /** @type {"replace"|"append"|"prepend"} */
-        this.mountMode = "replace";
+        this.mountMode = 'replace';
         /** @type {boolean} */
         this.cloneTemplateOnRender = true;
         /** @type {Element|null} */
         this.parentElement = null;
         /** @type {Set<Element>} */
         this.elementsToRemove = new Set();
+        /** @type {Map<string, Element>} */
+        this.teleportRoots = new Map();
+        /** @type {Element[]} */
+        this.additionalRoots = [];
     }
 
     static #instanceIdCounter = 0;
