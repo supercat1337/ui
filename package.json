@@ -28,14 +28,16 @@
         "build_esm": "rollup ./src/index.js --file ./dist/ui.esm.js --format es",
         "build_bundle_esm": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.js",
         "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
-        "create_types": "tsc --project my.tsconfig.types.json && shx cp ./dist/ui.esm.d.ts ./dist/ui.bundle.esm.d.ts"
+        "create_types": "tsc --project my.tsconfig.types.json && shx cp ./dist/ui.esm.d.ts ./dist/ui.bundle.esm.d.ts",
+        "examples": "live-server --open=./examples --watch=dist,examples"
     },
     "dependencies": {
         "@supercat1337/event-emitter": "^2.0.0",
-        "dom-scope": "^2.0.2"
+        "dom-scope": "^2.1.0"
     },
     "devDependencies": {
         "jsdom": "^28.1.0",
+        "live-server": "^1.2.0",
         "shx": "^0.4.0"
     }
 }

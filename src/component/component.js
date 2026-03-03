@@ -215,21 +215,21 @@ export class Component {
 
         let componentRoot = /** @type {HTMLElement} */ (this.$internals.root);
 
-        let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
-            scope_ref_attr_name: ['data-slot', 'data-component-root'],
-            ref_attr_name: 'data-ref',
+        let { refs, scopeRefs } = selectRefsExtended(componentRoot, null, {
+            scopeAttribute: ['data-slot', 'data-component-root'],
+            refAttribute: 'data-ref',
             window,
         });
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
 
-        for (let key in scope_refs) {
+        for (let key in scopeRefs) {
             this.slotManager.registerSlot(key);
         }
 
         this.$internals.refs = refs;
-        this.$internals.scopeRefs = scope_refs;
+        this.$internals.scopeRefs = scopeRefs;
     }
 
     /* Events */
@@ -802,9 +802,8 @@ export class Component {
                 }
             },
             {
-                includeRoot: false,
-                scope_ref_attr_name: ['data-slot', 'data-component-root'],
-                ref_attr_name: 'data-ref',
+                scopeAttribute: ['data-slot', 'data-component-root'],
+                refAttribute: 'data-ref',
                 window,
             }
         );

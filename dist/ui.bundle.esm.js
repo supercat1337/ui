@@ -380,192 +380,115 @@ html-fragment {
 }
 
 // node_modules/dom-scope/dist/dom-scope.esm.js
-var SCOPE_ATTR_NAME = "data-scope";
-var SCOPE_AUTO_NAME_PREFIX = "unnamed-scope";
-var REF_ATTR_NAME = "data-ref";
+var DEFAULT_SETTINGS = {
+  REF_ATTR: "data-ref",
+  SCOPE_ATTR: "data-scope",
+  AUTO_PREFIX: "unnamed-scope"
+};
 var ScopeConfig = class {
-  /** @type {string} */
-  ref_attr_name;
-  /** @type {string|string[]} */
-  scope_ref_attr_name;
-  /** @type {*} */
-  window;
-  /** @type {TypeIsScopeElement|null} */
-  isScopeElement;
-  /** @type {boolean} */
-  includeRoot;
-  /** @type {string} */
-  scope_auto_name_prefix;
-  constructor() {
-    this.ref_attr_name = REF_ATTR_NAME;
-    this.scope_ref_attr_name = SCOPE_ATTR_NAME;
-    this.window = globalThis.window;
-    this.isScopeElement = null;
-    this.includeRoot = false;
-    this.scope_auto_name_prefix = SCOPE_AUTO_NAME_PREFIX;
+  /** @param {import("./dom-scope.esm.d.ts").ScopeOptions} [options] */
+  constructor(options = {}) {
+    this.refAttribute = options.refAttribute ?? DEFAULT_SETTINGS.REF_ATTR;
+    this.scopeAttribute = options.scopeAttribute ?? DEFAULT_SETTINGS.SCOPE_ATTR;
+    this.window = options.window ?? (typeof globalThis !== "undefined" ? globalThis.window : void 0);
+    this.isScopeElement = options.isScopeElement ?? null;
+    this.scopeAutoNamePrefix = options.scopeAutoNamePrefix ?? DEFAULT_SETTINGS.AUTO_PREFIX;
   }
 };
-var defaultConfig = new ScopeConfig();
-function isScopeElement(element, config) {
-  var value = null;
-  if (!config) config = defaultConfig;
-  let scope_ref_attr_name = config.scope_ref_attr_name || [SCOPE_ATTR_NAME];
-  let isScopeElementFunc = config.isScopeElement;
-  if (isScopeElementFunc) {
-    value = isScopeElementFunc(element, config);
-  } else {
-    if (Array.isArray(scope_ref_attr_name)) {
-      for (let i = 0; i < scope_ref_attr_name.length; i++) {
-        value = element.getAttribute(scope_ref_attr_name[i]);
-        if (value !== null) break;
-      }
-    } else {
-      value = element.getAttribute(scope_ref_attr_name);
-    }
+var defaultInstance = new ScopeConfig();
+function isScopeElement(element, config = defaultInstance) {
+  if (config.isScopeElement) {
+    return config.isScopeElement(element, config);
   }
-  if (value === null) return null;
-  return value;
-}
-function createCustomConfig(options = {}) {
-  let config = new ScopeConfig();
-  config.includeRoot = options.hasOwnProperty("includeRoot") && typeof options.includeRoot !== "undefined" ? options.includeRoot : defaultConfig.includeRoot;
-  config.scope_auto_name_prefix = options.hasOwnProperty("scope_auto_name_prefix") && typeof options.scope_auto_name_prefix === "string" ? options.scope_auto_name_prefix : defaultConfig.scope_auto_name_prefix;
-  config.isScopeElement = options.hasOwnProperty("isScopeElement") && typeof options.isScopeElement !== "undefined" ? options.isScopeElement : defaultConfig.isScopeElement;
-  config.ref_attr_name = options.hasOwnProperty("ref_attr_name") && typeof options.ref_attr_name === "string" ? options.ref_attr_name : defaultConfig.ref_attr_name;
-  config.window = options.hasOwnProperty("window") && typeof options.window !== "undefined" ? options.window : defaultConfig.window;
-  if (options.hasOwnProperty("scope_ref_attr_name")) {
-    if (typeof options.scope_ref_attr_name === "string" || Array.isArray(options.scope_ref_attr_name)) {
-      config.scope_ref_attr_name = options.scope_ref_attr_name;
-    }
-  } else {
-    config.scope_ref_attr_name = defaultConfig.scope_ref_attr_name;
+  const attrs = Array.isArray(config.scopeAttribute) ? config.scopeAttribute : [config.scopeAttribute];
+  for (const attr of attrs) {
+    const value = element.getAttribute(attr);
+    if (value !== null) return value;
   }
-  return config;
+  return null;
 }
-function selectRefsExtended(root_element, custom_callback, options = {}) {
-  var refs = {};
-  var scope_refs = {};
-  var unnamed_scopes = [];
-  const config = createCustomConfig(options);
-  function callback(currentNode) {
-    var ref_name = currentNode.getAttribute(config.ref_attr_name);
-    if (ref_name != null) {
-      if (ref_name != "") {
-        if (!refs[ref_name]) {
-          refs[ref_name] = currentNode;
-        } else {
-          if (globalThis.window) {
-            console.warn(
-              `Element has reference #${ref_name} which is already used
-`,
-              `
-element: `,
-              currentNode,
-              `
-reference #${ref_name}: `,
-              refs[ref_name],
-              `
-scope root: `,
-              root_element
-            );
-          } else {
-            console.warn(`Element has reference #${ref_name} which is already used
-`);
-          }
-        }
-      }
-    }
-    if (currentNode != root_element) {
-      var ref_scope_name = isScopeElement(currentNode, config);
-      if (typeof ref_scope_name != "string") return;
-      if (ref_scope_name != "") {
-        if (!scope_refs[ref_scope_name]) {
-          scope_refs[ref_scope_name] = currentNode;
-        } else {
-          console.warn(
-            `scope #${ref_scope_name} is already used`,
-            globalThis.window ? currentNode : ""
-          );
-          unnamed_scopes.push(currentNode);
-        }
+function createConfig(options = {}) {
+  if (options instanceof ScopeConfig) return options;
+  return new ScopeConfig({ ...defaultInstance, ...options });
+}
+function selectRefsExtended(roots, customCallback = null, options = {}) {
+  const config = createConfig(options);
+  const refs = {};
+  const scopeRefs = {};
+  const unnamedScopes = [];
+  const rootList = Array.isArray(roots) ? roots : [roots];
+  const callback = (currentNode) => {
+    const refName = currentNode.getAttribute(config.refAttribute);
+    if (refName) {
+      if (!refs[refName]) {
+        refs[refName] = currentNode;
       } else {
-        unnamed_scopes.push(currentNode);
+        console.warn(`[Scope] Duplicate ref #${refName} found during multi-root scan.`);
       }
     }
-    if (custom_callback) custom_callback(currentNode);
-  }
-  if (config.includeRoot === true) {
-    if (root_element instanceof config.window.HTMLElement) {
-      refs.root = /** @type {HTMLElement} */
-      root_element;
-      if (custom_callback) {
-        custom_callback(
-          /** @type {HTMLElement} */
-          root_element
-        );
-      }
-    }
-  }
-  walkDomScope(root_element, callback, config);
-  var index = 0;
-  const SCOPE_AUTO_NAME_PREFIX2 = config.scope_auto_name_prefix;
-  unnamed_scopes.forEach((unnamed_scope_element) => {
-    while (scope_refs[SCOPE_AUTO_NAME_PREFIX2 + index.toString()]) {
-      index++;
-    }
-    scope_refs[SCOPE_AUTO_NAME_PREFIX2 + index.toString()] = unnamed_scope_element;
-  });
-  return { refs, scope_refs };
-}
-function walkDomScope(root_element, callback, options) {
-  const config = createCustomConfig(options);
-  function scope_filter(_node) {
-    var node = (
+    if (!rootList.includes(
       /** @type {HTMLElement} */
-      _node
-    );
-    var parentElement = node.parentElement;
-    if (parentElement && parentElement != root_element && isScopeElement(parentElement, config) !== null) {
-      return (
-        /* NodeFilter.FILTER_REJECT */
-        2
-      );
+      currentNode
+    )) {
+      const scopeName = isScopeElement(currentNode, config);
+      if (typeof scopeName === "string") {
+        if (scopeName !== "" && !scopeRefs[scopeName]) {
+          scopeRefs[scopeName] = currentNode;
+        } else {
+          unnamedScopes.push(currentNode);
+        }
+      }
     }
-    return (
-      /* NodeFilter.FILTER_ACCEPT */
-      1
-    );
+    if (customCallback) customCallback(currentNode);
+  };
+  walkDomScope(roots, callback, config);
+  let index = 0;
+  const prefix = config.scopeAutoNamePrefix;
+  for (const unnamedEl of unnamedScopes) {
+    while (scopeRefs[prefix + index]) index++;
+    scopeRefs[prefix + index] = unnamedEl;
   }
-  const tw = config.window.document.createTreeWalker(
-    root_element,
-    /* NodeFilter.SHOW_ELEMENT */
-    1,
-    scope_filter
-  );
-  var currentNode;
-  if (config.includeRoot === true) {
-    if (root_element instanceof config.window.HTMLElement) {
-      callback(
+  return { refs, scopeRefs };
+}
+function walkDomScope(roots, callback, options) {
+  const config = createConfig(options);
+  const win = config.window;
+  const rootList = Array.isArray(roots) ? roots : [roots];
+  for (const root of rootList) {
+    const filter = (node) => {
+      const el = (
         /** @type {HTMLElement} */
-        root_element
+        node
       );
+      if (rootList.includes(el)) return win.NodeFilter.FILTER_ACCEPT;
+      const parent = el.parentElement;
+      if (parent && !rootList.includes(parent) && isScopeElement(parent, config) !== null) {
+        return win.NodeFilter.FILTER_REJECT;
+      }
+      return win.NodeFilter.FILTER_ACCEPT;
+    };
+    const walker = win.document.createTreeWalker(root, win.NodeFilter.SHOW_ELEMENT, {
+      acceptNode: filter
+    });
+    let currentNode;
+    while (currentNode = /** @type {HTMLElement} */
+    walker.nextNode()) {
+      callback(currentNode);
     }
-  }
-  while (currentNode = /** @type {HTMLElement} */
-  tw.nextNode()) {
-    callback(currentNode);
   }
 }
 function checkRefs(refs, annotation) {
-  for (let prop in annotation) {
-    let ref = refs[prop];
+  for (const [prop, expectedType] of Object.entries(annotation)) {
+    const ref = refs[prop];
     if (!ref) {
-      throw new Error(`Missing data-ref: ${prop}`);
+      throw new Error(`[Scope] Missing required data-ref: "${prop}"`);
     }
-    const type = typeof annotation[prop] === "function" ? annotation[prop].prototype : annotation[prop];
-    if (type.isPrototypeOf(ref) === false) {
+    const targetProto = typeof expectedType === "function" ? expectedType.prototype : expectedType;
+    if (!targetProto.isPrototypeOf(ref)) {
+      const actualName = ref.constructor?.name || "Unknown";
+      const expectedName = targetProto.constructor?.name || "ExpectedType";
       throw new Error(
-        `The data-ref "${prop}" must be an instance of ${type.constructor.name} (actual: ${ref.constructor.name})`
+        `[Scope] Type mismatch for "${prop}": expected ${expectedName}, got ${actualName}`
       );
     }
   }
@@ -1375,19 +1298,19 @@ var Component = class {
       /** @type {HTMLElement} */
       this.$internals.root
     );
-    let { refs, scope_refs } = selectRefsExtended(componentRoot, null, {
-      scope_ref_attr_name: ["data-slot", "data-component-root"],
-      ref_attr_name: "data-ref",
+    let { refs, scopeRefs } = selectRefsExtended(componentRoot, null, {
+      scopeAttribute: ["data-slot", "data-component-root"],
+      refAttribute: "data-ref",
       window
     });
     if (this.refsAnnotation) {
       checkRefs(refs, this.refsAnnotation);
     }
-    for (let key in scope_refs) {
+    for (let key in scopeRefs) {
       this.slotManager.registerSlot(key);
     }
     this.$internals.refs = refs;
-    this.$internals.scopeRefs = scope_refs;
+    this.$internals.scopeRefs = scopeRefs;
   }
   /* Events */
   /**
@@ -1870,9 +1793,8 @@ var Component = class {
         }
       },
       {
-        includeRoot: false,
-        scope_ref_attr_name: ["data-slot", "data-component-root"],
-        ref_attr_name: "data-ref",
+        scopeAttribute: ["data-slot", "data-component-root"],
+        refAttribute: "data-ref",
         window
       }
     );

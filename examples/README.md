@@ -17,6 +17,7 @@ This directory contains a curated set of examples designed to demonstrate the po
 | `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.                                                 |
 | `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and `adoptedStyleSheets`.                                                |
 | `11-event-interop`       | **Event Interop**       | Direct component communication using `on`/`emit` and high-performance surgical DOM updates via `getRefs`. |
+| `12-slot-toggler-utils`  | **UI Utilities**        | Using SlotToggler, delegateEvent, and fadeIn for high-level UI logic.                                     |
 
 ---
 
@@ -59,7 +60,7 @@ npm install
    Most examples can be viewed by running a local development server (like `live-server` or `vite`):
 
 ```bash
-npx serve .
+npm run examples
 
 ```
 
@@ -68,6 +69,6 @@ npx serve .
 
 ```bash
 cd 06-ssr-generator
-node generate.js
+node server.js
 
 ```
