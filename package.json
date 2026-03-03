@@ -33,7 +33,7 @@
     },
     "dependencies": {
         "@supercat1337/event-emitter": "^2.0.0",
-        "dom-scope": "^2.1.0"
+        "dom-scope": "^2.1.2"
     },
     "devDependencies": {
         "jsdom": "^28.1.0",
