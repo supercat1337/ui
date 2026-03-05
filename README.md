@@ -1,229 +1,393 @@
 # @supercat1337/ui
 
-**A High-Performance, Standards-First Component Engine for the Modern Web.**
+**The Surgical Component Engine for the Modern Web.**
 
-`@supercat1337/ui` is not a "React clone." It is a structured **Vanilla JS** toolkit designed for developers who need framework-level organization (Components, Slots, Lifecycle) without the performance tax of a Virtual DOM.
+[![npm version](https://img.shields.io/npm/v/@supercat1337/ui.svg)](https://www.npmjs.com/package/@supercat1337/ui)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@supercat1337/ui)](https://bundlephobia.com/package/@supercat1337/ui)
+[![license](https://img.shields.io/npm/l/@supercat1337/ui)](https://github.com/supercat1337/ui/blob/main/LICENSE)
+[![npm downloads](https://img.shields.io/npm/dm/@supercat1337/ui)](https://www.npmjs.com/package/@supercat1337/ui)
 
----
+`@supercat1337/ui` is a structured **Vanilla JS** toolkit for developers who demand the architectural power of modern frameworks (Components, Slots, Lifecycle) without the abstraction tax of a Virtual DOM. It operates directly on the **Native DOM**, offering unparalleled performance and total transparency.
 
-## 🎯 Why @supercat1337/ui? (The Manifest)
-
-Most modern frameworks prioritize developer convenience over browser efficiency. They hide the DOM behind layers of abstraction (Virtual DOM, Reconcilers, Synthetic Events), which leads to CPU overhead and "black-box" debugging.
-
-**This library exists to solve three core problems:**
-
-### 1. The Virtual DOM Bottleneck
-
-Traditional frameworks re-render entire trees and then "diff" them to find changes. In high-frequency apps (dashboards, real-time monitors), this is a massive waste of resources.
-
-- **Our Solution:** **Surgical Updates**. Use `getRefs()` to target and update a single `textContent` or `class` instantly. No diffing, no virtual trees.
-
-### 2. The Hydration Tax
-
-Modern SSR often "re-boots" the entire app on the client, causing layout shifts or high Time-to-Interactive (TTI).
-
-- **Our Solution:** **Lightweight Hydration**. We find existing DOM nodes and attach logic without re-rendering. It’s the fastest way from "HTML string" to "Interactive App."
-
-### 3. The Shadow DOM Struggle
-
-Native Web Components often force you into Shadow DOM, which breaks global CSS (Bootstrap, Tailwind) and complicates styling.
-
-- **Our Solution:** **Componentized Light DOM**. Get the power of `<slot>` and lifecycle methods while staying in the Light DOM. Your CSS just works.
+- **Zero dependencies**
+- **< 5KB gzipped**
+- **Type-safe with JSDoc + runtime validation**
+- **Isomorphic (SSR-ready)**
+- **Built-in teleports (portals), event system, and utilities**
 
 ---
 
-## ✨ Key Features at a Glance
+## Table of Contents
 
-- **🚀 Zero Dependencies:** Tiny bundle size, perfect for micro-frontends and widgets.
-- **⚡ Native CSSOM:** High-performance styling via `adoptedStyleSheets`.
-- **🧩 Advanced Slots:** Powerful `SlotManager` and `SlotToggler` for complex UI layouts.
-- **📡 Event-Driven:** Built-in `on`/`emit` system in every component instance.
-- **🛡 Type Safety:** Full JSDoc and `refsAnnotation` support for static and runtime typing.
-- **🛠 Utility Belt:** Integrated helpers for pagination, formatting, animations, and event delegation.
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Philosophy](#philosophy-surgical-vs-reactive)
+- [Core Concepts](#core-concepts)
+    - [Component](#component)
+    - [Layouts](#layouts)
+    - [Refs & Type Safety](#refs--type-safety)
+    - [Slots & Composition](#slots--composition)
+    - [Lifecycle Hooks](#lifecycle-hooks)
+    - [Events](#events)
+    - [Teleports (Portals)](#teleports-portals)
+- [Utility Functions](#utility-functions)
+- [Examples](#examples)
+- [API Reference](#api-reference)
+- [License](#license)
 
 ---
 
-## 🚀 Quick Start
+## Installation
 
-### 1. Define Your Component
+```bash
+npm install @supercat1337/ui
+```
 
-```javascript
+Or directly from GitHub:
+
+```bash
+npm install https://github.com/supercat1337/ui.git
+```
+
+---
+
+## Quick Start
+
+Create an interactive counter component:
+
+```js
 import { Component, html } from '@supercat1337/ui';
 
-export class LiveCounter extends Component {
-    constructor() {
-        super();
-        this.state = { count: 0 };
-    }
-
-    // Surgical Update: Blazing fast, zero diffing
-    increment = () => {
-        this.state.count++;
-        this.getRefs().display.textContent = this.state.count;
-    };
-
-    layout = () => html`
-        <div class="card">
-            <span data-ref="display">0</span>
-            <button onclick="${this.increment}">+</button>
+class Counter extends Component {
+    // Define layout with a data-ref for dynamic elements
+    layout = html`
+        <div>
+            <p>Count: <span data-ref="countSpan">0</span></p>
+            <button data-ref="incrementBtn">Increment</button>
         </div>
     `;
+
+    // Type annotation for refs (enables autocompletion + runtime checks)
+    refsAnnotation = {
+        countSpan: HTMLSpanElement.prototype,
+        incrementBtn: HTMLButtonElement.prototype,
+    };
+
+    // Component state
+    count = 0;
+
+    // Called after the component is mounted to the DOM
+    connectedCallback() {
+        const { incrementBtn, countSpan } = this.getRefs();
+        incrementBtn.addEventListener('click', () => {
+            this.count++;
+            countSpan.textContent = this.count;
+        });
+    }
+}
+
+// Mount the component to document.body (replaces content)
+new Counter().mount(document.body, 'replace');
+```
+
+---
+
+## Philosophy: Surgical vs. Reactive
+
+Most frameworks follow a "Top-Down" approach: State Change → Re-render Tree → Diff Virtual DOM → Update Real DOM.
+
+**Our Surgical DOM approach changes the game:**
+
+1. **Target:** Precisely identify elements using `data-ref` attributes.
+2. **Action:** Attach listeners and update properties directly via JavaScript.
+3. **Result:** Zero diffing overhead, minimal CPU usage, and absolute clarity on when and where the DOM changes.
+
+You get the structure of a framework without the bloat – just pure, transparent DOM manipulation.
+
+---
+
+## Core Concepts
+
+### Component
+
+Every component extends the base `Component` class. The constructor accepts an optional `options` object with an `instanceId` (auto-generated if omitted).
+
+```js
+class MyComponent extends Component {
+    constructor() {
+        super({ instanceId: 'my-unique-id' }); // optional
+    }
 }
 ```
 
-### 2. Mount to DOM
+### Layouts
+
+A component’s appearance is defined by its `layout` property. It can be:
+
+- A **string** (parsed as HTML)
+- A **function** that returns a `Node` or `string`
+- A **Node** (e.g., `DocumentFragment`, `HTMLElement`)
+
+Use the `html` tagged template to create `DocumentFragment` efficiently.
+
+```js
+// Static layout
+layout = html`<div data-ref="box">Hello</div>`;
+
+// Dynamic layout (re‑evaluated on every render)
+layout = () => html`<div>${new Date().toLocaleTimeString()}</div>`;
+
+// Direct DOM node
+layout = document.createElement('div');
+```
+
+You can also set the layout programmatically with `setLayout(layout, annotation?)` or `setRenderer(layout, annotation?)` (synonym).
+
+### Refs & Type Safety
+
+Elements marked with `data-ref="name"` become accessible via `this.getRefs()`. To enable IDE autocompletion and runtime validation, define `refsAnnotation` as an object mapping ref names to their expected prototype.
+
+```js
+refsAnnotation = {
+  searchInput: HTMLInputElement.prototype,
+  submitBtn: HTMLButtonElement.prototype,
+};
+
+connectedCallback() {
+  const refs = this.getRefs();
+  // Autocompletion for .value and .addEventListener
+  refs.submitBtn.onclick = () => console.log(refs.searchInput.value);
+}
+```
+
+If a ref is missing at runtime, the library throws a descriptive error immediately.
+
+### Slots & Composition
+
+Components can contain **slots** – placeholders where child components can be inserted. Define a slot with `data-slot="slotName"`.
+
+```js
+// Parent component
+class Parent extends Component {
+    layout = html`
+        <div class="card">
+            <header data-slot="header"></header>
+            <main data-slot="content"></main>
+        </div>
+    `;
+
+    constructor() {
+        super();
+        this.addComponentToSlot('header', new Header());
+        this.addComponentToSlot('content', new DynamicContent());
+    }
+}
+```
+
+Slot management methods:
+
+- `addComponentToSlot(slotName, ...components)`
+- `getSlotNames()`
+- `hasSlotContent(slotName)`
+- `clearSlotContent(slotName)`
+
+### Lifecycle Hooks
+
+Override these methods to run code at specific moments:
+
+| Method                   | Description                                                           |
+| ------------------------ | --------------------------------------------------------------------- |
+| `connectedCallback()`    | Called after the component is mounted to the DOM.                     |
+| `disconnectedCallback()` | Called just before unmounting. Good for cleanup.                      |
+| `update(...args)`        | Called when you manually invoke `update()` (no automatic reactivity). |
+
+Additionally, you can subscribe to lifecycle events using:
+
+- `onConnect(callback)`
+- `onDisconnect(callback)`
+- `onMount(callback)`
+- `onBeforeUnmount(callback)`
+- `onUnmount(callback)`
+- `onCollapse(callback)`
+- `onExpand(callback)`
+- `onPrepareRender(callback)`
+
+### Events
+
+Components include a built-in event emitter for custom communication:
+
+```js
+// Emit an event
+this.emit('userLoggedIn', { name: 'Alice' });
+
+// Listen for events
+const unsubscribe = this.on('userLoggedIn', user => {
+    console.log('Welcome', user.name);
+});
+
+// Remove listener
+unsubscribe();
+```
+
+For DOM events that should auto‑cleanup on unmount, use `$on(element, event, callback)`.
+
+```js
+this.$on(this.getRefs().myButton, 'click', () => { ... });
+// Listener is automatically removed when component disconnects
+```
+
+### Teleports (Portals)
+
+Render a fragment of UI into an arbitrary DOM node (e.g., `document.body`) while keeping it logically attached to the component. Define teleports in the `teleports` property.
+
+```js
+class Modal extends Component {
+    teleports = {
+        modal: {
+            layout: () => html`
+                <div class="modal-overlay">
+                    <div class="modal-content" data-ref="content">Hello</div>
+                </div>
+            `,
+            target: document.body, // or a selector like '#portal', or a function
+            strategy: 'append', // 'append' | 'prepend' | 'replace'
+        },
+    };
+
+    connectedCallback() {
+        this.getRefs().content; // still accessible!
+    }
+}
+```
+
+Teleports are automatically created/destroyed with the component.
+
+### Hydration (SSR)
+
+To attach logic to server‑rendered HTML that already exists in the DOM, use `mount(container, 'hydrate')`. The component will reuse existing elements that match its layout structure.
 
 ```html
-<div id="root"></div>
-<script type="module">
-    import { LiveCounter } from './LiveCounter.js';
-    new LiveCounter().mount(document.getElementById('root'));
-</script>
+<!-- Server‑rendered HTML -->
+<div data-instance-id="my-counter">
+    <span data-ref="countSpan">42</span>
+    <button data-ref="incBtn">+</button>
+</div>
 ```
 
----
-
-## 🏗 Comparison Table
-
-| Feature         | React / Vue            | Web Components        | **@supercat1337/ui**          |
-| --------------- | ---------------------- | --------------------- | ----------------------------- |
-| **Rendering**   | Virtual DOM (Heavy)    | Shadow DOM (Isolated) | **Surgical Light DOM (Fast)** |
-| **Bundle Size** | 30KB - 100KB+          | 0KB (Native)          | **< 5KB (Minimal)**           |
-| **SEO / SSR**   | Needs Meta-Framework   | Complex               | **Native & Isomorphic**       |
-| **Styling**     | Scoped CSS / CSS-in-JS | Encapsulated (Hard)   | **Global & AdoptedStyles**    |
-| **Longevity**   | High Maintenance       | Native Standards      | **Native Standards**          |
-
----
-
-## 🛠 Core Concepts
-
-### Surgical DOM Updates
-
-While the library supports full re-renders via `update()`, it encourages "Surgical Updates." By using `getRefs()`, you can modify specific elements instantly, bypassing the need for a diffing engine.
-
-### Isomorphic Workflow
-
-1. **Server:** Use the library with JSDOM to generate static HTML.
-2. **Client:** The library "hydrates" the existing HTML, attaching event listeners and state without flickering or re-rendering the initial view.
-
----
-
-## 📚 Learning from Examples
-
-The repository includes 11 comprehensive examples covering everything you need:
-
-| Folder                | Topic                                       |
-| --------------------- | ------------------------------------------- |
-| `01-layout-diversity` | Strings, Functions, and DOM layouts.        |
-| `05-hydration`        | Making static HTML interactive.             |
-| `06-ssr-generator`    | Generating HTML on the server.              |
-| `10-instance-theming` | Advanced styling with `adoptedStyleSheets`. |
-| `11-event-interop`    | Direct communication and `getRefs`.         |
-
-_Explore the [Examples Folder](./examples) directory for full source code._
-
----
-
-## 📝 Technical Philosophy
-
-This library is built for developers who want **control**. It doesn't hide the DOM from you; it gives you the tools to manage it efficiently. It follows the **Unix Philosophy**: do one thing (manage components) and do it well.
-
----
-
-## 🛡 Type Safety: Static & Runtime
-
-The library provides two ways to ensure your component logic is safe and predictable, even without a heavy TypeScript build step.
-
-### 1. Static Typing (via JSDoc)
-
-Since the library is written in modern JavaScript, you can use `@ts-check` and JSDoc to get full IDE support. This is especially powerful for component `state` and event `payloads`.
-
-```javascript
-// @ts-check
-
-/** @typedef {{ id: number, text: string, done: boolean }} Todo */
-
-export class TodoItem extends Component {
-    constructor() {
-        super();
-        /** @type {{ item: Todo }} */
-        this.state = {
-            item: { id: 1, text: 'Learn Surgical DOM', done: false },
-        };
-    }
-}
+```js
+// Client‑side hydration
+const counter = new Counter();
+counter.mount(document.querySelector('[data-instance-id="my-counter"]'), 'hydrate');
 ```
 
-### 2. Runtime Element Typing (Refs Annotation)
-
-The `getRefs()` method is the heart of surgical updates. To avoid "missing element" errors and get full autocompletion for DOM properties, use the `refsAnnotation` property. This maps your `data-ref` names to their specific HTML classes.
-
-```javascript
-export class SearchBar extends Component {
-    // This provides both static autocomplete and a runtime hint
-    refsAnnotation = {
-        searchInput: HTMLInputElement.prototype,
-        submitBtn: HTMLButtonElement.prototype,
-        resultsList: HTMLUListElement.prototype,
-    };
-
-    update() {
-        const refs = this.getRefs();
-
-        // IDE knows exactly what these are:
-        refs.searchInput.value = '';
-        refs.resultsList.replaceChildren(...[]);
-        refs.submitBtn.disabled = true;
-    }
-
-    layout = () => html`
-        <div>
-            <input data-ref="searchInput" type="text" />
-            <button data-ref="submitBtn">Search</button>
-            <ul data-ref="resultsList"></ul>
-        </div>
-    `;
-}
-```
-
-## 🛠 The Utility Belt
-
-The library comes packed with high-performance utilities to handle common UI tasks without needing external dependencies like Lodash or jQuery.
-
-### 🧩 Component & Slot Control
-
-- **`SlotToggler`**: Easily switch between multiple slots (e.g., Tabs or View Switchers). It handles unmounting the old slot and mounting the new one automatically.
-- **`Toggler`**: A generic state manager for "on/off" logic across multiple items.
-
-### 🎨 UI & Animations
-
-- **`fadeIn` / `fadeOut**`: Smooth, `requestAnimationFrame`-based transitions for elements.
-- **`showSpinnerInButton` / `removeSpinnerFromButton**`: Standardized loading states for buttons.
-- **`scrollToTop` / `scrollToBottom**`: Helper for chat windows or long forms.
-- **`showElements` / `hideElements**`: Fast visibility toggling using the built-in `d-none` system.
-
-### 📝 Text & Formatting
-
-- **`formatBytes`**: Converts raw numbers into human-readable sizes (e.g., `1.2 GB`). Supports multiple languages.
-- **`formatDate` / `formatDateTime**`: Localized date formatting from Unix timestamps.
-- **`escapeHtml` / `unsafeHTML**`: Security helpers. Use `unsafeHTML` when you explicitly trust a string to be rendered as HTML.
-- **`createPaginationArray`**: Logic for generating pagination numbers with "gaps" (e.g., `1, 2 ... 10`).
-
-### ⚡ Event & Async Helpers
-
-- **`delegateEvent`**: High-performance event delegation. Attach one listener to a parent to manage many children.
-- **`DOMReady`**: Ensures your logic runs only when the document is fully interactive.
-- **`withMinimumTime`**: A "UX polisher"—ensures a loading spinner stays visible for at least X ms to prevent annoying "flickering" on fast connections.
-- **`sleep`**: A simple, promise-based delay.
+The `instanceId` can be passed in the constructor or auto‑generated.
 
 ---
 
-### Why this makes the library competitive:
+## Utility Functions
 
-1. **Reduced Bundle Size**: Users don't need `date-fns`, `numeral.js`, or `jQuery`.
-2. **Standardized UI**: Buttons, spinners, and pagination look and behave consistently.
-3. **Low-Level Access**: Functions like `delegateEvent` show that the library understands browser performance at a deep level.
+The library ships with a rich set of DOM and general utilities:
 
-## ⚖️ License
+| Function                                                          | Description                                       |
+| ----------------------------------------------------------------- | ------------------------------------------------- |
+| `DOMReady(callback, doc?)`                                        | Executes callback when DOM is ready.              |
+| `copyToClipboard(text)`                                           | Copies text to clipboard (Promise).               |
+| `createPaginationArray(current, total, delta?, gap?)`             | Returns array of page numbers with gaps.          |
+| `delegateEvent(eventType, ancestor, selector, listener)`          | Attaches a delegated event listener.              |
+| `escapeHtml(unsafe)`                                              | Escapes &, <, ", ' for safe HTML interpolation.   |
+| `fadeIn(element, duration?, window?)`                             | Fades in an element.                              |
+| `fadeOut(element, duration?, window?)`                            | Fades out an element.                             |
+| `formatBytes(bytes, decimals?, lang?, sizes?)`                    | Human‑readable file size.                         |
+| `formatDate(unix_timestamp)`                                      | Localized date string.                            |
+| `formatDateTime(unix_timestamp)`                                  | Localized date + time.                            |
+| `getDefaultLanguage()`                                            | Returns user's language (or 'en').                |
+| `hideElements(...elements)`                                       | Adds `d-none` class.                              |
+| `html` (tagged template)                                          | Creates `DocumentFragment` from template.         |
+| `injectCoreStyles(doc?)`                                          | Injects minimal CSS (`.d-none`, `html-fragment`). |
+| `isDarkMode(window?)`                                             | Detects prefers‑color‑scheme: dark.               |
+| `removeSpinnerFromButton(button)`                                 | Removes spinner element.                          |
+| `renderPaginationElement(current, total, urlRenderer?, onClick?)` | Returns a Bootstrap‑style pagination `<ul>`.      |
+| `scrollToBottom(element)`                                         | Scrolls element to bottom.                        |
+| `scrollToTop(element)`                                            | Scrolls element to top.                           |
+| `showElements(...elements)`                                       | Removes `d-none` class.                           |
+| `showSpinnerInButton(button, className?, doc?)`                   | Adds a spinner (Bootstrap style).                 |
+| `sleep(ms)`                                                       | Promise‑based delay.                              |
+| `ui_button_status_waiting_off(button, text)`                      | Restores button after waiting.                    |
+| `ui_button_status_waiting_off_html(button, html)`                 | Restores with HTML content.                       |
+| `ui_button_status_waiting_on(button, text)`                       | Disables button and shows spinner.                |
+| `unixtime(dateObject?)`                                           | Returns current Unix time in seconds.             |
+| `unsafeHTML(html)`                                                | Marks string as safe (bypasses escaping).         |
+| `withMinimumTime(promise, minTime)`                               | Ensures promise takes at least `minTime` ms.      |
 
-MIT
+**Utility Classes**
+
+- `SlotToggler(component, slotNames, activeSlotName)` – Manages toggling between slots.
+- `Toggler` – Generic toggler for any set of items.
+
+---
+
+## Examples
+
+Explore the [examples directory](./examples) for complete, runnable demos. Each example focuses on a specific feature:
+
+| Folder                   | Name                    | Key Concept                                         |
+| ------------------------ | ----------------------- | --------------------------------------------------- |
+| `01-layout-diversity`    | **Layout Diversity**    | Using strings, functions, and DOM nodes as layouts. |
+| `02-interactive-counter` | **Interactive Counter** | State, events, and `getRefs()`.                     |
+| `03-todo-list`           | **Todo List**           | Complex state and dynamic re‑rendering.             |
+| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data with `connectedCallback`.             |
+| `05-hydration`           | **Client Hydration**    | Attaching logic to existing HTML.                   |
+| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js server‑side rendering.                 |
+| `07-lazy-loading`        | **Lazy Loading**        | Dynamic imports and slot placeholders.              |
+| `08-css-modules`         | **CSS Modules**         | Style encapsulation in ESM.                         |
+| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation.                          |
+| `10-instance-theming`    | **Component Theming**   | CSS modifiers and `adoptedStyleSheets`.             |
+| `11-event-interop`       | **Event Interop**       | Component communication via `on`/`emit`.            |
+| `12-slot-toggler-utils`  | **UI Utilities**        | High‑level UI logic helpers.                        |
+| `13-teleports`           | **Logical Teleports**   | Rendering fragments to external DOM nodes.          |
+| `14-teleport-hydration`  | **Teleport Hydration**  | Hydrating teleported SSR markup.                    |
+
+To run examples locally:
+
+```bash
+npm install
+npm run examples
+```
+
+For SSR examples (06), navigate to the folder and run `node server.js`.
+
+---
+
+## API Reference
+
+For a complete API reference, please refer to the [TypeScript definitions](./index.d.ts) (included in the package) or browse the source.
+
+Key methods and properties of `Component`:
+
+- `mount(container: Element, mode?: 'replace' | 'append' | 'prepend' | 'hydrate'): void`
+- `unmount(): void`
+- `rerender(): void`
+- `collapse(): void` / `expand(): void` / `expandForce(): void`
+- `show(): void` / `hide(): void`
+- `getRefs(): T` (where T matches your `refsAnnotation`)
+- `getRef(refName: string): HTMLElement`
+- `hasRef(refName: string): boolean`
+- `updateRefs(): void`
+- `reloadText(): void` (calls the text update function)
+- `setTextUpdateFunction(func: ((component: Component) => void) | null): void`
+- `removeOnUnmount(...elements: Element[]): void`
+- `searchElements(tagName: string, querySelector?: string): Element[]`
+- `getRootNode(): HTMLElement`
+- `parentComponent: Component | null`
+
+---
+
+## License
+
+MIT © [supercat1337](https://github.com/supercat1337)
+
+---
+
+### Why this is the future of Vanilla Development?
+
+You don't fight the framework; you use browser standards amplified by a rigorous structure and modern safety tools. `@supercat1337/ui` gives you the best of both worlds: the mental model of component‑based architecture and the raw performance of native DOM manipulation.

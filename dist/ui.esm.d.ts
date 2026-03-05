@@ -3,15 +3,15 @@ export type _TextUpdateFunction = (component: Component) => void;
 export type TeleportStrategy = "append" | "prepend" | "replace";
 export type TeleportConfig = {
     /**
-     * - Функция, возвращающая фрагмент разметки для телепорта.
+     * - A function that returns a markup fragment for teleportation.
      */
     layout: () => DocumentFragment;
     /**
-     * - Целевой элемент, селектор или функция, возвращающая элемент.
+     * - A target element, selector, or function that returns an element.
      */
     target: Element | string | (() => Element | null);
     /**
-     * - Стратегия вставки (по умолчанию "append").
+     * - Insertion strategy (default is "append").
      */
     strategy?: TeleportStrategy;
 };

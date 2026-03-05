@@ -1165,9 +1165,9 @@ function resolveLayout(layout, ctx) {
 
 /**
  * @typedef {Object} TeleportConfig
- * @property {() => DocumentFragment} layout - Функция, возвращающая фрагмент разметки для телепорта.
- * @property {Element | string | (() => Element | null)} target - Целевой элемент, селектор или функция, возвращающая элемент.
- * @property {TeleportStrategy} [strategy] - Стратегия вставки (по умолчанию "append").
+ * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
+ * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
+ * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
  */
 
 /**
