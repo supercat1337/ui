@@ -347,7 +347,7 @@ class SafeHTML {
 
 /**
  * Marks a string as safe HTML to avoid escaping.
- * @param {string} html 
+ * @param {string} html
  * @returns {SafeHTML}
  */
 export function unsafeHTML(html) {
@@ -385,9 +385,8 @@ export function html(strings, ...values) {
             }
 
             // 2. Process value: check for SafeHTML wrapper or escape
-            const stringValue = value instanceof SafeHTML 
-                ? value.toString() 
-                : escapeHtml(String(value ?? ''));
+            const stringValue =
+                value instanceof SafeHTML ? value.toString() : escapeHtml(String(value ?? ''));
 
             return acc + stringValue + str;
         });
@@ -417,4 +416,144 @@ const simple = html('<div>Static content</div>');
 /*
 List: 
 html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
+*/
+
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait` milliseconds
+ * have elapsed since the last time the debounced function was invoked.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @param {boolean} [immediate=false] - Whether to invoke the function on the leading edge instead of the trailing.
+ * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
+ */
+export function debounce(func, wait, immediate = false) {
+    let timeoutId = null;
+    let result;
+
+    let debounced = function (...args) {
+        const context = this;
+
+        const later = function () {
+            timeoutId = null;
+            if (!immediate) result = func.apply(context, args);
+        };
+
+        const callNow = immediate && !timeoutId;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(later, wait);
+
+        if (callNow) result = func.apply(context, args);
+        return result;
+    };
+
+    debounced.cancel = function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+    };
+
+    return /** @type {T & { cancel(): void }} */ (/** @type {any} */ (debounced));
+}
+
+/**
+ * Creates a throttled function that only invokes `func` at most once per every `wait` milliseconds.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to throttle.
+ * @param {number} wait - The number of milliseconds to throttle invocations to.
+ * @param {Object} [options] - Options object.
+ * @param {boolean} [options.leading=true] - Whether to invoke on the leading edge.
+ * @param {boolean} [options.trailing=true] - Whether to invoke on the trailing edge.
+ * @returns {T & { cancel(): void }} A new throttled function with a `cancel` method.
+ */
+export function throttle(func, wait, options = {}) {
+    const { leading = true, trailing = true } = options;
+    let timeoutId = null;
+    let lastArgs = null;
+    let lastContext = null;
+    let lastCallTime = 0;
+
+    const invokeFunc = function () {
+        lastCallTime = Date.now();
+        func.apply(lastContext, lastArgs);
+        lastArgs = lastContext = null;
+    };
+
+    let throttled = function (...args) {
+        const now = Date.now();
+        const remaining = wait - (now - lastCallTime);
+
+        lastArgs = args;
+        lastContext = this;
+
+        if (remaining <= 0 || remaining > wait) {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            lastCallTime = now;
+            func.apply(lastContext, lastArgs);
+            lastArgs = lastContext = null;
+        } else if (!timeoutId && trailing) {
+            timeoutId = setTimeout(() => {
+                timeoutId = null;
+                if (trailing) invokeFunc();
+            }, remaining);
+        }
+    };
+
+    throttled.cancel = function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+        lastArgs = lastContext = null;
+        lastCallTime = 0;
+    };
+
+    return /** @type {T & { cancel(): void }} */ (/** @type {any} */ (throttled));
+}
+
+/**
+ * Sets up a listener that calls a callback when a click occurs outside the specified element.
+ * 
+ * @param {Element} element - The DOM element to detect outside clicks for.
+ * @param {(event: MouseEvent) => void} callback - Function to call when an outside click is detected.
+ * @returns {() => void} A function that removes the event listener.
+ */
+export function onClickOutside(element, callback) {
+    if (!element || typeof callback !== 'function') {
+        throw new Error('onClickOutside: element and callback are required');
+    }
+
+    const handler = (event) => {
+        // Check if the click target is outside the element
+        if (!element.contains(event.target)) {
+            callback(event);
+        }
+    };
+
+    // Use capture phase to ensure the handler runs before any other click handlers
+    // that might stop propagation.
+    document.addEventListener('click', handler, true);
+
+    // Return an unsubscribe function
+    return () => {
+        document.removeEventListener('click', handler, true);
+    };
+}
+
+/*
+// Example
+
+import { onClickOutside } from '@supercat1337/ui';
+
+const modal = document.getElementById('myModal');
+const unsubscribe = onClickOutside(modal, () => {
+    console.log('Clicked outside!');
+    modal.style.display = 'none';
+});
+
+// also you can ununsubscribe:
+// unsubscribe();
+
 */

@@ -3,11 +3,7 @@
 import { checkRefs, selectRefsExtended, walkDomScope } from 'dom-scope';
 import { SlotManager } from './slot-manager.js';
 import { Internals } from './internals.js';
-import { resolveLayout } from './helpers.js';
-
-/**
- * @typedef {(component: any) => Node|string} LayoutFunction
- */
+import { onConnectDefault, onDisconnectDefault, resolveLayout } from './helpers.js';
 
 /**
  * @typedef {(component: Component) => void} _TextUpdateFunction
@@ -29,42 +25,13 @@ import { resolveLayout } from './helpers.js';
  */
 
 /**
- * Default handler for the "connect" event.
- * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
- * If the `connectedCallback` method throws an error, it is caught and console.error is called with the error.
- * @param {Component} component - The component instance
- */
-function onConnectDefault(component) {
-    component.reloadText();
-    try {
-        component.connectedCallback();
-    } catch (e) {
-        console.error('Error in connectedCallback:', e);
-    }
-}
-
-/**
- * Default handler for the "disconnect" event.
- * This function calls the `disconnectedCallback` method of the component.
- * If the `disconnectedCallback` method throws an error, it is caught and console.error is called with the error.
- * @param {Component} component - The component instance
- */
-function onDisconnectDefault(component) {
-    try {
-        component.disconnectedCallback();
-    } catch (e) {
-        console.error('Error in disconnectedCallback:', e);
-    }
-}
-
-/**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
 export class Component {
     /** @type {Internals} */
     $internals = new Internals();
 
-    /** @type {LayoutFunction|string|null|Node} */
+    /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
     /**
@@ -157,7 +124,7 @@ export class Component {
 
     /**
      * Sets the layout of the component by assigning the template content.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
@@ -172,7 +139,7 @@ export class Component {
     /**
      * Sets the renderer for the component by assigning the template content.
      * This is a synonym for setLayout.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
@@ -233,6 +200,8 @@ export class Component {
             throw new Error('Component is not connected to the DOM');
         }
 
+        this.emit('before-update-refs');
+
         const allRoots =
             this.$internals.additionalRoots.length > 0
                 ? [this.$internals.root, ...this.$internals.additionalRoots]
@@ -247,17 +216,15 @@ export class Component {
         let rootRefs = {};
         for (let i = 0; i < allRoots.length; i++) {
             let root = allRoots[i];
-            let refName = root.getAttribute('data-ref');
-            if (refName) {
-                rootRefs[refName] = root;
+            if (root instanceof Element) {
+                let refName = root.getAttribute('data-ref');
+                if (refName) {
+                    rootRefs[refName] = root;
+                }
             }
         }
 
-        refs = {...refs, ...rootRefs};
-
-        if (this.refsAnnotation) {
-            checkRefs(refs, this.refsAnnotation);
-        }
+        refs = { ...refs, ...rootRefs };
 
         for (let key in scopeRefs) {
             this.slotManager.registerSlot(key);
@@ -265,6 +232,10 @@ export class Component {
 
         this.$internals.refs = refs;
         this.$internals.scopeRefs = scopeRefs;
+
+        if (this.refsAnnotation) {
+            checkRefs(refs, this.refsAnnotation);
+        }
     }
 
     /* Events */
@@ -405,7 +376,6 @@ export class Component {
         }
 
         this.$internals.root = componentRoot;
-
         this.updateRefs();
 
         this.$internals.disconnectController = new AbortController();
@@ -577,6 +547,7 @@ export class Component {
         this.disconnect();
 
         this.#cleanupTeleports();
+        this.$internals.additionalRoots = [];
         this.$internals.root?.remove();
 
         this.$internals.elementsToRemove.forEach(el => {
@@ -751,7 +722,7 @@ export class Component {
      * @returns {HTMLElement} The root node of the component.
      */
     getRootNode() {
-        if (!this.#isConnected) {
+        if (!this.$internals.root) {
             throw new Error('Component is not connected to the DOM');
         }
 
@@ -930,9 +901,6 @@ export class Component {
 
         // 2. Clear the tracking collections
         this.$internals.teleportRoots.clear();
-
-        // 3. Reset additional roots so updateRefs won't look for them anymore
-        this.$internals.additionalRoots = [];
     }
 
     /**

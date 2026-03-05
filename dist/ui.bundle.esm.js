@@ -196,6 +196,88 @@ function html(strings, ...values) {
   tmpl.innerHTML = rawResult;
   return tmpl.content;
 }
+function debounce(func, wait, immediate = false) {
+  let timeoutId = null;
+  let result;
+  let debounced = function(...args) {
+    const context = this;
+    const later = function() {
+      timeoutId = null;
+      if (!immediate) result = func.apply(context, args);
+    };
+    const callNow = immediate && !timeoutId;
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(later, wait);
+    if (callNow) result = func.apply(context, args);
+    return result;
+  };
+  debounced.cancel = function() {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = null;
+  };
+  return (
+    /** @type {T & { cancel(): void }} */
+    /** @type {any} */
+    debounced
+  );
+}
+function throttle(func, wait, options = {}) {
+  const { leading = true, trailing = true } = options;
+  let timeoutId = null;
+  let lastArgs = null;
+  let lastContext = null;
+  let lastCallTime = 0;
+  const invokeFunc = function() {
+    lastCallTime = Date.now();
+    func.apply(lastContext, lastArgs);
+    lastArgs = lastContext = null;
+  };
+  let throttled = function(...args) {
+    const now = Date.now();
+    const remaining = wait - (now - lastCallTime);
+    lastArgs = args;
+    lastContext = this;
+    if (remaining <= 0 || remaining > wait) {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      lastCallTime = now;
+      func.apply(lastContext, lastArgs);
+      lastArgs = lastContext = null;
+    } else if (!timeoutId && trailing) {
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        if (trailing) invokeFunc();
+      }, remaining);
+    }
+  };
+  throttled.cancel = function() {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = null;
+    lastArgs = lastContext = null;
+    lastCallTime = 0;
+  };
+  return (
+    /** @type {T & { cancel(): void }} */
+    /** @type {any} */
+    throttled
+  );
+}
+function onClickOutside(element, callback) {
+  if (!element || typeof callback !== "function") {
+    throw new Error("onClickOutside: element and callback are required");
+  }
+  const handler = (event) => {
+    if (!element.contains(event.target)) {
+      callback(event);
+    }
+  };
+  document.addEventListener("click", handler, true);
+  return () => {
+    document.removeEventListener("click", handler, true);
+  };
+}
 
 // src/utils/date-time.js
 function formatDateTime(unix_timestamp) {
@@ -276,6 +358,101 @@ function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer,
   });
   return ul;
 }
+
+// src/utils/unique-id.js
+var idCounter = 0;
+function uniqueId(prefix = "") {
+  const id = ++idCounter;
+  return prefix ? `${prefix}${id}` : String(id);
+}
+
+// src/utils/storage.js
+function createStorage(storage) {
+  const listeners = /* @__PURE__ */ new Map();
+  const handleStorage = (event) => {
+    if (event.storageArea !== storage) return;
+    const { key, newValue, oldValue } = event;
+    if (key === null) {
+      listeners.forEach((callbacks2, listenerKey) => {
+        callbacks2.forEach((cb) => cb(null, null));
+      });
+      return;
+    }
+    const callbacks = listeners.get(key);
+    if (callbacks) {
+      const parsedNew = newValue !== null ? JSON.parse(newValue) : null;
+      const parsedOld = oldValue !== null ? JSON.parse(oldValue) : null;
+      callbacks.forEach((cb) => cb(parsedNew, parsedOld));
+    }
+  };
+  let isListening = false;
+  const startListening = () => {
+    if (!isListening) {
+      window.addEventListener("storage", handleStorage);
+      isListening = true;
+    }
+  };
+  const stopListening = () => {
+    if (isListening && listeners.size === 0) {
+      window.removeEventListener("storage", handleStorage);
+      isListening = false;
+    }
+  };
+  const get = (key) => {
+    const raw = storage.getItem(key);
+    if (raw === null) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
+  };
+  const set = (key, value) => {
+    const oldRaw = storage.getItem(key);
+    const newRaw = JSON.stringify(value);
+    storage.setItem(key, newRaw);
+    const callbacks = listeners.get(key);
+    if (callbacks) {
+      const oldValue = oldRaw !== null ? JSON.parse(oldRaw) : null;
+      callbacks.forEach((cb) => cb(value, oldValue));
+    }
+  };
+  const remove = (key) => {
+    const oldRaw = storage.getItem(key);
+    storage.removeItem(key);
+    const callbacks = listeners.get(key);
+    if (callbacks) {
+      const oldValue = oldRaw !== null ? JSON.parse(oldRaw) : null;
+      callbacks.forEach((cb) => cb(null, oldValue));
+    }
+  };
+  const clear = () => {
+    storage.clear();
+    listeners.forEach((callbacks, key) => {
+      callbacks.forEach((cb) => cb(null, null));
+    });
+  };
+  const on = (key, callback) => {
+    if (!listeners.has(key)) {
+      listeners.set(key, /* @__PURE__ */ new Set());
+    }
+    listeners.get(key).add(callback);
+    startListening();
+    return () => {
+      const callbacks = listeners.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          listeners.delete(key);
+        }
+      }
+      stopListening();
+    };
+  };
+  return { get, set, remove, clear, on };
+}
+var local = createStorage(localStorage);
+var session = createStorage(sessionStorage);
 
 // src/utils/toggler.js
 var Toggler = class {
@@ -1180,8 +1357,6 @@ function resolveLayout(layout, ctx) {
   }
   return result;
 }
-
-// src/component/component.js
 function onConnectDefault(component) {
   component.reloadText();
   try {
@@ -1197,10 +1372,12 @@ function onDisconnectDefault(component) {
     console.error("Error in disconnectedCallback:", e);
   }
 }
+
+// src/component/component.js
 var Component = class {
   /** @type {Internals} */
   $internals = new Internals();
-  /** @type {LayoutFunction|string|null|Node} */
+  /** @type {((component: this) => Node|string)|string|null|Node} */
   layout = null;
   /**
    * @type {TeleportList}
@@ -1274,7 +1451,7 @@ var Component = class {
   }
   /**
    * Sets the layout of the component by assigning the template content.
-   * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+   * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
    * @param {T} [annotation] - An array of strings representing the names of the refs.
    * The function is called with the component instance as the this value.
    */
@@ -1287,7 +1464,7 @@ var Component = class {
   /**
    * Sets the renderer for the component by assigning the template content.
    * This is a synonym for setLayout.
-   * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+   * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
    * @param {T} [annotation] - An array of strings representing the names of the refs.
    * The function is called with the component instance as the this value.
    */
@@ -1342,6 +1519,7 @@ var Component = class {
     if (!this.$internals.root) {
       throw new Error("Component is not connected to the DOM");
     }
+    this.emit("before-update-refs");
     const allRoots = this.$internals.additionalRoots.length > 0 ? [this.$internals.root, ...this.$internals.additionalRoots] : [this.$internals.root];
     let { refs, scopeRefs } = selectRefsExtended(allRoots, null, {
       scopeAttribute: ["data-slot", "data-component-root"],
@@ -1351,20 +1529,22 @@ var Component = class {
     let rootRefs = {};
     for (let i = 0; i < allRoots.length; i++) {
       let root = allRoots[i];
-      let refName = root.getAttribute("data-ref");
-      if (refName) {
-        rootRefs[refName] = root;
+      if (root instanceof Element) {
+        let refName = root.getAttribute("data-ref");
+        if (refName) {
+          rootRefs[refName] = root;
+        }
       }
     }
     refs = { ...refs, ...rootRefs };
-    if (this.refsAnnotation) {
-      checkRefs(refs, this.refsAnnotation);
-    }
     for (let key in scopeRefs) {
       this.slotManager.registerSlot(key);
     }
     this.$internals.refs = refs;
     this.$internals.scopeRefs = scopeRefs;
+    if (this.refsAnnotation) {
+      checkRefs(refs, this.refsAnnotation);
+    }
   }
   /* Events */
   /**
@@ -1623,6 +1803,7 @@ var Component = class {
     this.slotManager.unmountAll();
     this.disconnect();
     this.#cleanupTeleports();
+    this.$internals.additionalRoots = [];
     this.$internals.root?.remove();
     this.$internals.elementsToRemove.forEach((el) => {
       el.remove();
@@ -1769,7 +1950,7 @@ var Component = class {
    * @returns {HTMLElement} The root node of the component.
    */
   getRootNode() {
-    if (!this.#isConnected) {
+    if (!this.$internals.root) {
       throw new Error("Component is not connected to the DOM");
     }
     return (
@@ -1917,7 +2098,6 @@ var Component = class {
       rootElement.remove();
     }
     this.$internals.teleportRoots.clear();
-    this.$internals.additionalRoots = [];
   }
   /**
    * Synchronizes already existing teleported nodes (SSR) with the component instance.
@@ -2021,6 +2201,8 @@ export {
   Toggler,
   copyToClipboard,
   createPaginationArray,
+  createStorage,
+  debounce,
   delegateEvent,
   escapeHtml,
   fadeIn,
@@ -2033,16 +2215,21 @@ export {
   html,
   injectCoreStyles,
   isDarkMode,
+  local,
+  onClickOutside,
   removeSpinnerFromButton,
   renderPaginationElement,
   scrollToBottom,
   scrollToTop,
+  session,
   showElements,
   showSpinnerInButton,
   sleep,
+  throttle,
   ui_button_status_waiting_off,
   ui_button_status_waiting_off_html,
   ui_button_status_waiting_on,
+  uniqueId,
   unixtime,
   unsafeHTML,
   withMinimumTime

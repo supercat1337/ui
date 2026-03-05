@@ -1,6 +1,7 @@
 // @ts-check
 
 import { html } from '../utils/utils.js';
+import { Component } from './component.js';
 /**
  *
  * @param {((component: any) => Node|string)|string|null|Node} layout
@@ -56,4 +57,33 @@ export function resolveLayout(layout, ctx) {
         result.appendChild(template);
     }
     return result;
+}
+
+/**
+ * Default handler for the "connect" event.
+ * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
+ * If the `connectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {Component} component - The component instance
+ */
+export function onConnectDefault(component) {
+    component.reloadText();
+    try {
+        component.connectedCallback();
+    } catch (e) {
+        console.error('Error in connectedCallback:', e);
+    }
+}
+
+/**
+ * Default handler for the "disconnect" event.
+ * This function calls the `disconnectedCallback` method of the component.
+ * If the `disconnectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {Component} component - The component instance
+ */
+export function onDisconnectDefault(component) {
+    try {
+        component.disconnectedCallback();
+    } catch (e) {
+        console.error('Error in disconnectedCallback:', e);
+    }
 }

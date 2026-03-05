@@ -37,7 +37,7 @@ export class Internals {
         this.elementsToRemove = new Set();
         /** @type {Map<string, Element>} */
         this.teleportRoots = new Map();
-        /** @type {Element[]} */
+        /** @type {import('dom-scope').ScopeRoot[]} */
         this.additionalRoots = [];
     }
 

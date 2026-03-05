@@ -350,7 +350,7 @@ class SafeHTML {
 
 /**
  * Marks a string as safe HTML to avoid escaping.
- * @param {string} html 
+ * @param {string} html
  * @returns {SafeHTML}
  */
 function unsafeHTML(html) {
@@ -388,9 +388,8 @@ function html(strings, ...values) {
             }
 
             // 2. Process value: check for SafeHTML wrapper or escape
-            const stringValue = value instanceof SafeHTML 
-                ? value.toString() 
-                : escapeHtml(String(value ?? ''));
+            const stringValue =
+                value instanceof SafeHTML ? value.toString() : escapeHtml(String(value ?? ''));
 
             return acc + stringValue + str;
         });
@@ -420,6 +419,146 @@ const simple = html('<div>Static content</div>');
 /*
 List: 
 html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
+*/
+
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait` milliseconds
+ * have elapsed since the last time the debounced function was invoked.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @param {boolean} [immediate=false] - Whether to invoke the function on the leading edge instead of the trailing.
+ * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
+ */
+function debounce(func, wait, immediate = false) {
+    let timeoutId = null;
+    let result;
+
+    let debounced = function (...args) {
+        const context = this;
+
+        const later = function () {
+            timeoutId = null;
+            if (!immediate) result = func.apply(context, args);
+        };
+
+        const callNow = immediate && !timeoutId;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(later, wait);
+
+        if (callNow) result = func.apply(context, args);
+        return result;
+    };
+
+    debounced.cancel = function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+    };
+
+    return /** @type {T & { cancel(): void }} */ (/** @type {any} */ (debounced));
+}
+
+/**
+ * Creates a throttled function that only invokes `func` at most once per every `wait` milliseconds.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to throttle.
+ * @param {number} wait - The number of milliseconds to throttle invocations to.
+ * @param {Object} [options] - Options object.
+ * @param {boolean} [options.leading=true] - Whether to invoke on the leading edge.
+ * @param {boolean} [options.trailing=true] - Whether to invoke on the trailing edge.
+ * @returns {T & { cancel(): void }} A new throttled function with a `cancel` method.
+ */
+function throttle(func, wait, options = {}) {
+    const { leading = true, trailing = true } = options;
+    let timeoutId = null;
+    let lastArgs = null;
+    let lastContext = null;
+    let lastCallTime = 0;
+
+    const invokeFunc = function () {
+        lastCallTime = Date.now();
+        func.apply(lastContext, lastArgs);
+        lastArgs = lastContext = null;
+    };
+
+    let throttled = function (...args) {
+        const now = Date.now();
+        const remaining = wait - (now - lastCallTime);
+
+        lastArgs = args;
+        lastContext = this;
+
+        if (remaining <= 0 || remaining > wait) {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            lastCallTime = now;
+            func.apply(lastContext, lastArgs);
+            lastArgs = lastContext = null;
+        } else if (!timeoutId && trailing) {
+            timeoutId = setTimeout(() => {
+                timeoutId = null;
+                if (trailing) invokeFunc();
+            }, remaining);
+        }
+    };
+
+    throttled.cancel = function () {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+        lastArgs = lastContext = null;
+        lastCallTime = 0;
+    };
+
+    return /** @type {T & { cancel(): void }} */ (/** @type {any} */ (throttled));
+}
+
+/**
+ * Sets up a listener that calls a callback when a click occurs outside the specified element.
+ * 
+ * @param {Element} element - The DOM element to detect outside clicks for.
+ * @param {(event: MouseEvent) => void} callback - Function to call when an outside click is detected.
+ * @returns {() => void} A function that removes the event listener.
+ */
+function onClickOutside(element, callback) {
+    if (!element || typeof callback !== 'function') {
+        throw new Error('onClickOutside: element and callback are required');
+    }
+
+    const handler = (event) => {
+        // Check if the click target is outside the element
+        if (!element.contains(event.target)) {
+            callback(event);
+        }
+    };
+
+    // Use capture phase to ensure the handler runs before any other click handlers
+    // that might stop propagation.
+    document.addEventListener('click', handler, true);
+
+    // Return an unsubscribe function
+    return () => {
+        document.removeEventListener('click', handler, true);
+    };
+}
+
+/*
+// Example
+
+import { onClickOutside } from '@supercat1337/ui';
+
+const modal = document.getElementById('myModal');
+const unsubscribe = onClickOutside(modal, () => {
+    console.log('Clicked outside!');
+    modal.style.display = 'none';
+});
+
+// also you can ununsubscribe:
+// unsubscribe();
+
 */
 
 // @ts-check
@@ -564,6 +703,170 @@ function renderPaginationElement(
 
     return ul;
 }
+
+// @ts-check
+
+let idCounter = 0;
+
+/**
+ * Generates a unique ID with an optional prefix.
+ * 
+ * @param {string} [prefix=''] - The prefix to prepend to the ID.
+ * @returns {string} The generated unique ID.
+ */
+function uniqueId(prefix = '') {
+    const id = ++idCounter;
+    return prefix ? `${prefix}${id}` : String(id);
+}
+
+// @ts-check
+
+/**
+ * Creates a wrapper around a Storage object (localStorage or sessionStorage)
+ * with automatic JSON serialization and change subscription.
+ *
+ * @param {Storage} storage - The storage object to wrap (e.g. localStorage, sessionStorage).
+ * @returns {{
+ *   get: (key: string) => any,
+ *   set: (key: string, value: any) => void,
+ *   remove: (key: string) => void,
+ *   clear: () => void,
+ *   on: (key: string, callback: (newValue: any, oldValue: any) => void) => () => void
+ * }} An object with storage methods.
+ */
+function createStorage(storage) {
+    // Map of key -> Set of callbacks
+    const listeners = new Map();
+
+    // Handle storage events from the same origin
+    const handleStorage = event => {
+        if (event.storageArea !== storage) return;
+
+        const { key, newValue, oldValue } = event;
+
+        // If key is null, it means clear() was called
+        if (key === null) {
+            // Notify all listeners with null values
+            listeners.forEach((callbacks, listenerKey) => {
+                callbacks.forEach(cb => cb(null, null));
+            });
+            return;
+        }
+
+        const callbacks = listeners.get(key);
+        if (callbacks) {
+            // Parse values (they are strings from the event)
+            const parsedNew = newValue !== null ? JSON.parse(newValue) : null;
+            const parsedOld = oldValue !== null ? JSON.parse(oldValue) : null;
+            callbacks.forEach(cb => cb(parsedNew, parsedOld));
+        }
+    };
+
+    // Subscribe to storage events once when the first listener is added
+    let isListening = false;
+    const startListening = () => {
+        if (!isListening) {
+            window.addEventListener('storage', handleStorage);
+            isListening = true;
+        }
+    };
+
+    const stopListening = () => {
+        if (isListening && listeners.size === 0) {
+            window.removeEventListener('storage', handleStorage);
+            isListening = false;
+        }
+    };
+
+    /**
+     * Retrieves a value from storage.
+     * @param {string} key
+     * @returns {any} Parsed value, or null if not found.
+     */
+    const get = key => {
+        const raw = storage.getItem(key);
+        if (raw === null) return null;
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return raw; // fallback for non-JSON values (shouldn't happen if set is used)
+        }
+    };
+
+    /**
+     * Stores a value in storage.
+     * @param {string} key
+     * @param {any} value
+     */
+    const set = (key, value) => {
+        const oldRaw = storage.getItem(key);
+        const newRaw = JSON.stringify(value);
+        storage.setItem(key, newRaw);
+        // Manually trigger listeners for the same tab (storage event only fires in other tabs)
+        const callbacks = listeners.get(key);
+        if (callbacks) {
+            const oldValue = oldRaw !== null ? JSON.parse(oldRaw) : null;
+            callbacks.forEach(cb => cb(value, oldValue));
+        }
+    };
+
+    /**
+     * Removes a key from storage.
+     * @param {string} key
+     */
+    const remove = key => {
+        const oldRaw = storage.getItem(key);
+        storage.removeItem(key);
+        // Notify local listeners
+        const callbacks = listeners.get(key);
+        if (callbacks) {
+            const oldValue = oldRaw !== null ? JSON.parse(oldRaw) : null;
+            callbacks.forEach(cb => cb(null, oldValue));
+        }
+    };
+
+    /**
+     * Clears all keys in this storage.
+     */
+    const clear = () => {
+        storage.clear();
+        // Notify all local listeners with null values
+        listeners.forEach((callbacks, key) => {
+            callbacks.forEach(cb => cb(null, null));
+        });
+    };
+
+    /**
+     * Subscribes to changes of a specific key.
+     * @param {string} key
+     * @param {(newValue: any, oldValue: any) => void} callback
+     * @returns {() => void} Unsubscribe function.
+     */
+    const on = (key, callback) => {
+        if (!listeners.has(key)) {
+            listeners.set(key, new Set());
+        }
+        listeners.get(key).add(callback);
+        startListening();
+
+        return () => {
+            const callbacks = listeners.get(key);
+            if (callbacks) {
+                callbacks.delete(callback);
+                if (callbacks.size === 0) {
+                    listeners.delete(key);
+                }
+            }
+            stopListening();
+        };
+    };
+
+    return { get, set, remove, clear, on };
+}
+
+// Pre-created instances for convenience
+const local = createStorage(localStorage);
+const session = createStorage(sessionStorage);
 
 // @ts-check
 
@@ -1073,7 +1376,7 @@ class Internals {
         this.elementsToRemove = new Set();
         /** @type {Map<string, Element>} */
         this.teleportRoots = new Map();
-        /** @type {Element[]} */
+        /** @type {import('dom-scope').ScopeRoot[]} */
         this.additionalRoots = [];
     }
 
@@ -1148,32 +1451,6 @@ function resolveLayout(layout, ctx) {
     return result;
 }
 
-// @ts-check
-
-
-/**
- * @typedef {(component: any) => Node|string} LayoutFunction
- */
-
-/**
- * @typedef {(component: Component) => void} _TextUpdateFunction
- */
-
-/**
- * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
- */
-
-/**
- * @typedef {Object} TeleportConfig
- * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
- * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
- * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
- */
-
-/**
- * @typedef {Object.<string, TeleportConfig>} TeleportList
- */
-
 /**
  * Default handler for the "connect" event.
  * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
@@ -1203,6 +1480,28 @@ function onDisconnectDefault(component) {
     }
 }
 
+// @ts-check
+
+
+/**
+ * @typedef {(component: Component) => void} _TextUpdateFunction
+ */
+
+/**
+ * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
+ */
+
+/**
+ * @typedef {Object} TeleportConfig
+ * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
+ * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
+ * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
+ */
+
+/**
+ * @typedef {Object.<string, TeleportConfig>} TeleportList
+ */
+
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -1210,7 +1509,7 @@ class Component {
     /** @type {Internals} */
     $internals = new Internals();
 
-    /** @type {LayoutFunction|string|null|Node} */
+    /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
     /**
@@ -1303,7 +1602,7 @@ class Component {
 
     /**
      * Sets the layout of the component by assigning the template content.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
@@ -1318,7 +1617,7 @@ class Component {
     /**
      * Sets the renderer for the component by assigning the template content.
      * This is a synonym for setLayout.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
@@ -1379,6 +1678,8 @@ class Component {
             throw new Error('Component is not connected to the DOM');
         }
 
+        this.emit('before-update-refs');
+
         const allRoots =
             this.$internals.additionalRoots.length > 0
                 ? [this.$internals.root, ...this.$internals.additionalRoots]
@@ -1393,17 +1694,15 @@ class Component {
         let rootRefs = {};
         for (let i = 0; i < allRoots.length; i++) {
             let root = allRoots[i];
-            let refName = root.getAttribute('data-ref');
-            if (refName) {
-                rootRefs[refName] = root;
+            if (root instanceof Element) {
+                let refName = root.getAttribute('data-ref');
+                if (refName) {
+                    rootRefs[refName] = root;
+                }
             }
         }
 
-        refs = {...refs, ...rootRefs};
-
-        if (this.refsAnnotation) {
-            checkRefs(refs, this.refsAnnotation);
-        }
+        refs = { ...refs, ...rootRefs };
 
         for (let key in scopeRefs) {
             this.slotManager.registerSlot(key);
@@ -1411,6 +1710,10 @@ class Component {
 
         this.$internals.refs = refs;
         this.$internals.scopeRefs = scopeRefs;
+
+        if (this.refsAnnotation) {
+            checkRefs(refs, this.refsAnnotation);
+        }
     }
 
     /* Events */
@@ -1551,7 +1854,6 @@ class Component {
         }
 
         this.$internals.root = componentRoot;
-
         this.updateRefs();
 
         this.$internals.disconnectController = new AbortController();
@@ -1723,6 +2025,7 @@ class Component {
         this.disconnect();
 
         this.#cleanupTeleports();
+        this.$internals.additionalRoots = [];
         this.$internals.root?.remove();
 
         this.$internals.elementsToRemove.forEach(el => {
@@ -1897,7 +2200,7 @@ class Component {
      * @returns {HTMLElement} The root node of the component.
      */
     getRootNode() {
-        if (!this.#isConnected) {
+        if (!this.$internals.root) {
             throw new Error('Component is not connected to the DOM');
         }
 
@@ -2076,9 +2379,6 @@ class Component {
 
         // 2. Clear the tracking collections
         this.$internals.teleportRoots.clear();
-
-        // 3. Reset additional roots so updateRefs won't look for them anymore
-        this.$internals.additionalRoots = [];
     }
 
     /**
@@ -2202,4 +2502,4 @@ class SlotToggler {
     }
 }
 
-export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, createPaginationArray, delegateEvent, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, html, injectCoreStyles, isDarkMode, removeSpinnerFromButton, renderPaginationElement, scrollToBottom, scrollToTop, showElements, showSpinnerInButton, sleep, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime, unsafeHTML, withMinimumTime };
+export { Component, DOMReady, SlotToggler, Toggler, copyToClipboard, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, getDefaultLanguage, hideElements, html, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, uniqueId, unixtime, unsafeHTML, withMinimumTime };

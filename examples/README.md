@@ -4,22 +4,24 @@ This directory contains a curated set of examples designed to demonstrate the po
 
 ## 📋 Summary Table
 
-| Folder                   | Name                    | Key Concept                                                                                                     |
-| ------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `01-layout-diversity`    | **Layout Diversity**    | Using Strings, Functions, and DOM Nodes as layouts.                                                             |
-| `02-interactive-counter` | **Interactive Counter** | State management, event handling, and `getRefs()`.                                                              |
-| `03-todo-list`           | **Todo List**           | Complex state, arrays, and dynamic re-rendering.                                                                |
-| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data and using `connectedCallback` for async tasks.                                                    |
-| `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.                                                       |
-| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.                                                            |
-| `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.                                                       |
-| `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.                                                            |
-| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.                                                       |
-| `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and `adoptedStyleSheets`.                                                      |
-| `11-event-interop`       | **Event Interop**       | Direct component communication using `on`/`emit` and high-performance surgical DOM updates via `getRefs`.       |
-| `12-slot-toggler-utils`  | **UI Utilities**        | Using SlotToggler, delegateEvent, and fadeIn for high-level UI logic.                                           |
-| `13-teleports`           | **Logical Teleports**   | Render UI fragments to external DOM nodes (like body) while maintaining unified refs access and event handling. |
-| `14-teleport-hydration`  | **Teleport Hydration**  | Connects logic to pre-rendered SSR markup across multiple DOM locations using `instanceId`.                     |
+| Folder                   | Name                    | Key Concept                                                                                                                  |
+| ------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `01-layout-diversity`    | **Layout Diversity**    | Using Strings, Functions, and DOM Nodes as layouts.                                                                          |
+| `02-interactive-counter` | **Interactive Counter** | State management, event handling, and `getRefs()`.                                                                           |
+| `03-todo-list`           | **Todo List**           | Complex state, arrays, and dynamic re-rendering.                                                                             |
+| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data and using `connectedCallback` for async tasks.                                                                 |
+| `05-hydration`           | **Client Hydration**    | Attaching JS logic to existing HTML without re-rendering.                                                                    |
+| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js + JSDOM server-side rendering workflow.                                                                         |
+| `07-lazy-loading`        | **Lazy Loading**        | ESM dynamic imports, loading states, and Slot management.                                                                    |
+| `08-css-modules`         | **CSS Modules**         | Style encapsulation and scoped class mapping in ESM.                                                                         |
+| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation and manual class-based scoping.                                                                    |
+| `10-instance-theming`    | **Component Theming**   | Reusing logic with CSS modifiers and `adoptedStyleSheets`.                                                                   |
+| `11-event-interop`       | **Event Interop**       | Direct component communication using `on`/`emit` and high-performance surgical DOM updates via `getRefs`.                    |
+| `12-slot-toggler-utils`  | **UI Utilities**        | Using SlotToggler, delegateEvent, and fadeIn for high-level UI logic.                                                        |
+| `13-teleports`           | **Logical Teleports**   | Render UI fragments to external DOM nodes (like body) while maintaining unified refs access and event handling.              |
+| `14-teleport-hydration`  | **Teleport Hydration**  | Connects logic to pre-rendered SSR markup across multiple DOM locations using `instanceId`.                                  |
+| `15-nested-portals`      | **Nested Portals**      | Rendering components with portals inside portals, preserving logical hierarchy and unified refs across multiple DOM targets. |
+| `16-web-components`      | **Web Components Integration** | Using custom elements with Shadow DOM inside BareDOM components and accessing their internal refs via the unified refs system. |
 
 ---
 

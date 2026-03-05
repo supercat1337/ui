@@ -2,7 +2,9 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <title>Event Interop</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Utilities Demo</title>
+        <link rel="stylesheet" href="style.css" />
         <script type="importmap">
             {
                 "imports": {
@@ -10,12 +12,11 @@
                 }
             }
         </script>
+
     </head>
     <body>
+        <h1>BareDOM Utilities Demo</h1>
         <div id="app"></div>
-        <script type="module">
-            import { App } from './app.js';
-            new App().mount(document.getElementById('app'));
-        </script>
+        <script type="module" src="./main.js"></script>
     </body>
 </html>

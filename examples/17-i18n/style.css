@@ -1,0 +1,154 @@
+/* Base styles */
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+/* Main app card */
+.app {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    padding: 2.5rem 2rem;
+    max-width: 550px;
+    width: 100%;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+/* Headings */
+h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Language switcher container (implicitly created by two buttons) */
+[data-ref="btnEn"], [data-ref="btnRu"] {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 2rem;
+    padding: 0.6rem 1.8rem;
+    margin: 0 0.4rem 1.5rem 0.4rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+[data-ref="btnEn"]:hover, [data-ref="btnRu"]:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+[data-ref="btnEn"]:active, [data-ref="btnRu"]:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Greeting message */
+[data-ref="message"] {
+    font-size: 1.4rem;
+    color: #334155;
+    margin: 1rem 0 1.5rem 0;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Counter component */
+.counter {
+    background: #ffffff;
+    border-radius: 3rem;
+    padding: 0.75rem 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid #e2e8f0;
+    margin: 1rem 0 0.5rem 0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Counter label (translated text) */
+[data-ref="label"] {
+    font-weight: 500;
+    color: #475569;
+    font-size: 1.1rem;
+}
+
+/* Counter value (number) */
+[data-ref="value"] {
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 2.5rem;
+    text-align: center;
+    font-size: 1.3rem;
+    background: #f1f5f9;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2rem;
+}
+
+/* Increment button */
+[data-ref="button"] {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 2rem;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.4);
+}
+
+[data-ref="button"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.5);
+}
+
+[data-ref="button"]:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.4);
+}
+
+/* Small screen adjustments */
+@media (max-width: 480px) {
+    .app {
+        padding: 1.5rem 1rem;
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    [data-ref="btnEn"], [data-ref="btnRu"] {
+        padding: 0.5rem 1.2rem;
+        margin: 0 0.2rem 1rem 0.2rem;
+    }
+    
+    .counter {
+        padding: 0.5rem 1rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}

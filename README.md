@@ -1,4 +1,4 @@
-# @supercat1337/ui
+# @supercat1337/ui (BareDOM)
 
 **The Surgical Component Engine for the Modern Web.**
 
@@ -330,22 +330,24 @@ The library ships with a rich set of DOM and general utilities:
 
 Explore the [examples directory](./examples) for complete, runnable demos. Each example focuses on a specific feature:
 
-| Folder                   | Name                    | Key Concept                                         |
-| ------------------------ | ----------------------- | --------------------------------------------------- |
-| `01-layout-diversity`    | **Layout Diversity**    | Using strings, functions, and DOM nodes as layouts. |
-| `02-interactive-counter` | **Interactive Counter** | State, events, and `getRefs()`.                     |
-| `03-todo-list`           | **Todo List**           | Complex state and dynamic re‑rendering.             |
-| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data with `connectedCallback`.             |
-| `05-hydration`           | **Client Hydration**    | Attaching logic to existing HTML.                   |
-| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js server‑side rendering.                 |
-| `07-lazy-loading`        | **Lazy Loading**        | Dynamic imports and slot placeholders.              |
-| `08-css-modules`         | **CSS Modules**         | Style encapsulation in ESM.                         |
-| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation.                          |
-| `10-instance-theming`    | **Component Theming**   | CSS modifiers and `adoptedStyleSheets`.             |
-| `11-event-interop`       | **Event Interop**       | Component communication via `on`/`emit`.            |
-| `12-slot-toggler-utils`  | **UI Utilities**        | High‑level UI logic helpers.                        |
-| `13-teleports`           | **Logical Teleports**   | Rendering fragments to external DOM nodes.          |
-| `14-teleport-hydration`  | **Teleport Hydration**  | Hydrating teleported SSR markup.                    |
+| Folder                   | Name                    | Key Concept                                                                                                                  |
+| ------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `01-layout-diversity`    | **Layout Diversity**    | Using strings, functions, and DOM nodes as layouts.                                                                          |
+| `02-interactive-counter` | **Interactive Counter** | State, events, and `getRefs()`.                                                                                              |
+| `03-todo-list`           | **Todo List**           | Complex state and dynamic re‑rendering.                                                                                      |
+| `04-lifecycle-async`     | **Lifecycle & Async**   | Fetching data with `connectedCallback`.                                                                                      |
+| `05-hydration`           | **Client Hydration**    | Attaching logic to existing HTML.                                                                                            |
+| `06-ssr-generator`       | **Isomorphic SSR**      | Full Node.js server‑side rendering.                                                                                          |
+| `07-lazy-loading`        | **Lazy Loading**        | Dynamic imports and slot placeholders.                                                                                       |
+| `08-css-modules`         | **CSS Modules**         | Style encapsulation in ESM.                                                                                                  |
+| `09-native-css-scripts`  | **Native CSS Scripts**  | Direct CSSOM manipulation.                                                                                                   |
+| `10-instance-theming`    | **Component Theming**   | CSS modifiers and `adoptedStyleSheets`.                                                                                      |
+| `11-event-interop`       | **Event Interop**       | Component communication via `on`/`emit`.                                                                                     |
+| `12-slot-toggler-utils`  | **UI Utilities**        | High‑level UI logic helpers.                                                                                                 |
+| `13-teleports`           | **Logical Teleports**   | Rendering fragments to external DOM nodes.                                                                                   |
+| `14-teleport-hydration`  | **Teleport Hydration**  | Hydrating teleported SSR markup.                                                                                             |
+| `15-nested-portals`      | **Nested Portals**      | Rendering components with portals inside portals, preserving logical hierarchy and unified refs across multiple DOM targets. |
+| `16-web-components`      | **Web Components Integration** | Using custom elements with Shadow DOM inside BareDOM components and accessing their internal refs via the unified refs system. |
 
 To run examples locally:
 

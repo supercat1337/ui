@@ -1,4 +1,4 @@
-export type LayoutFunction = (component: any) => Node | string;
+export type TextUpdateFunction = (component: Component) => void;
 export type _TextUpdateFunction = (component: Component) => void;
 export type TeleportStrategy = "append" | "prepend" | "replace";
 export type TeleportConfig = {
@@ -18,7 +18,21 @@ export type TeleportConfig = {
 export type TeleportList = {
     [x: string]: TeleportConfig;
 };
-export type TextUpdateFunction = (component: Component) => void;
+/**
+ * @typedef {(component: Component) => void} _TextUpdateFunction
+ */
+/**
+ * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
+ */
+/**
+ * @typedef {Object} TeleportConfig
+ * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
+ * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
+ * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
+ */
+/**
+ * @typedef {Object.<string, TeleportConfig>} TeleportList
+ */
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -33,8 +47,8 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     });
     /** @type {Internals} */
     $internals: Internals;
-    /** @type {LayoutFunction|string|null|Node} */
-    layout: LayoutFunction | string | null | Node;
+    /** @type {((component: this) => Node|string)|string|null|Node} */
+    layout: ((component: this) => Node | string) | string | null | Node;
     /**
      * @type {TeleportList}
      */
@@ -75,19 +89,19 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     setTextUpdateFunction(func: _TextUpdateFunction | null): void;
     /**
      * Sets the layout of the component by assigning the template content.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
-    setLayout(layout: LayoutFunction | string, annotation?: T): void;
+    setLayout(layout: ((component: this) => Node | string) | string, annotation?: T): void;
     /**
      * Sets the renderer for the component by assigning the template content.
      * This is a synonym for setLayout.
-     * @param {LayoutFunction|string} layout - A function that returns a Node representing the layout.
+     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
      * @param {T} [annotation] - An array of strings representing the names of the refs.
      * The function is called with the component instance as the this value.
      */
-    setRenderer(layout: LayoutFunction | string, annotation?: T): void;
+    setRenderer(layout: ((component: this) => Node | string) | string, annotation?: T): void;
     /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
@@ -426,6 +440,39 @@ export function copyToClipboard(text: string): Promise<void>;
  */
 export function createPaginationArray(current: number, total: number, delta?: number, gap?: string): string[];
 /**
+ * Creates a wrapper around a Storage object (localStorage or sessionStorage)
+ * with automatic JSON serialization and change subscription.
+ *
+ * @param {Storage} storage - The storage object to wrap (e.g. localStorage, sessionStorage).
+ * @returns {{
+ *   get: (key: string) => any,
+ *   set: (key: string, value: any) => void,
+ *   remove: (key: string) => void,
+ *   clear: () => void,
+ *   on: (key: string, callback: (newValue: any, oldValue: any) => void) => () => void
+ * }} An object with storage methods.
+ */
+export function createStorage(storage: Storage): {
+    get: (key: string) => any;
+    set: (key: string, value: any) => void;
+    remove: (key: string) => void;
+    clear: () => void;
+    on: (key: string, callback: (newValue: any, oldValue: any) => void) => () => void;
+};
+/**
+ * Creates a debounced function that delays invoking `func` until after `wait` milliseconds
+ * have elapsed since the last time the debounced function was invoked.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to debounce.
+ * @param {number} wait - The number of milliseconds to delay.
+ * @param {boolean} [immediate=false] - Whether to invoke the function on the leading edge instead of the trailing.
+ * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
+ */
+export function debounce<T extends Function>(func: T, wait: number, immediate?: boolean): T & {
+    cancel(): void;
+};
+/**
  * Attaches a listener to an event on the given ancestor element that targets the given target element selector.
  * @param {string} eventType
  * @param {Element} ancestorElement
@@ -528,6 +575,21 @@ export function injectCoreStyles(doc?: Document | null): void;
  * @returns {boolean} - Returns `true` if the user prefers dark mode, otherwise `false`.
  */
 export function isDarkMode(wnd?: Window & typeof globalThis): boolean;
+export const local: {
+    get: (key: string) => any;
+    set: (key: string, value: any) => void;
+    remove: (key: string) => void;
+    clear: () => void;
+    on: (key: string, callback: (newValue: any, oldValue: any) => void) => () => void;
+};
+/**
+ * Sets up a listener that calls a callback when a click occurs outside the specified element.
+ *
+ * @param {Element} element - The DOM element to detect outside clicks for.
+ * @param {(event: MouseEvent) => void} callback - Function to call when an outside click is detected.
+ * @returns {() => void} A function that removes the event listener.
+ */
+export function onClickOutside(element: Element, callback: (event: MouseEvent) => void): () => void;
 /**
  * Removes the spinner from the given button.
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
@@ -556,6 +618,13 @@ export function scrollToBottom(element: HTMLElement): void;
  * @param {HTMLElement} element - The element to scroll to the top.
  */
 export function scrollToTop(element: HTMLElement): void;
+export const session: {
+    get: (key: string) => any;
+    set: (key: string, value: any) => void;
+    remove: (key: string) => void;
+    clear: () => void;
+    on: (key: string, callback: (newValue: any, oldValue: any) => void) => () => void;
+};
 /**
  * Removes the "d-none" class from the given elements, making them visible.
  * @param {...HTMLElement} elements - The elements to show.
@@ -577,6 +646,23 @@ export function showSpinnerInButton(button: HTMLButtonElement, customClassName?:
  */
 export function sleep(ms: number): Promise<void>;
 /**
+ * Creates a throttled function that only invokes `func` at most once per every `wait` milliseconds.
+ *
+ * @template {Function} T
+ * @param {T} func - The function to throttle.
+ * @param {number} wait - The number of milliseconds to throttle invocations to.
+ * @param {Object} [options] - Options object.
+ * @param {boolean} [options.leading=true] - Whether to invoke on the leading edge.
+ * @param {boolean} [options.trailing=true] - Whether to invoke on the trailing edge.
+ * @returns {T & { cancel(): void }} A new throttled function with a `cancel` method.
+ */
+export function throttle<T extends Function>(func: T, wait: number, options?: {
+    leading?: boolean;
+    trailing?: boolean;
+}): T & {
+    cancel(): void;
+};
+/**
  * Sets the status of the button back to "enabled" (i.e. not disabled and without spinner).
  * @param {HTMLButtonElement} el - The button element to set the status for.
  * @param {string} text - The text to be shown in the button.
@@ -595,6 +681,13 @@ export function ui_button_status_waiting_off_html(el: HTMLButtonElement, html: s
  * @param {string} text - The text to be shown in the button while it is waiting.
  */
 export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string): void;
+/**
+ * Generates a unique ID with an optional prefix.
+ *
+ * @param {string} [prefix=''] - The prefix to prepend to the ID.
+ * @returns {string} The generated unique ID.
+ */
+export function uniqueId(prefix?: string): string;
 /**
  * Returns the current Unix time in seconds.
  * @param {Date} [dateObject=new Date()] - The date object to get the Unix time from. Defaults to the current date and time.
@@ -661,8 +754,8 @@ declare class Internals {
     elementsToRemove: Set<Element>;
     /** @type {Map<string, Element>} */
     teleportRoots: Map<string, Element>;
-    /** @type {Element[]} */
-    additionalRoots: Element[];
+    /** @type {import('dom-scope').ScopeRoot[]} */
+    additionalRoots: import("dom-scope").ScopeRoot[];
 }
 declare class SlotManager {
     /**

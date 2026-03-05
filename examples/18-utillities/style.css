@@ -1,0 +1,68 @@
+body {
+    font-family: system-ui, sans-serif;
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    background: #f5f5f5;
+    transition:
+        background 0.3s,
+        color 0.3s;
+}
+body.dark {
+    background: #222;
+    color: #eee;
+}
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+body.dark .card {
+    background: #333;
+    color: #eee;
+}
+button {
+    padding: 0.5rem 1rem;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+body.dark .modal {
+    background: #333;
+    color: #eee;
+}
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+body.dark .modal-overlay {
+    background: rgba(0, 0, 0, 0.7);
+}
+.log {
+    background: #eee;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    height: 150px;
+    overflow-y: auto;
+}
+body.dark .log {
+    background: #444;
+}
