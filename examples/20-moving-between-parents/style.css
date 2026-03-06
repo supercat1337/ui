@@ -1,0 +1,156 @@
+body {
+    font-family:
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        Roboto,
+        sans-serif;
+    background: #f1f5f9;
+    margin: 0;
+    padding: 2rem;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.app {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+h2 {
+    color: #0f172a;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-weight: 600;
+}
+
+.global-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 3rem;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 3rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+button {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    border-radius: 2rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    background: white;
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.panels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.panel {
+    flex: 1 1 400px;
+    background: white;
+    border-radius: 2rem;
+    padding: 1.5rem;
+    box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.15);
+}
+
+.panel h3 {
+    margin: 0 0 1rem 0;
+    color: #334155;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.slots {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.slot {
+    flex: 1;
+    background: #f8fafc;
+    border-radius: 1.5rem;
+    padding: 1rem;
+    border: 2px dashed #cbd5e1;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+}
+
+.slot h4 {
+    margin: 0 0 1rem 0;
+    color: #475569;
+    text-align: center;
+    font-weight: 500;
+}
+
+.card {
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.card span {
+    display: block;
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #0f172a;
+}
+
+.card button {
+    background: #1e293b;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    padding: 0.6rem 1.8rem;
+    border-radius: 3rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.card button:hover {
+    background: #0f172a;
+    transform: scale(1.05);
+}
+
+@media (max-width: 800px) {
+    body {
+        padding: 1rem;
+    }
+    .panels {
+        flex-direction: column;
+    }
+    .slots {
+        flex-direction: column;
+    }
+    .global-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

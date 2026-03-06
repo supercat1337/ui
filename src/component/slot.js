@@ -37,11 +37,12 @@ export class Slot {
      * This method sets the given component's parent component and parent slot name to null,
      * and removes the component from the slot's internal set of components.
      * @param {Component} component - The component to detach from the slot.
+     * @returns {boolean}
      */
     detach(component) {
         component.$internals.parentComponent = null;
         component.$internals.assignedSlotName = '';
-        this.components.delete(component);
+        return this.components.delete(component);
     }
 
     /**
@@ -59,11 +60,6 @@ export class Slot {
 
     /**
      * Mounts all children components of the slot to the DOM.
-     * This method first checks if the component is connected.
-     * If not, it logs a warning and returns.
-     * Then, it gets the root element of the slot from the component's internal slot refs map.
-     * If the slot root element does not exist, it logs a warning and returns.
-     * Finally, it iterates over all children components of the slot and calls their mount method with the slot root element and the "append" mode.
      */
     mount() {
         if (!this.#component.isConnected) {
@@ -86,9 +82,7 @@ export class Slot {
         }
 
         this.components.forEach(childComponent => {
-            if (!childComponent.isConnected && !childComponent.isCollapsed) {
-                childComponent.mount(slotRoot, 'append');
-            }
+            childComponent.mount(slotRoot, 'append');
         });
     }
 

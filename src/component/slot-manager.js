@@ -44,8 +44,8 @@ export class SlotManager {
     }
 
     /**
-     * 
-     * @param {string} slotName 
+     *
+     * @param {string} slotName
      * @returns {HTMLElement|null}
      */
     getSlotElement(slotName) {
@@ -53,7 +53,7 @@ export class SlotManager {
             return null;
         }
 
-        return this.#component.$internals.scopeRefs[slotName] || null
+        return this.#component.$internals.scopeRefs[slotName] || null;
     }
 
     /**
@@ -180,8 +180,9 @@ export class SlotManager {
         for (let i = 0; i < components.length; i++) {
             let component = components[i];
             let usingSlot = this.findSlotByComponent(component);
+            
             if (usingSlot != null) {
-                continue;
+                usingSlot.detach(component);
             }
 
             slot.attach(component);

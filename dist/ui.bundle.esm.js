@@ -704,11 +704,12 @@ var Slot = class {
    * This method sets the given component's parent component and parent slot name to null,
    * and removes the component from the slot's internal set of components.
    * @param {Component} component - The component to detach from the slot.
+   * @returns {boolean}
    */
   detach(component) {
     component.$internals.parentComponent = null;
     component.$internals.assignedSlotName = "";
-    this.components.delete(component);
+    return this.components.delete(component);
   }
   /**
    * Detaches all components from the slot.
@@ -724,11 +725,6 @@ var Slot = class {
   }
   /**
    * Mounts all children components of the slot to the DOM.
-   * This method first checks if the component is connected.
-   * If not, it logs a warning and returns.
-   * Then, it gets the root element of the slot from the component's internal slot refs map.
-   * If the slot root element does not exist, it logs a warning and returns.
-   * Finally, it iterates over all children components of the slot and calls their mount method with the slot root element and the "append" mode.
    */
   mount() {
     if (!this.#component.isConnected) {
@@ -745,9 +741,7 @@ var Slot = class {
       return;
     }
     this.components.forEach((childComponent) => {
-      if (!childComponent.isConnected && !childComponent.isCollapsed) {
-        childComponent.mount(slotRoot, "append");
-      }
+      childComponent.mount(slotRoot, "append");
     });
   }
   /**
@@ -807,8 +801,8 @@ var SlotManager = class {
     return this.slots.get(slotName) || null;
   }
   /**
-   * 
-   * @param {string} slotName 
+   *
+   * @param {string} slotName
    * @returns {HTMLElement|null}
    */
   getSlotElement(slotName) {
@@ -925,7 +919,7 @@ var SlotManager = class {
       let component = components[i];
       let usingSlot = this.findSlotByComponent(component);
       if (usingSlot != null) {
-        continue;
+        usingSlot.detach(component);
       }
       slot.attach(component);
     }
@@ -1750,6 +1744,7 @@ var Component = class {
    * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
    */
   mount(container, mode = "replace") {
+    if (this.#isCollapsed) return;
     if (!(container instanceof window.Element)) {
       throw new TypeError("Mount target must be a valid DOM Element.");
     }
@@ -1757,40 +1752,38 @@ var Component = class {
     if (!validModes.includes(mode)) {
       throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(", ")}`);
     }
-    if (this.isConnected) {
-      if (this.$internals.parentElement === container) return;
-      this.unmount();
-    }
-    this.$internals.mountMode = mode === "hydrate" ? "replace" : mode;
-    let componentRoot;
+    const isMoving = this.isConnected;
     if (mode === "hydrate") {
-      const isRoot = container.getAttribute("data-component-root") === this.#instanceId;
-      if (isRoot) {
-        componentRoot = container;
-      } else {
-        componentRoot = container.querySelector(
-          `[data-component-root="${this.#instanceId}"]`
-        );
-      }
-      if (!componentRoot) {
+      const componentRoot2 = container.getAttribute("data-component-root") === this.#instanceId ? container : container.querySelector(`[data-component-root="${this.#instanceId}"]`);
+      if (!componentRoot2) {
         throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
       }
+      this.$internals.root = componentRoot2;
       this.#hydrateTeleports();
-    } else {
-      componentRoot = this.render();
-      if (mode === "replace") container.replaceChildren(componentRoot);
-      else if (mode === "append") container.append(componentRoot);
-      else if (mode === "prepend") container.prepend(componentRoot);
-      this.#mountTeleports();
+      this.connect(
+        /** @type {HTMLElement} */
+        componentRoot2
+      );
+      this.emit("mount");
+      return;
     }
+    const componentRoot = isMoving ? this.getRootNode() : this.render();
+    if (mode === "replace") container.replaceChildren(componentRoot);
+    else if (mode === "append") container.append(componentRoot);
+    else if (mode === "prepend") container.prepend(componentRoot);
     this.$internals.root = componentRoot;
     this.$internals.parentElement = componentRoot.parentElement;
-    this.emit("prepareRender", componentRoot);
-    this.connect(
-      /** @type {HTMLElement} */
-      componentRoot
-    );
-    this.emit("mount");
+    if (!isMoving) {
+      this.#mountTeleports();
+      this.emit("prepareRender", componentRoot);
+      this.connect(
+        /** @type {HTMLElement} */
+        componentRoot
+      );
+      this.emit("mount");
+    } else {
+      this.emit("move", { to: container });
+    }
   }
   /**
    * Unmounts the component from the DOM.
@@ -1924,6 +1917,15 @@ var Component = class {
   getSlotNames() {
     return this.slotManager.slotNames;
   }
+  #detachFromParentSlot() {
+    let oldParentComponent = this.parentComponent;
+    if (oldParentComponent) {
+      let slot = oldParentComponent.slotManager.findSlotByComponent(this);
+      if (!slot) return false;
+      return slot.detach(this);
+    }
+    return false;
+  }
   /**
    * Adds a child component to a slot.
    * @param {string} slotName - The name of the slot to add the component to.
@@ -1931,6 +1933,9 @@ var Component = class {
    * @throws {Error} If the slot does not exist.
    */
   addComponentToSlot(slotName, ...components) {
+    for (let i = 0; i < components.length; i++) {
+      components[i].#detachFromParentSlot();
+    }
     let slot = this.slotManager.attachToSlot(slotName, ...components);
     if (this.#isConnected) {
       slot.mount();

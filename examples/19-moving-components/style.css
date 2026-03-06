@@ -1,0 +1,140 @@
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.demo {
+    background: white;
+    border-radius: 2rem;
+    padding: 2rem;
+    box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+button {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 2rem;
+    padding: 0.6rem 1.4rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    background: white;
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.slots {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.slot {
+    flex: 1;
+    background: #f1f5f9;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    border: 2px dashed #cbd5e1;
+    min-height: 200px;
+}
+
+.slot h3 {
+    margin-top: 0;
+    color: #334155;
+    text-align: center;
+    font-weight: 500;
+}
+
+.external {
+    background: #f1f5f9;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    border: 2px solid #cbd5e1;
+}
+
+.external h3 {
+    margin-top: 0;
+    color: #334155;
+    text-align: center;
+    font-weight: 500;
+}
+
+.external-box {
+    min-height: 200px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 1rem;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Counter card style */
+.counter-card {
+    background: white;
+    border-radius: 3rem;
+    padding: 1rem 2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    margin: 1rem 0;
+}
+
+.counter-card span {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 3rem;
+    text-align: center;
+}
+
+.counter-card button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.4);
+}
+
+.counter-card button:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46a0);
+    transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .slots {
+        flex-direction: column;
+    }
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

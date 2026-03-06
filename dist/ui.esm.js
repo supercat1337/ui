@@ -868,6 +868,27 @@ function createStorage(storage) {
 const local = createStorage(localStorage);
 const session = createStorage(sessionStorage);
 
+/*
+// example
+
+javascript
+import { local, session } from '@supercat1337/ui';
+
+local.set('user', { name: 'Alice', age: 30 });
+const user = local.get('user');
+console.log(user); // { name: 'Alice', age: 30 }
+
+const unsubscribe = local.on('user', (newValue, oldValue) => {
+    console.log('User changed from', oldValue, 'to', newValue);
+});
+
+local.set('user', { name: 'Bob', age: 25 });
+
+unsubscribe();
+
+session.set('theme', 'dark');
+*/
+
 // @ts-check
 
 class Toggler {
@@ -1030,11 +1051,12 @@ class Slot {
      * This method sets the given component's parent component and parent slot name to null,
      * and removes the component from the slot's internal set of components.
      * @param {Component} component - The component to detach from the slot.
+     * @returns {boolean}
      */
     detach(component) {
         component.$internals.parentComponent = null;
         component.$internals.assignedSlotName = '';
-        this.components.delete(component);
+        return this.components.delete(component);
     }
 
     /**
@@ -1052,11 +1074,6 @@ class Slot {
 
     /**
      * Mounts all children components of the slot to the DOM.
-     * This method first checks if the component is connected.
-     * If not, it logs a warning and returns.
-     * Then, it gets the root element of the slot from the component's internal slot refs map.
-     * If the slot root element does not exist, it logs a warning and returns.
-     * Finally, it iterates over all children components of the slot and calls their mount method with the slot root element and the "append" mode.
      */
     mount() {
         if (!this.#component.isConnected) {
@@ -1079,9 +1096,7 @@ class Slot {
         }
 
         this.components.forEach(childComponent => {
-            if (!childComponent.isConnected && !childComponent.isCollapsed) {
-                childComponent.mount(slotRoot, 'append');
-            }
+            childComponent.mount(slotRoot, 'append');
         });
     }
 
@@ -1149,8 +1164,8 @@ class SlotManager {
     }
 
     /**
-     * 
-     * @param {string} slotName 
+     *
+     * @param {string} slotName
      * @returns {HTMLElement|null}
      */
     getSlotElement(slotName) {
@@ -1158,7 +1173,7 @@ class SlotManager {
             return null;
         }
 
-        return this.#component.$internals.scopeRefs[slotName] || null
+        return this.#component.$internals.scopeRefs[slotName] || null;
     }
 
     /**
@@ -1285,8 +1300,9 @@ class SlotManager {
         for (let i = 0; i < components.length; i++) {
             let component = components[i];
             let usingSlot = this.findSlotByComponent(component);
+            
             if (usingSlot != null) {
-                continue;
+                usingSlot.detach(component);
             }
 
             slot.attach(component);
@@ -1947,6 +1963,8 @@ class Component {
      * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
      */
     mount(container, mode = 'replace') {
+        if (this.#isCollapsed) return;
+
         // Validation
         if (!(container instanceof window.Element)) {
             throw new TypeError('Mount target must be a valid DOM Element.');
@@ -1957,58 +1975,52 @@ class Component {
             throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(', ')}`);
         }
 
-        // Lifecycle & Re-mounting Logic
-        // If already connected to this exact container, do nothing.
-        // If moving to a DIFFERENT container, we unmount first to clean up.
-        if (this.isConnected) {
-            if (this.$internals.parentElement === container) return;
-            this.unmount();
-        }
+        const isMoving = this.isConnected;
 
-        this.$internals.mountMode = mode === 'hydrate' ? 'replace' : mode;
-
-        let componentRoot;
-
+        // 2. Hydration Path
         if (mode === 'hydrate') {
-            // Check if the container itself is the root
-            const isRoot = container.getAttribute('data-component-root') === this.#instanceId;
-
-            if (isRoot) {
-                componentRoot = container;
-            } else {
-                // 2. Otherwise, look inside (as we planned before)
-                componentRoot = container.querySelector(
-                    `[data-component-root="${this.#instanceId}"]`
-                );
-            }
+            const componentRoot =
+                container.getAttribute('data-component-root') === this.#instanceId
+                    ? container
+                    : container.querySelector(`[data-component-root="${this.#instanceId}"]`);
 
             if (!componentRoot) {
                 throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
             }
 
+            this.$internals.root = componentRoot;
             this.#hydrateTeleports();
-        } else {
-            // --- STANDARD RENDER PATH ---
-            // Get the fresh element from our optimized render()
-            componentRoot = this.render();
 
-            // 3. DOM Insertion
-            if (mode === 'replace') container.replaceChildren(componentRoot);
-            else if (mode === 'append') container.append(componentRoot);
-            else if (mode === 'prepend') container.prepend(componentRoot);
-
-            this.#mountTeleports();
+            // Standard finalization for hydration
+            this.connect(/** @type {HTMLElement} */ (componentRoot));
+            this.emit('mount');
+            return;
         }
+
+        // 3. Render or Reuse Path
+        // If moving, we use the existing root. If new, we call render().
+        const componentRoot = isMoving ? this.getRootNode() : this.render();
+
+        // 3. DOM Insertion
+        if (mode === 'replace') container.replaceChildren(componentRoot);
+        else if (mode === 'append') container.append(componentRoot);
+        else if (mode === 'prepend') container.prepend(componentRoot);
 
         // Finalize Connection
         this.$internals.root = componentRoot;
         this.$internals.parentElement = componentRoot.parentElement;
 
-        this.emit('prepareRender', componentRoot);
-        // Connect logic: collects refs, sets up event listeners via AbortController
-        this.connect(/** @type {HTMLElement} */ (componentRoot));
-
-        this.emit('mount');
+        // 5. Lifecycle Logic
+        if (!isMoving) {
+            // Only mount teleports and connect logic if it's the FIRST time
+            this.#mountTeleports();
+            this.emit('prepareRender', componentRoot);
+            this.connect(/** @type {HTMLElement} */ (componentRoot));
+            this.emit('mount');
+        } else {
+            // If it was just a move, we might want a specific event
+            this.emit('move', { to: container });
+        }
     }
 
     /**
@@ -2170,6 +2182,17 @@ class Component {
         return this.slotManager.slotNames;
     }
 
+    #detachFromParentSlot() {
+        let oldParentComponent = this.parentComponent;
+        if (oldParentComponent) {
+            let slot = oldParentComponent.slotManager.findSlotByComponent(this);
+            if (!slot) return false;
+
+            return slot.detach(this);
+        }
+        return false;
+    }
+
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
@@ -2177,6 +2200,10 @@ class Component {
      * @throws {Error} If the slot does not exist.
      */
     addComponentToSlot(slotName, ...components) {
+        for (let i = 0; i < components.length; i++) {
+            components[i].#detachFromParentSlot();
+        }
+
         let slot = this.slotManager.attachToSlot(slotName, ...components);
 
         if (this.#isConnected) {

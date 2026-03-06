@@ -895,8 +895,9 @@ declare class Slot {
      * This method sets the given component's parent component and parent slot name to null,
      * and removes the component from the slot's internal set of components.
      * @param {Component} component - The component to detach from the slot.
+     * @returns {boolean}
      */
-    detach(component: Component): void;
+    detach(component: Component): boolean;
     /**
      * Detaches all components from the slot.
      * This method sets all components' parent component and parent slot name to null,
@@ -905,11 +906,6 @@ declare class Slot {
     detachAll(): void;
     /**
      * Mounts all children components of the slot to the DOM.
-     * This method first checks if the component is connected.
-     * If not, it logs a warning and returns.
-     * Then, it gets the root element of the slot from the component's internal slot refs map.
-     * If the slot root element does not exist, it logs a warning and returns.
-     * Finally, it iterates over all children components of the slot and calls their mount method with the slot root element and the "append" mode.
      */
     mount(): void;
     /**

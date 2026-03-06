@@ -348,6 +348,10 @@ Explore the [examples directory](./examples) for complete, runnable demos. Each 
 | `14-teleport-hydration`  | **Teleport Hydration**  | Hydrating teleported SSR markup.                                                                                             |
 | `15-nested-portals`      | **Nested Portals**      | Rendering components with portals inside portals, preserving logical hierarchy and unified refs across multiple DOM targets. |
 | `16-web-components`      | **Web Components Integration** | Using custom elements with Shadow DOM inside BareDOM components and accessing their internal refs via the unified refs system. |
+|`17-i18n` | **Internationalization** | Dynamic text updates using setTextUpdateFunction and reloadText, integration with external i18n libraries, language switching without re-rendering. |
+| `18-utilities` | **Utility Functions** | Collection of helper utilities: debounce, throttle, uniqueId, onClickOutside, and localStorage/sessionStorage wrapper with change subscriptions. |
+| `19-moving-components` | **Moving Components (Same Parent)** | Moving a component between slots within the same parent or to an external container without unmounting, preserving state. |
+| `20-moving-between-parents` | **Moving Components (Different Parents)** | Transferring a component from one parent component to another, preserving internal state and event listeners. |
 
 To run examples locally:
 
