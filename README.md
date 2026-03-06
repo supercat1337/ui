@@ -387,9 +387,3 @@ Key methods and properties of `Component`:
 ## License
 
 MIT © [supercat1337](https://github.com/supercat1337)
-
----
-
-### Why this is the future of Vanilla Development?
-
-You don't fight the framework; you use browser standards amplified by a rigorous structure and modern safety tools. `@supercat1337/ui` gives you the best of both worlds: the mental model of component‑based architecture and the raw performance of native DOM manipulation.
