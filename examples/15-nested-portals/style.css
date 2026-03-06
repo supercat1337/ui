@@ -1,25 +1,128 @@
-/* Styling the teleported root via its data attribute */
-[data-component-teleport="overlay"] {
+/* Core styles for modal and tooltip */
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f1f5f9;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-wrapper {
+    text-align: center;
+}
+
+/* Modal overlay (teleported to body) */
+.modal-overlay {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    display: none;
-    justify-content: center;
+    backdrop-filter: blur(3px);
     align-items: center;
-    z-index: 9999;
+    justify-content: center;
+    z-index: 1000;
 }
 
-[data-component-teleport="overlay"].is-active {
+.modal-overlay.is-active {
     display: flex;
 }
 
 .modal-content {
     background: white;
+    border-radius: 2rem;
     padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    min-width: 300px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    position: relative;
+}
+
+.modal-content h2 {
+    margin: 0 0 1.5rem 0;
+    color: #0f172a;
+}
+
+.close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.close-btn:hover {
+    color: #0f172a;
+}
+
+/* Slot container for tooltip */
+[data-slot="tooltip-slot"] {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 1rem;
+    border: 1px dashed #cbd5e1;
+    text-align: center;
+}
+
+/* Tooltip (teleported to body) */
+.tooltip {
+    display: none;
+    position: absolute;
+    background: #1e293b;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-size: 0.9rem;
+    pointer-events: none;
+    z-index: 2000;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+}
+
+/* Position the tooltip near its trigger (we'll position absolutely relative to trigger) */
+/* Since the tooltip is in body, we need to position it manually near the trigger.
+   For simplicity, we'll use a fixed offset. In a real app you'd use a positioning library. */
+.tooltip {
+    /* default position; will be overridden by JS if needed */
+    top: 0;
+    left: 0;
+}
+
+/* Button styles */
+button {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    border-radius: 2rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: white;
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+}
+
+[data-ref="openBtn"] {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    font-size: 1.2rem;
+    padding: 0.8rem 2rem;
+}
+
+[data-ref="openBtn"]:hover {
+    background: #2563eb;
 }

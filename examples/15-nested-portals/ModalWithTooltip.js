@@ -1,39 +1,6 @@
 // @ts-check
 import { Component, html } from '@supercat1337/ui';
-
-// ================= Tooltip Component =================
-class Tooltip extends Component {
-    refsAnnotation = {
-        trigger: HTMLButtonElement.prototype,
-        tip: HTMLElement.prototype,
-    };
-
-    // Main layout – the trigger button (stays where it's placed)
-    layout = () => html`
-        <button data-ref="trigger">Hover me</button>
-    `;
-
-    // Teleport: the tooltip itself goes to document.body
-    teleports = {
-        tooltip: {
-            layout: () => html`
-                <div class="tooltip" data-ref="tip">I'm a tooltip!</div>
-            `,
-            target: document.body,
-            strategy: /** @type {const} */ ('append'),
-        },
-    };
-
-    connectedCallback() {
-        const refs = this.getRefs();
-        refs.trigger.addEventListener('mouseenter', () => {
-            refs.tip.style.display = 'block';
-        });
-        refs.trigger.addEventListener('mouseleave', () => {
-            refs.tip.style.display = 'none';
-        });
-    }
-}
+import { Tooltip } from './Tooltip.js';
 
 // ================= Modal Component =================
 export class ModalWithTooltip extends Component {
