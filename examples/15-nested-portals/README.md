@@ -20,7 +20,7 @@ This example demonstrates how to nest teleported components (portals) inside eac
 ## Files
 
 - `ModalWithTooltip.js` – main component with nested teleports and the tooltip slot.
-- `Tooltip.js` (inside the same file) – the tooltip component (also teleported).
+- `Tooltip.js` – the tooltip component (also teleported).
 - `main.js` – entry point.
 - `index.html` – container.
 - `style.css` – styling for the modal and tooltip.
