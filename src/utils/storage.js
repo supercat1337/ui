@@ -1,5 +1,7 @@
 // @ts-check
 
+import { Config } from "../component/config.js";
+
 /**
  * Creates a wrapper around a Storage object (localStorage or sessionStorage)
  * with automatic JSON serialization and change subscription.
@@ -45,14 +47,14 @@ export function createStorage(storage) {
     let isListening = false;
     const startListening = () => {
         if (!isListening) {
-            window.addEventListener('storage', handleStorage);
+            Config.window.addEventListener('storage', handleStorage);
             isListening = true;
         }
     };
 
     const stopListening = () => {
         if (isListening && listeners.size === 0) {
-            window.removeEventListener('storage', handleStorage);
+            Config.window.removeEventListener('storage', handleStorage);
             isListening = false;
         }
     };
@@ -144,8 +146,8 @@ export function createStorage(storage) {
 }
 
 // Pre-created instances for convenience
-export const local = createStorage(localStorage);
-export const session = createStorage(sessionStorage);
+export const local = createStorage(Config.window.localStorage);
+export const session = createStorage(Config.window.sessionStorage);
 
 /*
 // example

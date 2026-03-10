@@ -1,5 +1,20 @@
-export type TextUpdateFunction = (component: Component) => void;
-export type _TextUpdateFunction = (component: Component) => void;
+export type ComponentMetadata = {
+    /**
+     * - The constructor name for class instantiation.
+     */
+    className: string;
+    /**
+     * - Serialized state from component.serialize().
+     */
+    data: any;
+    /**
+     * - Map of slot names to arrays of child instance IDs.
+     */
+    slots: Record<string, string[]>;
+};
+export type TextUpdateFunction = (component: any) => void;
+export type ComponentLifecycleEvent = "connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore";
+export type ComponentEvent = ComponentLifecycleEvent | (string & {});
 export type TeleportStrategy = "append" | "prepend" | "replace";
 export type TeleportConfig = {
     /**
@@ -19,7 +34,11 @@ export type TeleportList = {
     [x: string]: TeleportConfig;
 };
 /**
- * @typedef {(component: Component) => void} _TextUpdateFunction
+ * @typedef {"connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore"} ComponentLifecycleEvent
+ * @typedef {ComponentLifecycleEvent | (string & {})} ComponentEvent
+ */
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
  */
 /**
  * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
@@ -41,17 +60,17 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
      * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
+     * @param {string} [options.sid]
      */
     constructor(options?: {
         instanceId?: string;
+        sid?: string;
     });
     /** @type {Internals} */
     $internals: Internals;
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout: ((component: this) => Node | string) | string | null | Node;
-    /**
-     * @type {TeleportList}
-     */
+    /** @type {TeleportList} */
     teleports: TeleportList;
     /** @type {T} */
     refsAnnotation: T;
@@ -64,29 +83,18 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     get isConnected(): boolean;
     /**
-     * Returns whether the component is currently collapsed or not.
-     * @returns {boolean} True if the component is collapsed, false otherwise.
-     */
-    get isCollapsed(): boolean;
-    /**
-     * Returns whether the component is currently running on a server or not.
-     * @returns {boolean} True if the component is running on a server, false otherwise.
-     */
-    get isServer(): boolean;
-    /**
-     * Reloads the text content of the component by calling the text update function if it is set.
-     * This method is useful when the component's text content depends on external data that may change.
-     * @returns {void}
+     * Triggers the text update logic by calling the registered text update function.
+     * Use this to refresh translated strings, plural forms, or formatted labels
+     * without rerendering the entire component structure.
      */
     reloadText(): void;
     /**
-     * Sets the text update function for the component.
-     * The text update function is a function that is called when the reloadText method is called.
-     * The function receives the component instance as the this value.
-     * @param {_TextUpdateFunction|null} func - The text update function to set.
-     * @returns {void}
+     * Registers a specialized function responsible for updating text nodes within the component.
+     * This is particularly useful for i18n (internationalization) or when specific labels
+     * depend on multiple state variables.
+     * * @param {((component: this) => void) | null} func - The function to be called by `reloadText()`.
      */
-    setTextUpdateFunction(func: _TextUpdateFunction | null): void;
+    setTextUpdateFunction(func: ((component: this) => void) | null): void;
     /**
      * Sets the layout of the component by assigning the template content.
      * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
@@ -95,14 +103,6 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     setLayout(layout: ((component: this) => Node | string) | string, annotation?: T): void;
     /**
-     * Sets the renderer for the component by assigning the template content.
-     * This is a synonym for setLayout.
-     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
-     * @param {T} [annotation] - An array of strings representing the names of the refs.
-     * The function is called with the component instance as the this value.
-     */
-    setRenderer(layout: ((component: this) => Node | string) | string, annotation?: T): void;
-    /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
      * The refs object is only available after the component has been connected to the DOM.
@@ -110,38 +110,41 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     getRefs(): (typeof this)["refsAnnotation"];
     /**
-     * Returns the ref element with the given name.
-     * @param {string} refName - The name of the ref to retrieve.
-     * @returns {HTMLElement} The ref element with the given name.
-     * @throws {Error} If the ref does not exist.
-     */
-    getRef(refName: string): HTMLElement;
-    /**
      * Checks if a ref with the given name exists.
      * @param {string} refName - The name of the ref to check.
      * @returns {boolean} True if the ref exists, false otherwise.
      */
     hasRef(refName: string): boolean;
     /**
-     * Updates the refs object with the current state of the DOM.
-     * This method is usually called internally when the component is connected or disconnected.
-     * @throws {Error} If the component is not connected to the DOM.
+     * Manually rescans the component's DOM tree to update the `refs` object.
+     * While this is called automatically during mounting and hydration, you should
+     * call it manually if you've dynamically injected new HTML containing `data-ref`
+     * attributes (e.g., via innerHTML) to ensure `getRefs()` returns the latest elements.
+     * * @throws {Error} If the component is not currently connected to the DOM.
      * @returns {void}
      */
     updateRefs(): void;
+    serialize(): {};
     /**
      * Subscribes to a specified event.
-     * @param {string} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    on(event: string, callback: Function): () => void;
+    on(event: ComponentEvent, callback: Function): () => void;
+    /**
+     * Subscribes to a specified event and automatically unsubscribes after the first trigger.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {Function} callback - The callback function.
+     * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
+     */
+    once(event: ComponentEvent, callback: Function): () => void;
     /**
      * Emits an event with the given arguments.
-     * @param {string} event - The name of the event to emit.
+     * @param {ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
-    emit(event: string, ...args: any[]): void;
+    emit(event: ComponentEvent, ...args: any[]): void;
     /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
@@ -151,85 +154,6 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * @returns {() => void} A function that can be called to remove the event listener.
      */
     $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
-    /**
-     * Subscribes to the "prepareRender" event.
-     * This event is emitted just before the component is about to render its layout.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this, template: Node) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onPrepareRender(callback: (component: this, template: Node) => void): () => void;
-    /**
-     * Subscribes to the "connect" event.
-     * This event is emitted just after the component is connected to the DOM.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onConnect(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "disconnect" event.
-     * This event is emitted just before the component is disconnected from the DOM.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onDisconnect(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "mount" event.
-     * This event is emitted after the component is mounted to the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onMount(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "beforeUnmount" event.
-     * This event is emitted just before the component is unmounted from the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onBeforeUnmount(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "unmount" event.
-     * This event is emitted after the component is unmounted from the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onUnmount(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "collapse" event.
-     * This event is emitted after the component has collapsed.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onCollapse(callback: (component: this) => void): () => void;
-    /**
-     * Subscribes to the "expand" event.
-     * This event is emitted after the component has expanded.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onExpand(callback: (component: this) => void): () => void;
-    /**
-     * Connects the component to the specified componentRoot element.
-     * Initializes the refs object and sets the component's root element.
-     * Emits "connect" event through the event emitter.
-     * @param {HTMLElement} componentRoot - The root element to connect the component to.
-     */
-    connect(componentRoot: HTMLElement): void;
-    /**
-     * Disconnects the component from the DOM.
-     * Sets the component's #isConnected flag to false.
-     * Clears the refs and scopeRefs objects.
-     * Aborts all event listeners attached with the $on method.
-     * Emits "disconnect" event through the event emitter.
-     */
-    disconnect(): void;
     /**
      * This method is called when the component is connected to the DOM.
      * It is an empty method and is intended to be overridden by the user.
@@ -243,18 +167,14 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     disconnectedCallback(): void;
     /**
-     * Default implementation of template getter.
-     * Can be overridden or rely on this.layout.
-     * @returns {string|Function|Node}
+     * Called automatically during the hydration process to restore the component's state.
+     * This method receives data serialized by `serialize()` on the server.
+     * Use this to synchronize your internal `this.state` with server-provided data
+     * before the component becomes interactive in the DOM.
+     * * @param {any} data - The plain object retrieved from the hydration manifest (window.__HYDRATION_DATA__).
+     * @returns {void}
      */
-    template(): string | Function | Node;
-    /**
-     * Internal rendering engine.
-     * Separates static (cached) layouts from dynamic (functional) layouts.
-     * Ensures a single root Element is always returned.
-     * @returns {Element}
-     */
-    render(): Element;
+    restoreCallback(data: any): void;
     /**
      * Mounts the component to a DOM container or hydrates existing HTML.
      * @param {Element} container - The target DOM element (the "hole").
@@ -274,41 +194,26 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     rerender(): void;
     /**
-     * This method is called when the component is updated.
-     * It is an empty method and is intended to be overridden by the user.
-     * @param {...*} args
+     * Returns whether the component is currently in a collapsed state (replaced by a placeholder).
+     * @returns {boolean}
      */
-    update(...args: any[]): void;
+    get isCollapsed(): boolean;
     /**
-     * Shows the component.
-     * If the component is not connected, it does nothing.
-     * If the component is connected, it removes the "d-none" class from the root element.
-     */
-    show(): void;
-    /**
-     * Hides the component.
-     * If the component is not connected, it does nothing.
-     * If the component is connected, it adds the "d-none" class to the root element.
-     */
-    hide(): void;
-    /**
-     * Collapses the component by unmounting it from the DOM.
-     * Sets the #isCollapsed flag to true.
+     * Collapses the component by replacing its DOM content with a lightweight placeholder.
+     * Unlike `unmount()`, this state is tracked by `isCollapsed`, allowing the component
+     * to remember its exact position in the DOM tree for future restoration.
      */
     collapse(): void;
     /**
-     * Expands the component by mounting it to the DOM.
-     * Sets the #isCollapsed flag to false.
-     * If the component is already connected, does nothing.
-     * If the component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * Re-mounts a collapsed component back into its original DOM position.
+     * If the parent component is also collapsed, this may not result in immediate
+     * visibility unless `expandForce()` is used.
      */
     expand(): void;
     /**
-     * Expands all components in the hierarchy, starting from the current component.
-     * If a component is already connected, does nothing.
-     * If a component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * Forces the expansion of the entire component hierarchy from the current node up to the root.
+     * Use this when you need to ensure a specific nested component is visible,
+     * even if its ancestors were previously collapsed.
      */
     expandForce(): void;
     /**
@@ -341,16 +246,31 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     removeOnUnmount(...elements: Element[]): void;
     /**
-     * Returns an array of elements matching the given tag name, optionally filtered by a CSS selector.
-     * If no query selector is given, all elements matching the tag name are returned.
-     * If a query selector is given, only elements matching the tag name and the query selector are returned.
-     * @param {string} tagName - The tag name to search for.
-     * @param {string} [querySelector] - An optional CSS selector to filter the results by.
-     * @returns {Element[]} An array of elements matching the tag name and query selector.
+     * Returns an array of elements matching the given tag name within the component's scope.
+     * Unlike standard querySelectorAll, this method respects component boundaries:
+     * it ignores elements that belong to nested child components.
+     * * @param {string} tagName - The tag name to search for (e.g., 'li', 'div').
+     * @param {string} [querySelector] - An optional CSS selector to further filter the results.
+     * @returns {Element[]} An array of elements belonging ONLY to the current component level.
      */
-    searchElements(tagName: string, querySelector?: string): Element[];
+    queryLocal(tagName: string, querySelector?: string): Element[];
+    /**
+     * Finds a nested component by its string SID.
+     * @param {string} targetSid - The SID to search for.
+     * @returns {Component|null}
+     */
+    getComponentBySid(targetSid: string): Component | null;
+    /**
+     * Retrieves hydration data for this specific component instance from the global manifest.
+     * Useful for accessing server-provided state BEFORE the component is mounted or hydrated.
+     * While `restoreCallback` is triggered automatically during `mount('hydrate')`,
+     * this method allows manual data retrieval at any time after instantiation.
+     * @returns {any | null}
+     */
+    getHydrationData(): any | null;
     #private;
 }
+export const Config: ConfigManager;
 /**
  * Executes the provided callback function when the DOM is fully loaded.
  * If the document is already loaded, the callback is executed immediately.
@@ -430,6 +350,14 @@ export class Toggler {
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
 export function copyToClipboard(text: string): Promise<void>;
+/**
+ * Creates an HTMLScriptElement containing the hydration manifest.
+ * Useful for DOM-based environments or JSDOM on the server.
+ * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
+ * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
+ * @returns {HTMLScriptElement}
+ */
+export function createManifestScript(manifest: Record<string, ComponentMetadata>, variableName?: string): HTMLScriptElement;
 /**
  * Creates an array of page numbers to be displayed in a pagination list.
  * @param {number} current
@@ -535,6 +463,18 @@ export function formatDate(unix_timestamp: number): string;
  */
 export function formatDateTime(unix_timestamp: number): string;
 /**
+ * @typedef {Object} ComponentMetadata
+ * @property {string} className - The constructor name for class instantiation.
+ * @property {Object} data - Serialized state from component.serialize().
+ * @property {Record<string, string[]>} slots - Map of slot names to arrays of child instance IDs.
+ */
+/**
+ * Generates a flat map of the component tree for SSR hydration.
+ * * @param {...Component} rootComponents - The starting root components of the tree.
+ * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ */
+export function generateManifest(...rootComponents: Component[]): Record<string, ComponentMetadata>;
+/**
  * Returns the user's default language, or "en" if none can be determined.
  * @returns {string} The user's default language, in the form of a two-letter
  *   language code (e.g. "en" for English, "fr" for French, etc.).
@@ -595,6 +535,13 @@ export function onClickOutside(element: Element, callback: (event: MouseEvent) =
  * @param {HTMLButtonElement} button - The button which should have its spinner removed.
  */
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
+/**
+ * Alternative for pure string-based SSR (Node.js without JSDOM)
+ * @param {Record<string, ComponentMetadata>} manifest
+ * @param {string} variableName
+ * @returns {string}
+ */
+export function renderManifestHTML(manifest: Record<string, ComponentMetadata>, variableName?: string): string;
 /**
  * Renders a pagination list with the given parameters.
  * @param {number} currentPageNumber - The current page number.
@@ -711,15 +658,30 @@ export function unsafeHTML(html: string): SafeHTML;
  */
 export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promise<T>;
 /**
- * @typedef {(component: Component) => void} TextUpdateFunction
+ * @typedef {(component: import('./component.js').Component) => void} TextUpdateFunction
  */
 declare class Internals {
+    /** @type {number} */
     static "__#private@#instanceIdCounter": number;
     /**
      * Generates a unique instance ID.
      * @returns {string} The unique instance ID.
      */
     static generateInstanceId(): string;
+    /** * The server-side identifier used for hydration.
+     * @type {string|null}
+     */
+    sid: string | null;
+    /**
+     * Allows manual override of the instanceId.
+     * @param {string} value
+     */
+    set instanceId(value: string);
+    /**
+     * Lazy getter for the instanceId.
+     * Generates a unique ID only when first requested.
+     */
+    get instanceId(): string;
     /** @type {EventEmitter<any>} */
     eventEmitter: EventEmitter<any>;
     /** @type {AbortController} */
@@ -728,24 +690,18 @@ declare class Internals {
     root: Element | null;
     /** @type {TextUpdateFunction|null} */
     textUpdateFunction: TextUpdateFunction | null;
-    /** @type {{[key:string]:any}}  */
-    textResources: {
-        [key: string]: any;
-    };
-    /** @type {{[key:string]:HTMLElement}} */
-    refs: {
-        [key: string]: HTMLElement;
-    };
-    /** @type {{[key:string]:HTMLElement}} */
-    scopeRefs: {
-        [key: string]: HTMLElement;
-    };
-    /** @type {Component|null} */
-    parentComponent: Component | null;
+    /** @type {Record<string, any>} */
+    textResources: Record<string, any>;
+    /** @type {Record<string, HTMLElement>} */
+    refs: Record<string, HTMLElement>;
+    /** @type {Record<string, HTMLElement>} */
+    scopeRefs: Record<string, HTMLElement>;
+    /** @type {import('./component.js').Component|null} */
+    parentComponent: any | null;
     /** @type {string} */
     assignedSlotName: string;
-    /** @type {"replace"|"append"|"prepend"} */
-    mountMode: "replace" | "append" | "prepend";
+    /** @type {"replace"|"append"|"prepend"|"hydrate"} */
+    mountMode: "replace" | "append" | "prepend" | "hydrate";
     /** @type {boolean} */
     cloneTemplateOnRender: boolean;
     /** @type {Element|null} */
@@ -756,6 +712,9 @@ declare class Internals {
     teleportRoots: Map<string, Element>;
     /** @type {import('dom-scope').ScopeRoot[]} */
     additionalRoots: import("dom-scope").ScopeRoot[];
+    /** @type {boolean} */
+    isHydrated: boolean;
+    #private;
 }
 declare class SlotManager {
     /**
@@ -860,7 +819,55 @@ declare class SlotManager {
      * @returns {Slot | null} The slot associated with the child component, or null if no slot is found.
      */
     findSlotByComponent(component: Component): Slot | null;
+    /**
+     * Finds a direct child by its SID.
+     * @param {string} sid
+     * @returns {Component|null}
+     */
+    findChildBySid(sid: string): Component | null;
+    /**
+     *
+     * @param {string} slotName
+     * @returns {number}
+     */
+    getSlotLength(slotName: string): number;
+    getSlots(): Map<string, Slot>;
     #private;
+}
+/**
+ * @typedef {Object} ComponentMetadata
+ * @property {string} className - The constructor name for class instantiation.
+ * @property {any} data - Serialized state from component.serialize().
+ * @property {Record<string, string[]>} slots - Map of slot names to child instance IDs.
+ */
+/**
+ * Configuration Manager for UI Library.
+ * Handles SSR flags and hydration data access.
+ */
+declare class ConfigManager {
+    /** @type {boolean} Indicates if we are currently in Server-Side Rendering mode. */
+    isSSR: boolean;
+    /** @type {string} The global key where hydration data is stored. */
+    hydrationDataKey: string;
+    /** * Safe reference to the global object (window in browser, global in Node).
+     * @type {globalThis}
+     */
+    window: typeof globalThis;
+    /**
+     * Safely retrieves the hydration manifest from the global environment.
+     * @returns {ComponentMetadata|null}
+     */
+    getManifest(): ComponentMetadata | null;
+    /**
+     * Extracts state for a specific SID.
+     * @param {string} sid - Server ID
+     * @returns {any|null}
+     */
+    getHydrationData(sid: string): any | null;
+    /**
+     * Clears the manifest to free up memory.
+     */
+    destroyManifest(): void;
 }
 /**
  * A wrapper class for strings that should not be escaped.
@@ -918,6 +925,12 @@ declare class Slot {
      * This method first unmounts all children components of the slot, then detaches them from the slot.
      */
     clear(): void;
+    getLength(): number;
+    /**
+     *
+     * @returns {Component[]}
+     */
+    getComponents(): Component[];
     #private;
 }
 export {};

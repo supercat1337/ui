@@ -1,5 +1,7 @@
 // @ts-check
 
+import { Config } from "../component/config.js";
+
 /**
  * Executes the provided callback function when the DOM is fully loaded.
  * If the document is already loaded, the callback is executed immediately.
@@ -319,7 +321,7 @@ export function delegateEvent(eventType, ancestorElement, targetElementSelector,
     ancestorElement.addEventListener(eventType, function (event) {
         let target;
 
-        if (event.target && event.target instanceof Element) {
+        if (event.target && event.target instanceof Config.window.Element) {
             target = event.target;
 
             if (event.target.matches(targetElementSelector)) {

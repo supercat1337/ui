@@ -4,9 +4,15 @@ import { checkRefs, selectRefsExtended, walkDomScope } from 'dom-scope';
 import { SlotManager } from './slot-manager.js';
 import { Internals } from './internals.js';
 import { onConnectDefault, onDisconnectDefault, resolveLayout } from './helpers.js';
+import { Config } from './config.js';
 
 /**
- * @typedef {(component: Component) => void} _TextUpdateFunction
+ * @typedef {"connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore"} ComponentLifecycleEvent
+ * @typedef {ComponentLifecycleEvent | (string & {})} ComponentEvent
+ */
+
+/**
+ * @typedef {(component: Component) => void} TextUpdateFunction
  */
 
 /**
@@ -34,9 +40,7 @@ export class Component {
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
-    /**
-     * @type {TeleportList}
-     */
+    /** @type {TeleportList} */
     teleports = {};
 
     /** @type {T} */
@@ -48,29 +52,35 @@ export class Component {
 
     #isCollapsed = false;
 
-    /** @type {string} */
-    #instanceId;
-
     #cachedElement = null;
 
     /**
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
      * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
+     * @param {string} [options.sid]
      */
-    constructor(
-        options = {
-            instanceId: undefined,
+    constructor(options = {}) {
+        const { instanceId = null, sid = null } = options;
+        this.$internals = new Internals();
+
+        this.$internals.instanceId = instanceId || `uid-${Math.random().toString(36).slice(2, 9)}`;
+        this.on('connect', onConnectDefault);
+        this.on('disconnect', onDisconnectDefault);
+
+        // Set the Server ID if provided (Hydration mode)
+        if (sid) {
+            this.$internals.sid = sid;
+
+            this.once('restore', data => {
+                this.restoreCallback(data);
+            });
         }
-    ) {
-        this.#instanceId = options.instanceId || Internals.generateInstanceId();
-        this.onConnect(onConnectDefault);
-        this.onDisconnect(onDisconnectDefault);
     }
 
     /** @returns {string} */
     get instanceId() {
-        return this.#instanceId;
+        return this.$internals.instanceId;
     }
 
     /* State */
@@ -84,26 +94,9 @@ export class Component {
     }
 
     /**
-     * Returns whether the component is currently collapsed or not.
-     * @returns {boolean} True if the component is collapsed, false otherwise.
-     */
-    get isCollapsed() {
-        return this.#isCollapsed;
-    }
-
-    /**
-     * Returns whether the component is currently running on a server or not.
-     * @returns {boolean} True if the component is running on a server, false otherwise.
-     */
-    get isServer() {
-        // @ts-ignore
-        return typeof window !== 'undefined' && window.isServer === true;
-    }
-
-    /**
-     * Reloads the text content of the component by calling the text update function if it is set.
-     * This method is useful when the component's text content depends on external data that may change.
-     * @returns {void}
+     * Triggers the text update logic by calling the registered text update function.
+     * Use this to refresh translated strings, plural forms, or formatted labels
+     * without rerendering the entire component structure.
      */
     reloadText() {
         if (this.$internals.textUpdateFunction) {
@@ -112,11 +105,10 @@ export class Component {
     }
 
     /**
-     * Sets the text update function for the component.
-     * The text update function is a function that is called when the reloadText method is called.
-     * The function receives the component instance as the this value.
-     * @param {_TextUpdateFunction|null} func - The text update function to set.
-     * @returns {void}
+     * Registers a specialized function responsible for updating text nodes within the component.
+     * This is particularly useful for i18n (internationalization) or when specific labels
+     * depend on multiple state variables.
+     * * @param {((component: this) => void) | null} func - The function to be called by `reloadText()`.
      */
     setTextUpdateFunction(func) {
         this.$internals.textUpdateFunction = func;
@@ -136,17 +128,6 @@ export class Component {
         }
     }
 
-    /**
-     * Sets the renderer for the component by assigning the template content.
-     * This is a synonym for setLayout.
-     * @param {((component: this) => Node|string)|string} layout - A function that returns a Node representing the layout.
-     * @param {T} [annotation] - An array of strings representing the names of the refs.
-     * The function is called with the component instance as the this value.
-     */
-    setRenderer(layout, annotation) {
-        this.setLayout(layout, annotation);
-    }
-
     /* Refs */
 
     /**
@@ -164,22 +145,6 @@ export class Component {
     }
 
     /**
-     * Returns the ref element with the given name.
-     * @param {string} refName - The name of the ref to retrieve.
-     * @returns {HTMLElement} The ref element with the given name.
-     * @throws {Error} If the ref does not exist.
-     */
-    getRef(refName) {
-        let refs = this.getRefs();
-        if (!(refName in refs)) {
-            throw new Error(`Ref "${refName}" does not exist`);
-        }
-
-        // @ts-ignore
-        return refs[refName];
-    }
-
-    /**
      * Checks if a ref with the given name exists.
      * @param {string} refName - The name of the ref to check.
      * @returns {boolean} True if the ref exists, false otherwise.
@@ -190,9 +155,11 @@ export class Component {
     }
 
     /**
-     * Updates the refs object with the current state of the DOM.
-     * This method is usually called internally when the component is connected or disconnected.
-     * @throws {Error} If the component is not connected to the DOM.
+     * Manually rescans the component's DOM tree to update the `refs` object.
+     * While this is called automatically during mounting and hydration, you should
+     * call it manually if you've dynamically injected new HTML containing `data-ref`
+     * attributes (e.g., via innerHTML) to ensure `getRefs()` returns the latest elements.
+     * * @throws {Error} If the component is not currently connected to the DOM.
      * @returns {void}
      */
     updateRefs() {
@@ -210,13 +177,13 @@ export class Component {
         let { refs, scopeRefs } = selectRefsExtended(allRoots, null, {
             scopeAttribute: ['data-slot', 'data-component-root'],
             refAttribute: 'data-ref',
-            window,
+            window: Config.window,
         });
 
         let rootRefs = {};
         for (let i = 0; i < allRoots.length; i++) {
             let root = allRoots[i];
-            if (root instanceof Element) {
+            if (root instanceof Config.window.Element) {
                 let refName = root.getAttribute('data-ref');
                 if (refName) {
                     rootRefs[refName] = root;
@@ -238,11 +205,15 @@ export class Component {
         }
     }
 
+    serialize() {
+        return {};
+    }
+
     /* Events */
 
     /**
      * Subscribes to a specified event.
-     * @param {string} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
@@ -251,8 +222,18 @@ export class Component {
     }
 
     /**
+     * Subscribes to a specified event and automatically unsubscribes after the first trigger.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {Function} callback - The callback function.
+     * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
+     */
+    once(event, callback) {
+        return this.$internals.eventEmitter.once(event, callback);
+    }
+
+    /**
      * Emits an event with the given arguments.
-     * @param {string} event - The name of the event to emit.
+     * @param {ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event, ...args) {
@@ -274,94 +255,6 @@ export class Component {
         return () => element.removeEventListener(event, callback);
     }
 
-    /**
-     * Subscribes to the "prepareRender" event.
-     * This event is emitted just before the component is about to render its layout.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this, template: Node) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onPrepareRender(callback) {
-        return this.on('prepareRender', callback);
-    }
-
-    /**
-     * Subscribes to the "connect" event.
-     * This event is emitted just after the component is connected to the DOM.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onConnect(callback) {
-        return this.on('connect', callback);
-    }
-
-    /**
-     * Subscribes to the "disconnect" event.
-     * This event is emitted just before the component is disconnected from the DOM.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * The callback is called with the component instance as the this value.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onDisconnect(callback) {
-        return this.on('disconnect', callback);
-    }
-
-    /**
-     * Subscribes to the "mount" event.
-     * This event is emitted after the component is mounted to the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onMount(callback) {
-        return this.on('mount', callback);
-    }
-
-    /**
-     * Subscribes to the "beforeUnmount" event.
-     * This event is emitted just before the component is unmounted from the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onBeforeUnmount(callback) {
-        return this.on('beforeUnmount', callback);
-    }
-
-    /**
-     * Subscribes to the "unmount" event.
-     * This event is emitted after the component is unmounted from the DOM.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onUnmount(callback) {
-        return this.on('unmount', callback);
-    }
-
-    /**
-     * Subscribes to the "collapse" event.
-     * This event is emitted after the component has collapsed.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onCollapse(callback) {
-        return this.on('collapse', callback);
-    }
-
-    /**
-     * Subscribes to the "expand" event.
-     * This event is emitted after the component has expanded.
-     * The callback is called with the component instance as the this value.
-     * @param {(component: this) => void} callback - The callback function to be executed when the event is triggered.
-     * @returns {()=>void} A function that can be called to unsubscribe the listener.
-     */
-    onExpand(callback) {
-        return this.on('expand', callback);
-    }
-
     /* Lifecycle methods */
 
     /**
@@ -370,7 +263,7 @@ export class Component {
      * Emits "connect" event through the event emitter.
      * @param {HTMLElement} componentRoot - The root element to connect the component to.
      */
-    connect(componentRoot) {
+    #connect(componentRoot) {
         if (this.#isConnected === true) {
             throw new Error('Component is already connected');
         }
@@ -392,7 +285,7 @@ export class Component {
      * Aborts all event listeners attached with the $on method.
      * Emits "disconnect" event through the event emitter.
      */
-    disconnect() {
+    #disconnect() {
         if (this.#isConnected === false) return;
 
         this.#isConnected = false;
@@ -417,13 +310,14 @@ export class Component {
     disconnectedCallback() {}
 
     /**
-     * Default implementation of template getter.
-     * Can be overridden or rely on this.layout.
-     * @returns {string|Function|Node}
+     * Called automatically during the hydration process to restore the component's state.
+     * This method receives data serialized by `serialize()` on the server.
+     * Use this to synchronize your internal `this.state` with server-provided data
+     * before the component becomes interactive in the DOM.
+     * * @param {any} data - The plain object retrieved from the hydration manifest (window.__HYDRATION_DATA__).
+     * @returns {void}
      */
-    template() {
-        return this.layout || '';
-    }
+    restoreCallback(data) {}
 
     /**
      * Internal rendering engine.
@@ -431,7 +325,7 @@ export class Component {
      * Ensures a single root Element is always returned.
      * @returns {Element}
      */
-    render() {
+    #render() {
         const layout = this.layout;
         if (!layout) {
             throw new Error('Layout is not defined for the component.');
@@ -447,9 +341,17 @@ export class Component {
 
         const result = resolveLayout(layout, this);
 
-        // 4. Set the data-component-root attribute
-        if (this.instanceId && result.getAttribute('data-component-root') !== this.instanceId) {
+        const sid = this.$internals.sid;
+
+        // 4. Set identifying attributes
+        // Always set instanceId for internal tracking
+        if (this.instanceId) {
             result.setAttribute('data-component-root', this.instanceId);
+        }
+
+        // If we are on the server (or preparing SSR), we MUST set the sid
+        if (Config.isSSR && this.$internals.sid) {
+            result.setAttribute('data-sid', this.$internals.sid);
         }
 
         // 5. Cache the result ONLY if it was a static layout
@@ -472,7 +374,7 @@ export class Component {
         if (this.#isCollapsed) return;
 
         // Validation
-        if (!(container instanceof window.Element)) {
+        if (!(container instanceof Config.window.Element)) {
             throw new TypeError('Mount target must be a valid DOM Element.');
         }
 
@@ -481,31 +383,40 @@ export class Component {
             throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(', ')}`);
         }
 
+        const isHydrating = mode === 'hydrate';
         const isMoving = this.isConnected;
 
         // 2. Hydration Path
-        if (mode === 'hydrate') {
-            const componentRoot =
-                container.getAttribute('data-component-root') === this.#instanceId
-                    ? container
-                    : container.querySelector(`[data-component-root="${this.#instanceId}"]`);
-
-            if (!componentRoot) {
-                throw new Error(`Hydration failed: Root ${this.#instanceId} not found.`);
+        if (isHydrating) {
+            const sid = this.$internals.sid;
+            if (!sid) {
+                throw new Error('Hydration failed: Component has no SID assigned.');
             }
 
+            const componentRoot =
+                container.getAttribute('data-sid') === sid
+                    ? container
+                    : container.querySelector(`[data-sid="${sid}"]`);
+
+            if (!componentRoot) {
+                throw new Error(`Hydration failed: Node with data-sid="${sid}" not found.`);
+            }
+
+            componentRoot.removeAttribute('data-sid');
+            componentRoot.setAttribute('data-component-root', this.instanceId);
+
             this.$internals.root = componentRoot;
-            this.#hydrateTeleports();
+            this.#applyHydration();
 
             // Standard finalization for hydration
-            this.connect(/** @type {HTMLElement} */ (componentRoot));
+            this.#connect(/** @type {HTMLElement} */ (componentRoot));
             this.emit('mount');
             return;
         }
 
         // 3. Render or Reuse Path
-        // If moving, we use the existing root. If new, we call render().
-        const componentRoot = isMoving ? this.getRootNode() : this.render();
+        // If moving, we use the existing root. If new, we call #render().
+        const componentRoot = isMoving ? this.getRootNode() : this.#render();
 
         // 3. DOM Insertion
         if (mode === 'replace') container.replaceChildren(componentRoot);
@@ -521,7 +432,7 @@ export class Component {
             // Only mount teleports and connect logic if it's the FIRST time
             this.#mountTeleports();
             this.emit('prepareRender', componentRoot);
-            this.connect(/** @type {HTMLElement} */ (componentRoot));
+            this.#connect(/** @type {HTMLElement} */ (componentRoot));
             this.emit('mount');
         } else {
             // If it was just a move, we might want a specific event
@@ -540,7 +451,7 @@ export class Component {
         this.emit('beforeUnmount');
         this.slotManager.unmountAll();
 
-        this.disconnect();
+        this.#disconnect();
 
         this.#cleanupTeleports();
         this.$internals.additionalRoots = [];
@@ -565,37 +476,17 @@ export class Component {
     }
 
     /**
-     * This method is called when the component is updated.
-     * It is an empty method and is intended to be overridden by the user.
-     * @param {...*} args
+     * Returns whether the component is currently in a collapsed state (replaced by a placeholder).
+     * @returns {boolean}
      */
-    update(...args) {}
-
-    /* Visibility */
-
-    /**
-     * Shows the component.
-     * If the component is not connected, it does nothing.
-     * If the component is connected, it removes the "d-none" class from the root element.
-     */
-    show() {
-        if (!this.isConnected) return;
-        this.$internals.root?.classList.remove('d-none');
+    get isCollapsed() {
+        return this.#isCollapsed;
     }
 
     /**
-     * Hides the component.
-     * If the component is not connected, it does nothing.
-     * If the component is connected, it adds the "d-none" class to the root element.
-     */
-    hide() {
-        if (!this.isConnected) return;
-        this.$internals.root?.classList.add('d-none');
-    }
-
-    /**
-     * Collapses the component by unmounting it from the DOM.
-     * Sets the #isCollapsed flag to true.
+     * Collapses the component by replacing its DOM content with a lightweight placeholder.
+     * Unlike `unmount()`, this state is tracked by `isCollapsed`, allowing the component
+     * to remember its exact position in the DOM tree for future restoration.
      */
     collapse() {
         this.unmount();
@@ -604,11 +495,9 @@ export class Component {
     }
 
     /**
-     * Expands the component by mounting it to the DOM.
-     * Sets the #isCollapsed flag to false.
-     * If the component is already connected, does nothing.
-     * If the component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * Re-mounts a collapsed component back into its original DOM position.
+     * If the parent component is also collapsed, this may not result in immediate
+     * visibility unless `expandForce()` is used.
      */
     expand() {
         this.#isCollapsed = false;
@@ -655,10 +544,9 @@ export class Component {
     }
 
     /**
-     * Expands all components in the hierarchy, starting from the current component.
-     * If a component is already connected, does nothing.
-     * If a component does not have a parent component, does nothing.
-     * Otherwise, mounts the component to the parent component's slot.
+     * Forces the expansion of the entire component hierarchy from the current node up to the root.
+     * Use this when you need to ensure a specific nested component is visible,
+     * even if its ancestors were previously collapsed.
      */
     expandForce() {
         /** @type {Component[]} */
@@ -706,8 +594,18 @@ export class Component {
      * @throws {Error} If the slot does not exist.
      */
     addComponentToSlot(slotName, ...components) {
+        const parentSid = this.$internals.sid;
+        const startIndex = this.slotManager.getSlotLength(slotName);
+
         for (let i = 0; i < components.length; i++) {
-            components[i].#detachFromParentSlot();
+            const child = components[i];
+
+            if (parentSid) {
+                const newSid = `${parentSid}.${slotName}.${startIndex + i}`;
+                this.#recursiveUpdateSid(child, newSid);
+            }
+
+            child.#detachFromParentSlot();
         }
 
         let slot = this.slotManager.attachToSlot(slotName, ...components);
@@ -769,7 +667,7 @@ export class Component {
         walkDomScope(
             this.$internals.root,
             node => {
-                if (node.nodeType === window.Node.ELEMENT_NODE) {
+                if (node.nodeType === Config.window.Node.ELEMENT_NODE) {
                     let el = /** @type {Element} */ (node);
                     if (tagName === '*') {
                         filteredElements.push(el);
@@ -781,7 +679,7 @@ export class Component {
             {
                 scopeAttribute: ['data-slot', 'data-component-root'],
                 refAttribute: 'data-ref',
-                window,
+                window: Config.window,
             }
         );
 
@@ -789,14 +687,14 @@ export class Component {
     }
 
     /**
-     * Returns an array of elements matching the given tag name, optionally filtered by a CSS selector.
-     * If no query selector is given, all elements matching the tag name are returned.
-     * If a query selector is given, only elements matching the tag name and the query selector are returned.
-     * @param {string} tagName - The tag name to search for.
-     * @param {string} [querySelector] - An optional CSS selector to filter the results by.
-     * @returns {Element[]} An array of elements matching the tag name and query selector.
+     * Returns an array of elements matching the given tag name within the component's scope.
+     * Unlike standard querySelectorAll, this method respects component boundaries:
+     * it ignores elements that belong to nested child components.
+     * * @param {string} tagName - The tag name to search for (e.g., 'li', 'div').
+     * @param {string} [querySelector] - An optional CSS selector to further filter the results.
+     * @returns {Element[]} An array of elements belonging ONLY to the current component level.
      */
-    searchElements(tagName, querySelector = '') {
+    queryLocal(tagName, querySelector = '') {
         let elements = this.#getElementsByTagName(tagName);
         if (querySelector === '') {
             return elements;
@@ -812,11 +710,22 @@ export class Component {
      */
     #renderTeleport(name, config) {
         const result = resolveLayout(config.layout, this);
+        const sid = this.$internals.sid;
 
-        if (this.instanceId) {
-            result.setAttribute('data-component-root', this.instanceId);
-            result.setAttribute('data-component-teleport', name);
+        // 1. Always set the teleport name for identification
+        result.setAttribute('data-component-teleport', name);
+
+        // 2. Set the owner identification
+        if (sid) {
+            // We are in SSR or Hydration mode.
+            // We need the stable SID so the client can find this node globally.
+            result.setAttribute('data-parent-sid', sid);
         }
+
+        // Always set the instanceId.
+        // On the server, it will be the server-generated ID.
+        // On the client, it will trigger the lazy getter and set the real ID.
+        result.setAttribute('data-component-root', this.instanceId);
 
         return result;
     }
@@ -871,7 +780,7 @@ export class Component {
             resolvedTarget = target.call(this);
         } else if (typeof target === 'string') {
             resolvedTarget = document.querySelector(target);
-        } else if (target instanceof window.Element) {
+        } else if (target instanceof Config.window.Element) {
             resolvedTarget = target;
         }
 
@@ -884,7 +793,7 @@ export class Component {
         // 2. Identify the root element for reference tracking
         // If it's a DocumentFragment, we take the first child; if it's an Element, it is the root.
         const rootElement =
-            fragment instanceof window.Element ? fragment : fragment.firstElementChild;
+            fragment instanceof Config.window.Element ? fragment : fragment.firstElementChild;
 
         // 3. Execute DOM manipulation based on the chosen strategy
         switch (strategy) {
@@ -920,19 +829,116 @@ export class Component {
     #hydrateTeleports() {
         if (!this.teleports) return;
 
+        // During hydration, we must use the Server ID (sid)
+        // because the client's instanceId won't match the one generated by the server.
+        const searchId = this.$internals.sid;
+        if (!searchId) return;
+
         for (const [name, config] of Object.entries(this.teleports)) {
-            // Look for the specific teleport signature in the global DOM
-            const selector = `[data-component-root="${this.#instanceId}"][data-component-teleport="${name}"]`;
+            // Look for the teleport using the stable SID instead of the volatile instanceId
+            const selector = `[data-parent-sid="${searchId}"][data-component-teleport="${name}"]`;
             const existingTeleport = document.querySelector(selector);
 
             if (existingTeleport) {
-                // Found it! Register it exactly like a freshly mounted one
+                // Found it! Register and "claim" it by switching to the current instanceId
+                existingTeleport.setAttribute('data-component-root', this.instanceId);
+                existingTeleport.removeAttribute('data-parent-sid'); // Clean up
+
                 this.#registerRemoteRoot(name, existingTeleport);
             } else {
-                // Fallback: If for some reason SSR missed a teleport, mount it now
-                console.warn(`[Hydration] Teleport "${name}" not found in DOM. Mounting manually.`);
+                // Fallback: If SSR missed it, mount normally
+                console.warn(`[Hydration] Teleport "${name}" not found with SID "${searchId}".`);
                 this.#mountTeleport(name, config);
             }
         }
+    }
+
+    /**
+     * Checks the global manifest and emits the hydrate event if data exists for this SID.
+     */
+    #applyHydration() {
+        if (this.$internals.isHydrated) return;
+
+        const sid = this.$internals.sid;
+        if (!sid) return;
+
+        this.#hydrateTeleports();
+
+        // @ts-ignore
+        const metadata = Config.getHydrationData(sid);
+
+        if (metadata) {
+            this.$internals.isHydrated = true;
+            this.emit('restore', metadata);
+        }
+    }
+
+    /**
+     * Recursively updates SIDs for a component and all its nested children.
+     * @param {Component} component
+     * @param {string} newSid
+     */
+    #recursiveUpdateSid(component, newSid) {
+        // 1. Update the current component's SID
+        component.$internals.sid = newSid;
+
+        // 2. Try to hydrate THIS component before going deeper
+        // This ensures parent data is available before children try to hydrate
+        if (!component.$internals.isHydrated) {
+            component.#applyHydration();
+        }
+
+        // 3. Update all children in slots
+        const slots = component.slotManager.getSlots();
+
+        slots.forEach((slot, name) => {
+            const subComponents = slot.getComponents();
+            for (let j = 0; j < subComponents.length; j++) {
+                const subChild = subComponents[j];
+                const subSid = `${newSid}.${name}.${j}`;
+                this.#recursiveUpdateSid(subChild, subSid);
+            }
+        });
+    }
+
+    /**
+     * Finds a nested component by its string SID.
+     * @param {string} targetSid - The SID to search for.
+     * @returns {Component|null}
+     */
+    getComponentBySid(targetSid) {
+        // 1. Quick check: is it me?
+        if (this.$internals.sid === targetSid) {
+            return this;
+        }
+
+        // 2. Optimization: if the targetSid doesn't start with my SID,
+        // it's not in my branch.
+        if (this.$internals.sid && !targetSid.startsWith(this.$internals.sid + '.')) {
+            return null;
+        }
+
+        // 3. Search through all slots
+        const slots = this.slotManager.getSlots();
+        for (const [_, slot] of slots) {
+            for (const child of slot.getComponents()) {
+                const found = child.getComponentBySid(targetSid);
+                if (found) return found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Retrieves hydration data for this specific component instance from the global manifest.
+     * Useful for accessing server-provided state BEFORE the component is mounted or hydrated.
+     * While `restoreCallback` is triggered automatically during `mount('hydrate')`,
+     * this method allows manual data retrieval at any time after instantiation.
+     * @returns {any | null}
+     */
+    getHydrationData() {
+        const sid = this.$internals.sid;
+        return sid ? Config.getHydrationData(sid) : null;
     }
 }

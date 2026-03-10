@@ -51,8 +51,6 @@ class App extends Component {
 
                 this.addComponentToSlot("content", profile);
 
-                console.log(profile);
-
                 // Finally, switch to the content slot
                 this.toggler.toggle('content');
             } catch (err) {

@@ -180,7 +180,7 @@ export class SlotManager {
         for (let i = 0; i < components.length; i++) {
             let component = components[i];
             let usingSlot = this.findSlotByComponent(component);
-            
+
             if (usingSlot != null) {
                 usingSlot.detach(component);
             }
@@ -233,4 +233,33 @@ export class SlotManager {
 
         return this.getSlot(component.$internals.assignedSlotName);
     }
+
+    /**
+     * Finds a direct child by its SID.
+     * @param {string} sid
+     * @returns {Component|null}
+     */
+    findChildBySid(sid) {
+        for (const [_, slot] of this.slots) {
+            const found = slot.getComponents().find(c => c.$internals.sid === sid);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @param {string} slotName
+     * @returns {number}
+     */
+    getSlotLength(slotName) {
+        let slot = this.getSlot(slotName);
+        if (slot == null) return 0;
+        return slot.getLength();
+    }
+
+    getSlots() {
+        return this.slots;
+    }
+
 }

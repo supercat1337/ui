@@ -1,46 +1,95 @@
 // @ts-check
-
 import { EventEmitter } from '@supercat1337/event-emitter';
-import { Component } from './component.js';
+import { Config } from './config.js';
 
 /**
- * @typedef {(component: Component) => void} TextUpdateFunction
+ * @typedef {(component: import('./component.js').Component) => void} TextUpdateFunction
  */
 
 export class Internals {
-    constructor() {
-        /** @type {EventEmitter<any>} */
-        this.eventEmitter = new EventEmitter();
-        /** @type {AbortController} */
-        this.disconnectController = new AbortController();
-        /** @type {Element|null} */
-        this.root = null;
-        /** @type {TextUpdateFunction|null} */
-        this.textUpdateFunction = null;
-        /** @type {{[key:string]:any}}  */
-        this.textResources = {};
-        /** @type {{[key:string]:HTMLElement}} */
-        this.refs = {};
-        /** @type {{[key:string]:HTMLElement}} */
-        this.scopeRefs = {};
-        /** @type {Component|null} */
-        this.parentComponent = null;
-        /** @type {string} */
-        this.assignedSlotName = '';
-        /** @type {"replace"|"append"|"prepend"} */
-        this.mountMode = 'replace';
-        /** @type {boolean} */
-        this.cloneTemplateOnRender = true;
-        /** @type {Element|null} */
-        this.parentElement = null;
-        /** @type {Set<Element>} */
-        this.elementsToRemove = new Set();
-        /** @type {Map<string, Element>} */
-        this.teleportRoots = new Map();
-        /** @type {import('dom-scope').ScopeRoot[]} */
-        this.additionalRoots = [];
+    /** * Private storage for the lazy instance ID.
+     * @type {string|null}
+     */
+    #instanceId = null;
+
+    /** * The server-side identifier used for hydration.
+     * @type {string|null}
+     */
+    sid = null;
+
+    /**
+     * Lazy getter for the instanceId.
+     * Generates a unique ID only when first requested.
+     */
+    get instanceId() {
+        if (this.#instanceId === null) {
+            this.#instanceId = Internals.generateInstanceId();
+
+            // If the root element exists, sync the attribute for DOM-to-Instance lookups
+            if (this.root instanceof Config.window.Element) {
+                this.root.setAttribute('data-component-root', this.#instanceId);
+            }
+        }
+        return this.#instanceId;
     }
 
+    /**
+     * Allows manual override of the instanceId.
+     * @param {string} value
+     */
+    set instanceId(value) {
+        this.#instanceId = value;
+    }
+
+    /** @type {EventEmitter<any>} */
+    eventEmitter = new EventEmitter();
+
+    /** @type {AbortController} */
+    disconnectController = new AbortController();
+
+    /** @type {Element|null} */
+    root = null;
+
+    /** @type {TextUpdateFunction|null} */
+    textUpdateFunction = null;
+
+    /** @type {Record<string, any>} */
+    textResources = {};
+
+    /** @type {Record<string, HTMLElement>} */
+    refs = {};
+
+    /** @type {Record<string, HTMLElement>} */
+    scopeRefs = {};
+
+    /** @type {import('./component.js').Component|null} */
+    parentComponent = null;
+
+    /** @type {string} */
+    assignedSlotName = '';
+
+    /** @type {"replace"|"append"|"prepend"|"hydrate"} */
+    mountMode = 'replace';
+
+    /** @type {boolean} */
+    cloneTemplateOnRender = true;
+
+    /** @type {Element|null} */
+    parentElement = null;
+
+    /** @type {Set<Element>} */
+    elementsToRemove = new Set();
+
+    /** @type {Map<string, Element>} */
+    teleportRoots = new Map();
+
+    /** @type {import('dom-scope').ScopeRoot[]} */
+    additionalRoots = [];
+
+    /** @type {boolean} */
+    isHydrated = false;
+
+    /** @type {number} */
     static #instanceIdCounter = 0;
 
     /**

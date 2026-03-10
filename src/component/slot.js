@@ -104,4 +104,16 @@ export class Slot {
         this.unmount();
         this.detachAll();
     }
+
+    getLength() {
+        return this.components.size;
+    }
+
+    /**
+     * 
+     * @returns {Component[]}
+     */
+    getComponents() {
+        return [...this.components];
+    }
 }

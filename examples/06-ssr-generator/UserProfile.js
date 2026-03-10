@@ -1,41 +1,76 @@
 // @ts-check
-import { Component, html } from '@supercat1337/ui';
+import { Component, Config, html } from '@supercat1337/ui';
 
+/**
+ * @typedef {Object} UserProfileState
+ * @property {string} name
+ * @property {string} role
+ */
+
+/**
+ * UserProfile Component
+ * Handles both SSR rendering and Client-side hydration.
+ */
 export class UserProfile extends Component {
+    /** @type {UserProfileState} */
+    state = {
+        name: '',
+        role: ''
+    };
+
+    /** @type {Object<string, HTMLElement>} */
+    refsAnnotation = {
+        userName: Config.window.HTMLHeadingElement.prototype,
+        userRole: Config.window.HTMLParagraphElement.prototype,
+        followBtn: Config.window.HTMLButtonElement.prototype,
+    };
+
     /**
-     * @param {{id:number; name:string; role:string}} data
+     * Restore component state from hydration manifest.
+     * Called automatically during mount(..., 'hydrate') if SID is present.
+     * @param {UserProfileState} data - The state data retrieved from the manifest.
      */
-    constructor(data) {
-        // We pass instanceId so it's consistent across environments
-        super({ instanceId: `user-${data.id}` });
-        this.data = data;
+    restoreCallback(data) {
+        this.state.name = data.name;
+        this.state.role = data.role;
     }
 
-    // This layout is used both by SSR string generator and Client mounting
+    serialize() {
+        return {
+            name: this.state.name,
+            role: this.state.role
+        }
+    }
+
+    /**
+     * Component layout template.
+     * Reactive to this.state changes.
+     */
     layout = () => html`
         <div class="card shadow-sm" style="width: 18rem;">
             <div class="card-body text-center">
-                <h5 class="card-title" data-ref="userName">${this.data.name}</h5>
-                <p class="text-muted" data-ref="userRole">${this.data.role}</p>
+                <h5 class="card-title" data-ref="userName">${this.state.name}</h5>
+                <p class="text-muted" data-ref="userRole">${this.state.role}</p>
                 <button class="btn btn-outline-primary w-100" data-ref="followBtn">Follow</button>
             </div>
         </div>
     `;
 
-    refsAnnotation = {
-        userName: HTMLHeadingElement.prototype,
-        userRole: HTMLParagraphElement.prototype,
-        followBtn: HTMLButtonElement.prototype,
-    };
-
+    /**
+     * Lifecycle method called when the component is attached to the DOM.
+     * Used for event binding and DOM synchronization.
+     */
     connectedCallback() {
-        if (this.isServer) return;
-
         const refs = this.getRefs();
+        
+        // Synchronize text content with potentially restored state
+        refs.userName.textContent = this.state.name;
+        refs.userRole.textContent = this.state.role;
+
         refs.followBtn.onclick = () => {
             refs.followBtn.classList.replace('btn-outline-primary', 'btn-success');
             refs.followBtn.textContent = 'Following';
-            console.log(`Now following ${this.data.name}`);
+            console.log(`Now following ${this.state.name}`);
         };
     }
 }

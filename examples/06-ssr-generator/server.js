@@ -3,37 +3,40 @@ import { JSDOM } from 'jsdom';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Config, generateManifest, renderManifestHTML } from '@supercat1337/ui';
 
-// 1. ENVIRONMENT SETUP
-// Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * MOCK BROWSER GLOBALS
- * We need these before importing the UI Library or Components
+ * SSR Bootstrap
+ * Setup virtual DOM environment before importing components
  */
 const dom = new JSDOM('<!DOCTYPE html><html><body><div id="ssr-container"></div></body></html>');
 
 // @ts-ignore
 global.window = dom.window;
-// @ts-ignore
 global.document = dom.window.document;
-// @ts-ignore
-global.window.isServer = true;
 
-// 2. IMPORT COMPONENT
-// Now that globals are set, we can safely import our UI logic
+// Inform the framework that we are in SSR mode
+Config.isSSR = true;
+// @ts-ignore
+Config.window = dom.window;
+
 import { UserProfile } from './UserProfile.js';
 
+/**
+ * Main SSR Generation function
+ */
 async function generateSSRPage() {
-    // Shared state between Server and Client
-    const userData = { id: 101, name: 'Alice Freeman', role: 'Software Engineer' };
+    const userData = { name: 'Alice Freeman', role: 'Software Engineer' };
+    const sid = 'root.profile';
 
-    // Create component instance
-    const profile = new UserProfile(userData);
+    // 1. Initialize component on server
+    const profile = new UserProfile();
+    profile.state = userData; // Inject initial data
+    profile.$internals.sid = sid; // Assign stable SID for hydration
 
-    // Render component into the JSDOM container
     const container = document.getElementById('ssr-container');
     if (container) {
         profile.mount(container, 'append');
@@ -41,13 +44,19 @@ async function generateSSRPage() {
 
     const componentHtml = container ? container.innerHTML : '';
 
-    // 3. GENERATE FULL HTML TEMPLATE
+    // 2. Prepare Hydration Manifest
+    const hydrationManifest = generateManifest(profile);
+
+    // 3. Construct Final HTML
     const template = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Isomorphic SSR Example</title>
+    <title>Isomorphic SSR with Manifest</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    ${renderManifestHTML(hydrationManifest)}
+
     <script type="importmap">
         {
             "imports": {
@@ -63,26 +72,26 @@ async function generateSSRPage() {
 
     <script type="module">
         import { UserProfile } from './UserProfile.js';
+        import { Config } from '@supercat1337/ui';
 
         // CLIENT-SIDE HYDRATION
-        // We use the exact same data to ensure the VDOM matches the SSR HTML
-        const profile = new UserProfile(${JSON.stringify(userData)});
+        // Create instance with SID to link it with manifest data
+        const profile = new UserProfile({ sid: '${sid}' });
         
-        // Connect event listeners to existing [data-component-root]
+        // Hydration process: 
+        // 1. applyHydration() -> 2. restoreCallback(data) -> 3. scanRefs() -> 4. connectedCallback()
         profile.mount(document.getElementById('client-app-root'), 'hydrate');
+
+        // Cleanup: remove global manifest to free memory
+        Config.destroyManifest();
     </script>
 </body>
 </html>`;
 
-    // 4. WRITE FILE TO DISK
-    // Using __dirname ensures index.html is created next to server.js
     const outputPath = path.join(__dirname, 'index.html');
     fs.writeFileSync(outputPath, template);
 
-    console.log('--------------------------------------------------');
     console.log(`🚀 SSR Success: Generated ${outputPath}`);
-    console.log('👉 Open this file via a local web server (e.g. Live Server)');
-    console.log('--------------------------------------------------');
 }
 
 generateSSRPage().catch(console.error);

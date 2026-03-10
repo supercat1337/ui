@@ -2,6 +2,7 @@
 
 import { html } from '../utils/utils.js';
 import { Component } from './component.js';
+import { Config } from './config.js';
 /**
  *
  * @param {((component: any) => Node|string)|string|null|Node} layout
@@ -16,7 +17,7 @@ export function resolveLayout(layout, ctx) {
     if (typeof layout === 'function') {
         // Dynamic: always execute the function. Cannot be cached as a whole.
         const returnValue = layout(ctx);
-        if (returnValue instanceof window.Node) {
+        if (returnValue instanceof Config.window.Node) {
             template = returnValue;
         } else if (typeof returnValue === 'string') {
             template = html(returnValue);
@@ -37,16 +38,16 @@ export function resolveLayout(layout, ctx) {
     /** @type {Element} */
     let result;
 
-    if (template.nodeType === window.Node.ELEMENT_NODE) {
+    if (template.nodeType === Config.window.Node.ELEMENT_NODE) {
         result = /** @type {Element} */ (template);
-    } else if (template.nodeType === window.Node.DOCUMENT_FRAGMENT_NODE) {
+    } else if (template.nodeType === Config.window.Node.DOCUMENT_FRAGMENT_NODE) {
         const children = Array.from(template.childNodes).filter(
             node =>
-                node.nodeType === window.Node.ELEMENT_NODE ||
-                (node.nodeType === window.Node.TEXT_NODE && node.textContent.trim() !== '')
+                node.nodeType === Config.window.Node.ELEMENT_NODE ||
+                (node.nodeType === Config.window.Node.TEXT_NODE && node.textContent.trim() !== '')
         );
 
-        if (children.length === 1 && children[0].nodeType === window.Node.ELEMENT_NODE) {
+        if (children.length === 1 && children[0].nodeType === Config.window.Node.ELEMENT_NODE) {
             result = /** @type {Element} */ (children[0]);
         } else {
             result = document.createElement('html-fragment');

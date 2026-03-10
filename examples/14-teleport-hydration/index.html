@@ -1,27 +1,36 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>Example 14: Teleport Hydration</title>
-        <link rel="stylesheet" href="style.css" />
-        <script type="importmap">
-            {
-                "imports": {
-                    "@supercat1337/ui": "../../dist/ui.bundle.esm.js"
-                }
+<head>
+    <meta charset="UTF-8" />
+    <title>Example 14: Teleport Hydration with State</title>
+    <link rel="stylesheet" href="style.css" />
+    
+    <script>
+        window.__HYDRATION_DATA__ = {
+            "prod-101": { 
+                data: { count: 5, isAdded: true } 
             }
-        </script>
-    </head>
-    <body>
-<div id="app">
-        <div data-component-root="prod-101" class="product-card">
+        };
+    </script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "@supercat1337/ui": "../../dist/ui.bundle.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <div data-component-root="prod-101" data-sid="prod-101" class="product-card">
             <h3>Smartphone Pro</h3>
             <p>High-end performance for professionals.</p>
-            <button data-ref="buyBtn">Add to Cart (SSR)</button>
+            <button data-ref="buyBtn">In Cart (5)</button>
         </div>
     </div>
 
-    <div data-component-root="prod-101" data-component-teleport="cartNotify" class="notify-popup" data-ref="popup">
+    <div data-component-root="prod-101" data-component-teleport="cartNotify" data-parent-sid="prod-101" class="notify-popup" data-ref="popup">
         <div class="notify-content">
             <p>Item successfully added to your cart!</p>
             <button data-ref="closeBtn">Continue Shopping</button>
@@ -29,5 +38,5 @@
     </div>
 
     <script type="module" src="main.js"></script>
-    </body>
+</body>
 </html>

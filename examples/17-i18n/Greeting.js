@@ -20,6 +20,6 @@ export class Greeting extends Component {
 
     this.reloadText();
 
-    this.onDisconnect(unsubscribe);
+    this.once("disconnect", unsubscribe);
   }
 }

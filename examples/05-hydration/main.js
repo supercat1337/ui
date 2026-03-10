@@ -1,10 +1,6 @@
 // @ts-check
 import { Component } from '@supercat1337/ui';
 
-/**
- * HydratedWidget Component
- * Attaches to existing DOM structure instead of creating a new one.
- */
 class HydratedWidget extends Component {
     refsAnnotation = {
         title: HTMLHeadingElement.prototype,
@@ -12,40 +8,37 @@ class HydratedWidget extends Component {
         actionBtn: HTMLButtonElement.prototype,
     };
 
+    state = {
+        userName: 'Guest',
+        userStatus: 'Offline',
+    };
+
     /**
-     * Logic executed after hydration.
+     * @param {{userName:string, userStatus:string}} data
      */
+    restoreCallback(data) {
+        console.log('Restoring state before DOM is ready...');
+        this.state.userName = data.userName;
+        this.state.userStatus = data.userStatus;
+    }
+
     connectedCallback() {
+        console.log('DOM is ready, attaching logic...');
         const refs = this.getRefs();
 
+        refs.title.textContent = this.state.userName;
+        refs.status.textContent = this.state.userStatus;
+        refs.status.className = 'badge bg-success';
+
         refs.actionBtn.onclick = () => {
-            refs.title.textContent = 'Client Logic Attached! ⚡';
-
-            refs.status.textContent = 'Active';
-            refs.status.className = 'badge bg-success';
-
-            refs.actionBtn.disabled = true;
-            refs.actionBtn.textContent = 'Fully Hydrated';
-
-            console.log('Hydration successful for component:', this.instanceId);
+            alert(`Hello, ${this.state.userName}!`);
         };
     }
 }
 
-// --- Bootstrap ---
+const container = document.getElementById('ssr-widget');
 
-const existingNode = document.body;
-
-if (existingNode instanceof HTMLElement) {
-    // We pass the instanceId matching the data-component-root value if needed,
-    // or simply mount to the target element.
-    const widget = new HydratedWidget({ instanceId: 'user-profile' });
-
-    /**
-     * HYDRATE MODE:
-     * 1. Scans the existingNode for [data-ref].
-     * 2. Maps them to the component instance.
-     * 3. Runs connectedCallback without touching the innerHTML.
-     */
-    widget.mount(existingNode, 'hydrate');
+if (container) {
+    const widget = new HydratedWidget({ instanceId: 'user-profile', sid: 'root.profile' });
+    widget.mount(container, 'hydrate');
 }

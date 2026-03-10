@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css" />
+    <script>window.__HYDRATION_DATA__ = {"sid-cart":{"className":"CartComponent","data":{"items":[]},"slots":{}},"sid-p1":{"className":"ProductComponent","data":{"name":"Laptop","price":1200,"badge":"New","added":false},"slots":{}},"sid-p2":{"className":"ProductComponent","data":{"name":"Mouse","price":40,"badge":"","added":false},"slots":{}}};</script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@supercat1337/ui": "../../dist/ui.bundle.esm.js",
+                "@supercat1337/event-emitter": "../../node_modules/@supercat1337/event-emitter/index.js" 
+            }
+        }
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container" id="header-root">
+            <span class="navbar-brand">✨ Super UI Store</span>
+            <div class="cart" data-component-root="cart" data-sid="sid-cart">
+            <span>🛒 <span data-ref="count">0</span></span>
+            <div class="cart-items d-none" data-ref="dropdown"></div>
+        </div>
+        </div>
+    </nav>
+    
+    <div class="container" id="catalog-root">
+        <div class="product-item" data-component-root="uid-qagubw7" data-sid="sid-p1">
+            <slot name="badge"></slot>
+            <h5 data-ref="title">Laptop</h5>
+            <p data-ref="priceText">Price: $1200</p>
+            <button data-ref="buyBtn" class="btn btn-primary">Add to Cart</button>
+        </div><div class="product-item" data-component-root="uid-di5t39y" data-sid="sid-p2">
+            <slot name="badge"></slot>
+            <h5 data-ref="title">Mouse</h5>
+            <p data-ref="priceText">Price: $40</p>
+            <button data-ref="buyBtn" class="btn btn-primary">Add to Cart</button>
+        </div>
+    </div>
+
+    <div id="teleport-root"></div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
