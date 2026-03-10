@@ -383,6 +383,7 @@ test('Utils: DOMReady triggers correctly based on document state', t => {
 
     // 1. Target: Immediate execution (readyState is 'complete')
     const mockDocComplete = { readyState: 'complete' };
+    // @ts-ignore
     DOMReady(callback, mockDocComplete);
     t.is(callCount, 1, 'Should execute callback immediately if readyState is complete');
 
@@ -397,6 +398,7 @@ test('Utils: DOMReady triggers correctly based on document state', t => {
             }
         },
     };
+    // @ts-ignore
     DOMReady(callback, mockDocLoading);
     t.true(listenerAdded, 'Should add event listener if document is still loading');
     t.is(callCount, 2, 'Should execute callback when DOMContentLoaded fires');
@@ -426,6 +428,7 @@ test('Utils: isDarkMode detects system preference', t => {
     t.false(isDarkMode(mockWndLight), 'Should return false if media query does not match');
 
     // 3. Target: matchMedia API missing (safety check)
+    // @ts-ignore
     t.false(isDarkMode({}), 'Should return false if matchMedia is not supported');
 });
 
@@ -662,6 +665,7 @@ test('Utils: onClickOutside handles validation and click detection', t => {
     );
 
     t.throws(
+        // @ts-ignore
         () => onClickOutside(element, 'not-a-function'),
         {
             instanceOf: Error,
