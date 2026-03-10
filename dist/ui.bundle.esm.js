@@ -7,7 +7,7 @@ var ConfigManager = class {
   }
   /**
    * Safely retrieves the hydration manifest from the global environment.
-   * @returns {ComponentMetadata|null}
+   * @returns {{[key:string]:ComponentMetadata}|null}
    */
   getManifest() {
     const globalObject = typeof globalThis !== "undefined" ? globalThis : {};

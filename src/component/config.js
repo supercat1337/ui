@@ -28,7 +28,7 @@ class ConfigManager {
 
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {ComponentMetadata|null}
+     * @returns {{[key:string]:ComponentMetadata}|null}
      */
     getManifest() {
         // globalThis works in both Node.js and Browsers

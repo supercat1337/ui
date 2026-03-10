@@ -855,9 +855,11 @@ declare class ConfigManager {
     window: typeof globalThis;
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {ComponentMetadata|null}
+     * @returns {{[key:string]:ComponentMetadata}|null}
      */
-    getManifest(): ComponentMetadata | null;
+    getManifest(): {
+        [key: string]: ComponentMetadata;
+    } | null;
     /**
      * Extracts state for a specific SID.
      * @param {string} sid - Server ID
