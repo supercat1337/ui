@@ -7,7 +7,7 @@ var ConfigManager = class {
   }
   /**
    * Safely retrieves the hydration manifest from the global environment.
-   * @returns {{[key:string]:ComponentMetadata}|null}
+   * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
    */
   getManifest() {
     const globalObject = typeof globalThis !== "undefined" ? globalThis : {};
@@ -1390,7 +1390,7 @@ var Internals = class _Internals {
   disconnectController = new AbortController();
   /** @type {Element|null} */
   root = null;
-  /** @type {TextUpdateFunction|null} */
+  /** @type {import('./types.d.ts').TextUpdateFunction|null} */
   textUpdateFunction = null;
   /** @type {Record<string, any>} */
   textResources = {};
@@ -1492,7 +1492,7 @@ var Component = class {
   $internals = new Internals();
   /** @type {((component: this) => Node|string)|string|null|Node} */
   layout = null;
-  /** @type {TeleportList} */
+  /** @type {import('./types.d.ts').TeleportList} */
   teleports = {};
   /** @type {T} */
   refsAnnotation;
@@ -1632,7 +1632,7 @@ var Component = class {
   /* Events */
   /**
    * Subscribes to a specified event.
-   * @param {ComponentEvent} event - The name of the event to subscribe to.
+   * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
    * @param {Function} callback - The callback function to be executed when the event is triggered.
    * @returns {()=>void} A function that can be called to unsubscribe the listener.
    */
@@ -1641,7 +1641,7 @@ var Component = class {
   }
   /**
    * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-   * @param {ComponentEvent} event - The name of the event to subscribe to.
+   * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
    * @param {Function} callback - The callback function.
    * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
    */
@@ -1650,7 +1650,7 @@ var Component = class {
   }
   /**
    * Emits an event with the given arguments.
-   * @param {ComponentEvent} event - The name of the event to emit.
+   * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
    * @param {...any} args - The arguments to be passed to the event handlers.
    */
   emit(event, ...args) {
@@ -2042,7 +2042,7 @@ var Component = class {
   }
   /**
    * @param {string} name - Имя телепорта из объекта teleports
-   * @param {TeleportConfig} config - Конфигурация конкретного телепорта
+   * @param {import('./types.d.ts').TeleportConfig} config - Конфигурация конкретного телепорта
    * @returns {Element}
    */
   #renderTeleport(name, config) {
@@ -2073,7 +2073,7 @@ var Component = class {
   }
   /**
    * @param {string} name
-   * @param {TeleportConfig} config
+   * @param {import('./types.d.ts').TeleportConfig} config
    */
   #mountTeleport(name, config) {
     const fragment = this.#renderTeleport(name, config);

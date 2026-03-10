@@ -1,17 +1,11 @@
 // @ts-check
 
 import { Component } from './component.js';
-/**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {Object} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to arrays of child instance IDs.
- */
 
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, import('./types.d.ts').ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
  */
 export function generateManifest(...rootComponents) {
     /** @type {Record<string, any>} */
@@ -78,7 +72,7 @@ export function generateManifest(...rootComponents) {
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
- * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
+ * * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest - The hydration map.
  * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
  * @returns {HTMLScriptElement}
  */
@@ -94,7 +88,7 @@ export function createManifestScript(manifest, variableName = '__HYDRATION_DATA_
 
 /**
  * Alternative for pure string-based SSR (Node.js without JSDOM)
- * @param {Record<string, ComponentMetadata>} manifest
+ * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest
  * @param {string} variableName
  * @returns {string}
  */

@@ -4,13 +4,6 @@ import { EventEmitter } from '@supercat1337/event-emitter';
 // @ts-check
 
 /**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {any} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to child instance IDs.
- */
-
-/**
  * Configuration Manager for UI Library.
  * Handles SSR flags and hydration data access.
  */
@@ -31,7 +24,7 @@ class ConfigManager {
 
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {{[key:string]:ComponentMetadata}|null}
+     * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
      */
     getManifest() {
         // globalThis works in both Node.js and Browsers
@@ -1465,10 +1458,6 @@ class SlotManager {
 
 // @ts-check
 
-/**
- * @typedef {(component: import('./component.js').Component) => void} TextUpdateFunction
- */
-
 class Internals {
     /** * Private storage for the lazy instance ID.
      * @type {string|null}
@@ -1513,7 +1502,7 @@ class Internals {
     /** @type {Element|null} */
     root = null;
 
-    /** @type {TextUpdateFunction|null} */
+    /** @type {import('./types.d.ts').TextUpdateFunction|null} */
     textUpdateFunction = null;
 
     /** @type {Record<string, any>} */
@@ -1657,29 +1646,6 @@ function onDisconnectDefault(component) {
 // @ts-check
 
 
-/**
- * @typedef {"connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore"} ComponentLifecycleEvent
- * @typedef {ComponentLifecycleEvent | (string & {})} ComponentEvent
- */
-
-/**
- * @typedef {(component: Component) => void} TextUpdateFunction
- */
-
-/**
- * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
- */
-
-/**
- * @typedef {Object} TeleportConfig
- * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
- * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
- * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
- */
-
-/**
- * @typedef {Object.<string, TeleportConfig>} TeleportList
- */
 
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
@@ -1691,7 +1657,7 @@ class Component {
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
-    /** @type {TeleportList} */
+    /** @type {import('./types.d.ts').TeleportList} */
     teleports = {};
 
     /** @type {T} */
@@ -1864,7 +1830,7 @@ class Component {
 
     /**
      * Subscribes to a specified event.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
@@ -1874,7 +1840,7 @@ class Component {
 
     /**
      * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function.
      * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
      */
@@ -1884,7 +1850,7 @@ class Component {
 
     /**
      * Emits an event with the given arguments.
-     * @param {ComponentEvent} event - The name of the event to emit.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event, ...args) {
@@ -2356,7 +2322,7 @@ class Component {
 
     /**
      * @param {string} name - Имя телепорта из объекта teleports
-     * @param {TeleportConfig} config - Конфигурация конкретного телепорта
+     * @param {import('./types.d.ts').TeleportConfig} config - Конфигурация конкретного телепорта
      * @returns {Element}
      */
     #renderTeleport(name, config) {
@@ -2403,7 +2369,7 @@ class Component {
 
     /**
      * @param {string} name
-     * @param {TeleportConfig} config
+     * @param {import('./types.d.ts').TeleportConfig} config
      */
     #mountTeleport(name, config) {
         const fragment = this.#renderTeleport(name, config);
@@ -2694,17 +2660,11 @@ class SlotToggler {
 
 // @ts-check
 
-/**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {Object} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to arrays of child instance IDs.
- */
 
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, import('./types.d.ts').ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
  */
 function generateManifest(...rootComponents) {
     /** @type {Record<string, any>} */
@@ -2771,7 +2731,7 @@ function generateManifest(...rootComponents) {
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
- * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
+ * * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest - The hydration map.
  * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
  * @returns {HTMLScriptElement}
  */
@@ -2787,7 +2747,7 @@ function createManifestScript(manifest, variableName = '__HYDRATION_DATA__') {
 
 /**
  * Alternative for pure string-based SSR (Node.js without JSDOM)
- * @param {Record<string, ComponentMetadata>} manifest
+ * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest
  * @param {string} variableName
  * @returns {string}
  */

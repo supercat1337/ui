@@ -1,57 +1,3 @@
-export type ComponentMetadata = {
-    /**
-     * - The constructor name for class instantiation.
-     */
-    className: string;
-    /**
-     * - Serialized state from component.serialize().
-     */
-    data: any;
-    /**
-     * - Map of slot names to arrays of child instance IDs.
-     */
-    slots: Record<string, string[]>;
-};
-export type TextUpdateFunction = (component: any) => void;
-export type ComponentLifecycleEvent = "connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore";
-export type ComponentEvent = ComponentLifecycleEvent | (string & {});
-export type TeleportStrategy = "append" | "prepend" | "replace";
-export type TeleportConfig = {
-    /**
-     * - A function that returns a markup fragment for teleportation.
-     */
-    layout: () => DocumentFragment;
-    /**
-     * - A target element, selector, or function that returns an element.
-     */
-    target: Element | string | (() => Element | null);
-    /**
-     * - Insertion strategy (default is "append").
-     */
-    strategy?: TeleportStrategy;
-};
-export type TeleportList = {
-    [x: string]: TeleportConfig;
-};
-/**
- * @typedef {"connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore"} ComponentLifecycleEvent
- * @typedef {ComponentLifecycleEvent | (string & {})} ComponentEvent
- */
-/**
- * @typedef {(component: Component) => void} TextUpdateFunction
- */
-/**
- * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
- */
-/**
- * @typedef {Object} TeleportConfig
- * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
- * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
- * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
- */
-/**
- * @typedef {Object.<string, TeleportConfig>} TeleportList
- */
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -70,8 +16,8 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     $internals: Internals;
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout: ((component: this) => Node | string) | string | null | Node;
-    /** @type {TeleportList} */
-    teleports: TeleportList;
+    /** @type {import('./types.d.ts').TeleportList} */
+    teleports: any;
     /** @type {T} */
     refsAnnotation: T;
     slotManager: SlotManager;
@@ -127,24 +73,24 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     serialize(): {};
     /**
      * Subscribes to a specified event.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
-    on(event: ComponentEvent, callback: Function): () => void;
+    on(event: any, callback: Function): () => void;
     /**
      * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function.
      * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
      */
-    once(event: ComponentEvent, callback: Function): () => void;
+    once(event: any, callback: Function): () => void;
     /**
      * Emits an event with the given arguments.
-     * @param {ComponentEvent} event - The name of the event to emit.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
-    emit(event: ComponentEvent, ...args: any[]): void;
+    emit(event: any, ...args: any[]): void;
     /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
@@ -353,11 +299,11 @@ export function copyToClipboard(text: string): Promise<void>;
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
- * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
+ * * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest - The hydration map.
  * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
  * @returns {HTMLScriptElement}
  */
-export function createManifestScript(manifest: Record<string, ComponentMetadata>, variableName?: string): HTMLScriptElement;
+export function createManifestScript(manifest: Record<string, any>, variableName?: string): HTMLScriptElement;
 /**
  * Creates an array of page numbers to be displayed in a pagination list.
  * @param {number} current
@@ -463,17 +409,11 @@ export function formatDate(unix_timestamp: number): string;
  */
 export function formatDateTime(unix_timestamp: number): string;
 /**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {Object} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to arrays of child instance IDs.
- */
-/**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, import('./types.d.ts').ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
  */
-export function generateManifest(...rootComponents: Component[]): Record<string, ComponentMetadata>;
+export function generateManifest(...rootComponents: Component[]): Record<string, any>;
 /**
  * Returns the user's default language, or "en" if none can be determined.
  * @returns {string} The user's default language, in the form of a two-letter
@@ -537,11 +477,11 @@ export function onClickOutside(element: Element, callback: (event: MouseEvent) =
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
 /**
  * Alternative for pure string-based SSR (Node.js without JSDOM)
- * @param {Record<string, ComponentMetadata>} manifest
+ * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest
  * @param {string} variableName
  * @returns {string}
  */
-export function renderManifestHTML(manifest: Record<string, ComponentMetadata>, variableName?: string): string;
+export function renderManifestHTML(manifest: Record<string, any>, variableName?: string): string;
 /**
  * Renders a pagination list with the given parameters.
  * @param {number} currentPageNumber - The current page number.
@@ -657,9 +597,6 @@ export function unsafeHTML(html: string): SafeHTML;
  * @returns {Promise<T>} A promise that resolves or rejects after at least the given minimum time has elapsed.
  */
 export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promise<T>;
-/**
- * @typedef {(component: import('./component.js').Component) => void} TextUpdateFunction
- */
 declare class Internals {
     /** @type {number} */
     static "__#private@#instanceIdCounter": number;
@@ -689,8 +626,8 @@ declare class Internals {
     disconnectController: AbortController;
     /** @type {Element|null} */
     root: Element | null;
-    /** @type {TextUpdateFunction|null} */
-    textUpdateFunction: TextUpdateFunction | null;
+    /** @type {import('./types.d.ts').TextUpdateFunction|null} */
+    textUpdateFunction: any | null;
     /** @type {Record<string, any>} */
     textResources: Record<string, any>;
     /** @type {Record<string, HTMLElement>} */
@@ -836,12 +773,6 @@ declare class SlotManager {
     #private;
 }
 /**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {any} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to child instance IDs.
- */
-/**
  * Configuration Manager for UI Library.
  * Handles SSR flags and hydration data access.
  */
@@ -856,10 +787,10 @@ declare class ConfigManager {
     window: typeof globalThis;
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {{[key:string]:ComponentMetadata}|null}
+     * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
      */
     getManifest(): {
-        [key: string]: ComponentMetadata;
+        [key: string]: any;
     } | null;
     /**
      * Extracts state for a specific SID.

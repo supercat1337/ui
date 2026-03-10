@@ -1,13 +1,6 @@
 // @ts-check
 
 /**
- * @typedef {Object} ComponentMetadata
- * @property {string} className - The constructor name for class instantiation.
- * @property {any} data - Serialized state from component.serialize().
- * @property {Record<string, string[]>} slots - Map of slot names to child instance IDs.
- */
-
-/**
  * Configuration Manager for UI Library.
  * Handles SSR flags and hydration data access.
  */
@@ -28,7 +21,7 @@ class ConfigManager {
 
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {{[key:string]:ComponentMetadata}|null}
+     * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
      */
     getManifest() {
         // globalThis works in both Node.js and Browsers

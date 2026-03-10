@@ -6,29 +6,6 @@ import { Internals } from './internals.js';
 import { onConnectDefault, onDisconnectDefault, resolveLayout } from './helpers.js';
 import { Config } from './config.js';
 
-/**
- * @typedef {"connect" | "disconnect" | "mount" | "unmount" | "prepareRender" | "collapse" | "expand" | "restore"} ComponentLifecycleEvent
- * @typedef {ComponentLifecycleEvent | (string & {})} ComponentEvent
- */
-
-/**
- * @typedef {(component: Component) => void} TextUpdateFunction
- */
-
-/**
- * @typedef {"append" | "prepend" | "replace"} TeleportStrategy
- */
-
-/**
- * @typedef {Object} TeleportConfig
- * @property {() => DocumentFragment} layout - A function that returns a markup fragment for teleportation.
- * @property {Element | string | (() => Element | null)} target - A target element, selector, or function that returns an element.
- * @property {TeleportStrategy} [strategy] - Insertion strategy (default is "append").
- */
-
-/**
- * @typedef {Object.<string, TeleportConfig>} TeleportList
- */
 
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
@@ -40,7 +17,7 @@ export class Component {
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
-    /** @type {TeleportList} */
+    /** @type {import('./types.d.ts').TeleportList} */
     teleports = {};
 
     /** @type {T} */
@@ -213,7 +190,7 @@ export class Component {
 
     /**
      * Subscribes to a specified event.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
@@ -223,7 +200,7 @@ export class Component {
 
     /**
      * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-     * @param {ComponentEvent} event - The name of the event to subscribe to.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function.
      * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
      */
@@ -233,7 +210,7 @@ export class Component {
 
     /**
      * Emits an event with the given arguments.
-     * @param {ComponentEvent} event - The name of the event to emit.
+     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event, ...args) {
@@ -705,7 +682,7 @@ export class Component {
 
     /**
      * @param {string} name - Имя телепорта из объекта teleports
-     * @param {TeleportConfig} config - Конфигурация конкретного телепорта
+     * @param {import('./types.d.ts').TeleportConfig} config - Конфигурация конкретного телепорта
      * @returns {Element}
      */
     #renderTeleport(name, config) {
@@ -752,7 +729,7 @@ export class Component {
 
     /**
      * @param {string} name
-     * @param {TeleportConfig} config
+     * @param {import('./types.d.ts').TeleportConfig} config
      */
     #mountTeleport(name, config) {
         const fragment = this.#renderTeleport(name, config);

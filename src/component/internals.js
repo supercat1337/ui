@@ -2,10 +2,6 @@
 import { EventEmitter } from '@supercat1337/event-emitter';
 import { Config } from './config.js';
 
-/**
- * @typedef {(component: import('./component.js').Component) => void} TextUpdateFunction
- */
-
 export class Internals {
     /** * Private storage for the lazy instance ID.
      * @type {string|null}
@@ -50,7 +46,7 @@ export class Internals {
     /** @type {Element|null} */
     root = null;
 
-    /** @type {TextUpdateFunction|null} */
+    /** @type {import('./types.d.ts').TextUpdateFunction|null} */
     textUpdateFunction = null;
 
     /** @type {Record<string, any>} */
