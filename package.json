@@ -51,13 +51,24 @@
         "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
         "create_types": "tsc --project my.tsconfig.types.json && node ./scripts/fix-types.js",
         "post_build": "node ./scripts/post-build.js",
-        "examples": "live-server --open=./examples --watch=dist,examples"
+        "examples": "live-server --open=./examples --watch=dist,examples",
+        "test": "c8 ava"
+    },
+    "ava": {
+        "require": [
+            "./tests/_setup.js"
+        ],
+        "nodeArguments": [
+            "--no-warnings"
+        ]
     },
     "dependencies": {
         "@supercat1337/event-emitter": "^2.0.0",
         "dom-scope": "^2.1.2"
     },
     "devDependencies": {
+        "ava": "^7.0.0",
+        "c8": "^11.0.0",
         "jsdom": "^28.1.0",
         "live-server": "^1.2.0",
         "shx": "^0.4.0"

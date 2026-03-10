@@ -1,6 +1,6 @@
 // @ts-check
-import { Component } from './component/component.js';
-import { hideElements, showElements } from './utils/utils.js';
+import { Component } from '../component/component.js';
+import { hideElements, showElements } from './utils.js';
 
 export class SlotToggler {
     #isDestroyed = false;

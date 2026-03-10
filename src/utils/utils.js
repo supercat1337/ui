@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Config } from "../component/config.js";
+import { Config } from '../component/config.js';
 
 /**
  * Executes the provided callback function when the DOM is fully loaded.
@@ -22,14 +22,16 @@ export function DOMReady(callback, doc = window.document) {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe) {
-    return unsafe.replace(/[&<"']/g, function (m) {
+    if (!unsafe) return "";
+    return unsafe.replace(/[&<>"']/g, function (m) {
         let charset = {
             '&': '&amp;',
             '<': '&lt;',
+            '>': '&gt;',
             '"': '&quot;',
             "'": '&#39;', // ' -> &apos; for XML only
         };
-        return charset[/** @type {'&' | '<' | '"' | "'"} */ (m)];
+        return charset[/** @type {'&' | '<' | '>'| '"' | "'"} */ (m)];
     });
 }
 
@@ -117,14 +119,14 @@ export function showElements(...elements) {
  * @param {Document} [doc=window.document] - The document object to create the spinner element in.
  */
 export function showSpinnerInButton(button, customClassName = null, doc = window.document) {
-    if (button.getElementsByClassName('spinner-border')[0]) return;
+    const checkClass = customClassName || 'spinner-border';
+    if (button.getElementsByClassName(checkClass)[0]) return;
 
     let spinner = doc.createElement('span');
-
-    if (customClassName) {
-        spinner.className = customClassName;
-    } else {
-        spinner.className = 'spinner-border spinner-border-sm';
+    spinner.className = checkClass;
+    // Ensure the base class is there if using custom sub-classes
+    if (customClassName && !customClassName.includes('spinner-border')) {
+        spinner.classList.add('spinner-border');
     }
 
     button.prepend(spinner);
@@ -199,10 +201,11 @@ export function formatBytes(bytes, decimals = 2, lang, sizes) {
 /**
  * Copies the given text to the clipboard using the Clipboard API.
  * @param {string} text - The text to be copied to the clipboard.
+ * @param {Window & typeof globalThis} [wnd=window] 
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
-export function copyToClipboard(text) {
-    return navigator.clipboard.writeText(text);
+export function copyToClipboard(text, wnd = window) {
+    return wnd.navigator.clipboard.writeText(text);
 }
 
 /**
@@ -357,45 +360,92 @@ export function unsafeHTML(html) {
 }
 
 /**
- * Creates a DocumentFragment from a template string.
- * Supports arrays, SafeHTML objects, and automatic escaping of untrusted values.
- * * @param {TemplateStringsArray} strings - Template strings from the tagged template.
- * @param {...any} values - Values to interpolate.
- * @returns {DocumentFragment}
- */
-/**
- * Creates a DocumentFragment from a template string or a tagged template.
- * High-performance: uses <template> and handles arrays/SafeHTML.
- * * @param {TemplateStringsArray | string} strings - Template strings array or a single string.
- * @param {...any} values - Values to interpolate.
- * @returns {DocumentFragment}
+ * Tagged template literal for high-performance HTML generation.
+ * Handles strings, arrays, DOM nodes, and DocumentFragments safely.
+ * * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
+ * @param {...any} values - Dynamic values to interpolate.
+ * @returns {DocumentFragment} A live DocumentFragment containing the parsed HTML.
  */
 export function html(strings, ...values) {
+    /** @type {string} */
     let rawResult = '';
 
+    // 1. Handle raw string input (non-tagged usage)
     if (typeof strings === 'string') {
-        // Handle regular function call: html('<div>...</div>')
-        rawResult = strings;
-    } else if (Array.isArray(strings)) {
-        // Handle tagged template call: html`<div>${value}</div>`
-        rawResult = strings.reduce((acc, str, i) => {
-            let value = values[i - 1];
-
-            // 1. Handle Arrays (join elements)
-            if (Array.isArray(value)) {
-                value = value.join('');
-            }
-
-            // 2. Process value: check for SafeHTML wrapper or escape
-            const stringValue =
-                value instanceof SafeHTML ? value.toString() : escapeHtml(String(value ?? ''));
-
-            return acc + stringValue + str;
-        });
+        const tmpl = document.createElement('template');
+        tmpl.innerHTML = strings.trim();
+        return tmpl.content;
     }
 
+    // 2. Build the HTML string from tagged template parts
+    // Start with the first static string part
+    rawResult = strings[0];
+
+    for (let i = 0; i < values.length; i++) {
+        let value = values[i];
+
+        // Normalization: convert null, undefined, or false to empty strings
+        if (value === null || value === undefined || value === false) {
+            value = '';
+        }
+
+        // Processing Logic: Convert various types into strings/SafeHTML
+        if (Array.isArray(value)) {
+            // Handle arrays: iterate and serialize each item
+            const joined = value
+                .map(item => {
+                    // Strict falsy check for array elements
+                    if (item === null || item === undefined || item === false) return '';
+
+                    if (item instanceof SafeHTML) return item.toString();
+                    if (item instanceof Config.window.Element) return item.outerHTML;
+
+                    if (item instanceof Config.window.DocumentFragment) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.appendChild(item.cloneNode(true));
+                        return tempDiv.innerHTML;
+                    }
+
+                    if (item instanceof Config.window.Node) {
+                        return item.nodeType === Config.window.Node.TEXT_NODE
+                            ? escapeHtml(item.textContent ?? '')
+                            : '';
+                    }
+
+                    return escapeHtml(String(item));
+                })
+                .join('');
+
+            // Mark as safe to prevent double-escaping of the joined result
+            value = unsafeHTML(joined);
+        } else if (value instanceof Config.window.Element) {
+            // Single Element: capture its outer HTML
+            value = unsafeHTML(value.outerHTML);
+        } else if (value instanceof Config.window.DocumentFragment) {
+            // Single Fragment: convert to inner HTML string
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(value.cloneNode(true));
+            value = unsafeHTML(tempDiv.innerHTML);
+        } else if (value instanceof Config.window.Node) {
+            // Single Node: handle text content only, ignore comments/others
+            value = unsafeHTML(
+                value.nodeType === Config.window.Node.TEXT_NODE
+                    ? escapeHtml(value.textContent ?? '')
+                    : ''
+            );
+        }
+
+        // Final assembly: Check if the value is SafeHTML, otherwise escape it
+        const stringValue =
+            value instanceof SafeHTML ? value.toString() : escapeHtml(String(value));
+
+        // Append interpolated value and the next static string part
+        rawResult += stringValue + strings[i + 1];
+    }
+
+    // 3. Final parsing into DOM
     const tmpl = document.createElement('template');
-    tmpl.innerHTML = rawResult;
+    tmpl.innerHTML = rawResult.trim();
     return tmpl.content;
 }
 
@@ -431,7 +481,7 @@ html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
  * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
  */
 export function debounce(func, wait, immediate = false) {
-    /** @type {ReturnType<typeof setTimeout> | null} */ 
+    /** @type {ReturnType<typeof setTimeout> | null} */
     let timeoutId = null;
     let result;
 
@@ -472,7 +522,7 @@ export function debounce(func, wait, immediate = false) {
  */
 export function throttle(func, wait, options = {}) {
     const { leading = true, trailing = true } = options;
-    /** @type {ReturnType<typeof setTimeout> | null} */ 
+    /** @type {ReturnType<typeof setTimeout> | null} */
     let timeoutId = null;
     let lastArgs = null;
     let lastContext = null;
@@ -519,7 +569,7 @@ export function throttle(func, wait, options = {}) {
 
 /**
  * Sets up a listener that calls a callback when a click occurs outside the specified element.
- * 
+ *
  * @param {Element} element - The DOM element to detect outside clicks for.
  * @param {(event: MouseEvent) => void} callback - Function to call when an outside click is detected.
  * @returns {() => void} A function that removes the event listener.
@@ -529,7 +579,7 @@ export function onClickOutside(element, callback) {
         throw new Error('onClickOutside: element and callback are required');
     }
 
-    const handler = (event) => {
+    const handler = event => {
         // Check if the click target is outside the element
         if (!element.contains(event.target)) {
             callback(event);

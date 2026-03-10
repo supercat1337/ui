@@ -6,7 +6,6 @@ import { Internals } from './internals.js';
 import { onConnectDefault, onDisconnectDefault, resolveLayout } from './helpers.js';
 import { Config } from './config.js';
 
-
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -165,6 +164,12 @@ export class Component {
                 if (refName) {
                     rootRefs[refName] = root;
                 }
+
+                let slotName = root.getAttribute('data-slot');
+                if (slotName) {
+                    scopeRefs[slotName] = /** @type {HTMLElement } */ (root);
+                }
+
             }
         }
 
@@ -383,6 +388,8 @@ export class Component {
             componentRoot.setAttribute('data-component-root', this.instanceId);
 
             this.$internals.root = componentRoot;
+            this.$internals.parentElement = componentRoot.parentElement;
+            this.$internals.mountMode = 'replace'; // Hydration is logically a replacement of SSR content
             this.#applyHydration();
 
             // Standard finalization for hydration
@@ -403,6 +410,9 @@ export class Component {
         // Finalize Connection
         this.$internals.root = componentRoot;
         this.$internals.parentElement = componentRoot.parentElement;
+
+        this.$internals.parentElement = container;
+        this.$internals.mountMode = mode;
 
         // 5. Lifecycle Logic
         if (!isMoving) {
