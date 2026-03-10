@@ -51,7 +51,7 @@ class DemoApp extends Component {
 
     constructor() {
         super();
-        this.addComponentToSlot('log-slot', this.logger);
+        this.addToSlot('log-slot', this.logger);
 
         // Unique ID generation
         this.inputId = uniqueId('input-');

@@ -5,7 +5,7 @@ This example demonstrates how to **move a component from one slot to another** (
 ## Key Concepts
 
 - **State preservation** – a component’s local state (like a counter) is not lost when moving.
-- **Slot reassignment** – `addComponentToSlot()` automatically detaches the component from its previous slot (if any) and attaches it to the new one, moving the DOM element.
+- **Slot reassignment** – `addToSlot()` automatically detaches the component from its previous slot (if any) and attaches it to the new one, moving the DOM element.
 - **Mounting to an external container** – calling `mount()` on an already mounted component relocates its root element to the new target without destroying the instance (the library’s `mount` method detects that the component is already connected and simply moves the root).
 - **Unified refs** – `getRefs()` continues to work correctly after the move.
 
@@ -14,9 +14,9 @@ This example demonstrates how to **move a component from one slot to another** (
 1. A `Counter` component has a simple state (click count) and renders a button and a display.
 2. The `MoveDemo` parent contains two slots (`left` and `right`) and also provides an external container (`#external-box`).
 3. Buttons allow moving the counter:
-   - **Move to Left / Right** – `addComponentToSlot(slotName, this.counter)` moves the counter to the specified slot. The library handles detachment from any previous slot and re‑attachment.
+   - **Move to Left / Right** – `addToSlot(slotName, this.counter)` moves the counter to the specified slot. The library handles detachment from any previous slot and re‑attachment.
    - **Move to External Container** – `this.counter.mount(externalContainer)` relocates the component to the external container. Because the component is already mounted, `mount` simply moves its root element (no unmount/re‑mount occurs).
-   - **Move Back to Left** – after being external, you can re‑attach it to a slot using `addComponentToSlot` again.
+   - **Move Back to Left** – after being external, you can re‑attach it to a slot using `addToSlot` again.
 4. Throughout all moves, the counter’s value persists – no unmounting or re‑creation happens.
 
 ## Code Structure

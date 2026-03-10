@@ -42,16 +42,18 @@ function DOMReady(callback, doc = window.document) {
   doc.readyState === "interactive" || doc.readyState === "complete" ? callback() : doc.addEventListener("DOMContentLoaded", callback);
 }
 function escapeHtml(unsafe) {
-  return unsafe.replace(/[&<"']/g, function(m) {
+  if (!unsafe) return "";
+  return unsafe.replace(/[&<>"']/g, function(m) {
     let charset = {
       "&": "&amp;",
       "<": "&lt;",
+      ">": "&gt;",
       '"': "&quot;",
       "'": "&#39;"
       // ' -> &apos; for XML only
     };
     return charset[
-      /** @type {'&' | '<' | '"' | "'"} */
+      /** @type {'&' | '<' | '>'| '"' | "'"} */
       m
     ];
   });
@@ -87,12 +89,12 @@ function showElements(...elements) {
   }
 }
 function showSpinnerInButton(button, customClassName = null, doc = window.document) {
-  if (button.getElementsByClassName("spinner-border")[0]) return;
+  const checkClass = customClassName || "spinner-border";
+  if (button.getElementsByClassName(checkClass)[0]) return;
   let spinner = doc.createElement("span");
-  if (customClassName) {
-    spinner.className = customClassName;
-  } else {
-    spinner.className = "spinner-border spinner-border-sm";
+  spinner.className = checkClass;
+  if (customClassName && !customClassName.includes("spinner-border")) {
+    spinner.classList.add("spinner-border");
   }
   button.prepend(spinner);
 }
@@ -127,8 +129,8 @@ function formatBytes(bytes, decimals = 2, lang, sizes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return minus_str + parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + get_size[i];
 }
-function copyToClipboard(text) {
-  return navigator.clipboard.writeText(text);
+function copyToClipboard(text, wnd = window) {
+  return wnd.navigator.clipboard.writeText(text);
 }
 function fadeIn(element, duration = 400, wnd = window) {
   element.style.opacity = "0";
@@ -220,19 +222,48 @@ function unsafeHTML(html2) {
 function html(strings, ...values) {
   let rawResult = "";
   if (typeof strings === "string") {
-    rawResult = strings;
-  } else if (Array.isArray(strings)) {
-    rawResult = strings.reduce((acc, str, i) => {
-      let value = values[i - 1];
-      if (Array.isArray(value)) {
-        value = value.join("");
-      }
-      const stringValue = value instanceof SafeHTML ? value.toString() : escapeHtml(String(value ?? ""));
-      return acc + stringValue + str;
-    });
+    const tmpl2 = document.createElement("template");
+    tmpl2.innerHTML = strings.trim();
+    return tmpl2.content;
+  }
+  rawResult = strings[0];
+  for (let i = 0; i < values.length; i++) {
+    let value = values[i];
+    if (value === null || value === void 0 || value === false) {
+      value = "";
+    }
+    if (Array.isArray(value)) {
+      const joined = value.map((item) => {
+        if (item === null || item === void 0 || item === false) return "";
+        if (item instanceof SafeHTML) return item.toString();
+        if (item instanceof Config.window.Element) return item.outerHTML;
+        if (item instanceof Config.window.DocumentFragment) {
+          const tempDiv = document.createElement("div");
+          tempDiv.appendChild(item.cloneNode(true));
+          return tempDiv.innerHTML;
+        }
+        if (item instanceof Config.window.Node) {
+          return item.nodeType === Config.window.Node.TEXT_NODE ? escapeHtml(item.textContent ?? "") : "";
+        }
+        return escapeHtml(String(item));
+      }).join("");
+      value = unsafeHTML(joined);
+    } else if (value instanceof Config.window.Element) {
+      value = unsafeHTML(value.outerHTML);
+    } else if (value instanceof Config.window.DocumentFragment) {
+      const tempDiv = document.createElement("div");
+      tempDiv.appendChild(value.cloneNode(true));
+      value = unsafeHTML(tempDiv.innerHTML);
+    } else if (value instanceof Config.window.Node) {
+      value = unsafeHTML(
+        value.nodeType === Config.window.Node.TEXT_NODE ? escapeHtml(value.textContent ?? "") : ""
+      );
+    }
+    const stringValue = value instanceof SafeHTML ? value.toString() : escapeHtml(String(value));
+    rawResult += stringValue + strings[i + 1];
   }
   const tmpl = document.createElement("template");
-  tmpl.innerHTML = rawResult;
+  tmpl.innerHTML = rawResult.trim();
   return tmpl.content;
 }
 function debounce(func, wait, immediate = false) {
@@ -1614,6 +1645,11 @@ var Component = class {
         if (refName) {
           rootRefs[refName] = root;
         }
+        let slotName = root.getAttribute("data-slot");
+        if (slotName) {
+          scopeRefs[slotName] = /** @type {HTMLElement } */
+          root;
+        }
       }
     }
     refs = { ...refs, ...rootRefs };
@@ -1790,6 +1826,8 @@ var Component = class {
       componentRoot2.removeAttribute("data-sid");
       componentRoot2.setAttribute("data-component-root", this.instanceId);
       this.$internals.root = componentRoot2;
+      this.$internals.parentElement = componentRoot2.parentElement;
+      this.$internals.mountMode = "replace";
       this.#applyHydration();
       this.#connect(
         /** @type {HTMLElement} */
@@ -1804,6 +1842,8 @@ var Component = class {
     else if (mode === "prepend") container.prepend(componentRoot);
     this.$internals.root = componentRoot;
     this.$internals.parentElement = componentRoot.parentElement;
+    this.$internals.parentElement = container;
+    this.$internals.mountMode = mode;
     if (!isMoving) {
       this.#mountTeleports();
       this.emit("prepareRender", componentRoot);
@@ -1942,7 +1982,7 @@ var Component = class {
    * @param {...Component} components - The component to add to the slot.
    * @throws {Error} If the slot does not exist.
    */
-  addComponentToSlot(slotName, ...components) {
+  addToSlot(slotName, ...components) {
     const parentSid = this.$internals.sid;
     const startIndex = this.slotManager.getSlotLength(slotName);
     for (let i = 0; i < components.length; i++) {
@@ -2211,7 +2251,7 @@ var Component = class {
   }
 };
 
-// src/slot-toggler.js
+// src/utils/slot-toggler.js
 var SlotToggler = class {
   #isDestroyed = false;
   /** @type {string[]} */

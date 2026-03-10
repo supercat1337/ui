@@ -5,7 +5,7 @@ import { BlueComponent, RedComponent } from './components.js'
 export class App extends Component {
     constructor() {
         super();
-        this.addComponentToSlot('slot', new BlueComponent(), new RedComponent());
+        this.addToSlot('slot', new BlueComponent(), new RedComponent());
     }
 
     layout = html`

@@ -580,7 +580,7 @@ export class Component {
      * @param {...Component} components - The component to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addComponentToSlot(slotName, ...components) {
+    addToSlot(slotName, ...components) {
         const parentSid = this.$internals.sid;
         const startIndex = this.slotManager.getSlotLength(slotName);
 

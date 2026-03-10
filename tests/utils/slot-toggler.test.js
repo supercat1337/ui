@@ -33,7 +33,7 @@ test('SlotToggler: switches visibility and triggers lifecycle signals', t => {
     childComponent.setLayout("<div>Hello</div>");
 
     // Register the child component in the 'home' slot
-    parent.addComponentToSlot('home', childComponent);
+    parent.addToSlot('home', childComponent);
     parent.mount(t.context.container);
 
     const toggler = new SlotToggler(parent, ['home', 'settings'], 'home');

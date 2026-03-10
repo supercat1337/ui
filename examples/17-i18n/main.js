@@ -16,9 +16,9 @@ class App extends Component {
 
     constructor() {
         super();
-        this.addComponentToSlot('switcher', new LanguageSwitcher());
-        this.addComponentToSlot('greeting', new Greeting());
-        this.addComponentToSlot('counter', new Counter());
+        this.addToSlot('switcher', new LanguageSwitcher());
+        this.addToSlot('greeting', new Greeting());
+        this.addToSlot('counter', new Counter());
     }
 }
 

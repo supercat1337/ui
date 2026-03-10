@@ -11,7 +11,7 @@ export class App extends Component {
         const darkCard = new UniversalCard('is-dark', 'Dark Mode');
 
         // Declaratively adding them to the pre-defined slot
-        this.addComponentToSlot('content', lightCard, darkCard);
+        this.addToSlot('content', lightCard, darkCard);
     }
 
     layout = html`

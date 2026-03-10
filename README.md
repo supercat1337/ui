@@ -178,15 +178,15 @@ class Parent extends Component {
 
     constructor() {
         super();
-        this.addComponentToSlot('header', new Header());
-        this.addComponentToSlot('content', new DynamicContent());
+        this.addToSlot('header', new Header());
+        this.addToSlot('content', new DynamicContent());
     }
 }
 ```
 
 Slot management methods:
 
-- `addComponentToSlot(slotName, ...components)`
+- `addToSlot(slotName, ...components)`
 - `getSlotNames()`
 - `hasSlotContent(slotName)`
 - `clearSlotContent(slotName)`

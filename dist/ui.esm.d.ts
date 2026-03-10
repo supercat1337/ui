@@ -254,7 +254,7 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * @param {...Component} components - The component to add to the slot.
      * @throws {Error} If the slot does not exist.
      */
-    addComponentToSlot(slotName: string, ...components: Component[]): void;
+    addToSlot(slotName: string, ...components: Component[]): void;
     /**
      * Returns the parent component of the current component, or null if the current component is a root component.
      * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
@@ -374,9 +374,10 @@ export class Toggler {
 /**
  * Copies the given text to the clipboard using the Clipboard API.
  * @param {string} text - The text to be copied to the clipboard.
+ * @param {Window & typeof globalThis} [wnd=window]
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
-export function copyToClipboard(text: string): Promise<void>;
+export function copyToClipboard(text: string, wnd?: Window & typeof globalThis): Promise<void>;
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
@@ -507,18 +508,11 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
- * Creates a DocumentFragment from a template string.
- * Supports arrays, SafeHTML objects, and automatic escaping of untrusted values.
- * * @param {TemplateStringsArray} strings - Template strings from the tagged template.
- * @param {...any} values - Values to interpolate.
- * @returns {DocumentFragment}
- */
-/**
- * Creates a DocumentFragment from a template string or a tagged template.
- * High-performance: uses <template> and handles arrays/SafeHTML.
- * * @param {TemplateStringsArray | string} strings - Template strings array or a single string.
- * @param {...any} values - Values to interpolate.
- * @returns {DocumentFragment}
+ * Tagged template literal for high-performance HTML generation.
+ * Handles strings, arrays, DOM nodes, and DocumentFragments safely.
+ * * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
+ * @param {...any} values - Dynamic values to interpolate.
+ * @returns {DocumentFragment} A live DocumentFragment containing the parsed HTML.
  */
 export function html(strings: TemplateStringsArray | string, ...values: any[]): DocumentFragment;
 /**

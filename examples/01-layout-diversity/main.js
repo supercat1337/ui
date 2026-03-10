@@ -71,9 +71,9 @@ class LayoutDemo extends Component {
         super();
 
         // Compose the UI structure
-        this.addComponentToSlot('header-slot', new Header());
-        this.addComponentToSlot('body-slot', new DynamicBody());
-        this.addComponentToSlot('footer-slot', new Footer());
+        this.addToSlot('header-slot', new Header());
+        this.addToSlot('body-slot', new DynamicBody());
+        this.addToSlot('footer-slot', new Footer());
     }
 }
 

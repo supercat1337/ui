@@ -166,8 +166,8 @@ test('SlotManager: findChildBySid performs deep search after component integrati
 
     // 3. Use the public API to add components.
     // This triggers the internal #recursiveUpdateSid chain.
-    parent.addComponentToSlot('left', childA);
-    parent.addComponentToSlot('right', childB);
+    parent.addToSlot('left', childA);
+    parent.addToSlot('right', childB);
 
     // 4. Verify SIDs were actually generated
     // Path: [parent.sid].[slotName].[index]
@@ -227,7 +227,7 @@ test('SlotManager: iterates and manages components correctly', t => {
 
     // 2. Coverage for component removal via manager
     const child = new Component();
-    parent.addComponentToSlot('content', child);
+    parent.addToSlot('content', child);
 
     // Target removal logic (uncovered lines in Slot/SlotManager)
     slot.detach(child);
@@ -247,7 +247,7 @@ test('SlotManager: findChildBySid skips empty slots', t => {
     manager.registerSlot('active_slot');
 
     const child = new Component();
-    parent.addComponentToSlot('active_slot', child);
+    parent.addToSlot('active_slot', child);
 
     t.is(manager.findChildBySid('root.active_slot.0'), child);
     t.is(manager.findChildBySid('non.existent'), null, 'Should finish loop and return null');
@@ -425,7 +425,7 @@ test('SlotManager: handles slot mounting and component removal', t => {
 
     t.deepEqual(manager.slotNames, ['content']);
 
-    parent.addComponentToSlot('content', child);
+    parent.addToSlot('content', child);
 
     // verify that removeComponent finds the slot via findSlotByComponent (205-209)
     const wasRemoved = manager.removeComponent(child);

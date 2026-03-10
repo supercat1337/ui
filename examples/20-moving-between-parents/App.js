@@ -42,19 +42,19 @@ export class App extends Component {
     this.panel2.setCard(this.card);
 
     // Initially place the card in panel1 left slot
-    this.panel1.addComponentToSlot('left', this.card);
+    this.panel1.addToSlot('left', this.card);
 
     // Add panels to the main slots
-    this.addComponentToSlot('panel1', this.panel1);
-    this.addComponentToSlot('panel2', this.panel2);
+    this.addToSlot('panel1', this.panel1);
+    this.addToSlot('panel2', this.panel2);
   }
 
   connectedCallback() {
     const refs = this.getRefs();
 
-    refs.toPanel1Left.onclick = () => this.panel1.addComponentToSlot('left', this.card);
-    refs.toPanel1Right.onclick = () => this.panel1.addComponentToSlot('right', this.card);
-    refs.toPanel2Left.onclick = () => this.panel2.addComponentToSlot('left', this.card);
-    refs.toPanel2Right.onclick = () => this.panel2.addComponentToSlot('right', this.card);
+    refs.toPanel1Left.onclick = () => this.panel1.addToSlot('left', this.card);
+    refs.toPanel1Right.onclick = () => this.panel1.addToSlot('right', this.card);
+    refs.toPanel2Left.onclick = () => this.panel2.addToSlot('left', this.card);
+    refs.toPanel2Right.onclick = () => this.panel2.addToSlot('right', this.card);
   }
 }

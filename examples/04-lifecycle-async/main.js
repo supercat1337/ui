@@ -149,7 +149,7 @@ class App extends Component {
                 }
             });
 
-            this.addComponentToSlot('user-list', userCard);
+            this.addToSlot('user-list', userCard);
         };
     }
 }

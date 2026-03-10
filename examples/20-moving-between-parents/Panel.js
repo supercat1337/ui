@@ -51,7 +51,7 @@ export class Panel extends Component {
     moveCard(targetSlot) {
         // 'card' must be set by the parent App
         if (this.card) {
-            this.addComponentToSlot(targetSlot, this.card);
+            this.addToSlot(targetSlot, this.card);
         }
     }
 

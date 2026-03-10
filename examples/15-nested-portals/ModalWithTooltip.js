@@ -39,7 +39,7 @@ export class ModalWithTooltip extends Component {
     constructor() {
         super();
         // Add Tooltip to the slot inside the teleported overlay
-        this.addComponentToSlot('tooltip-slot', new Tooltip());
+        this.addToSlot('tooltip-slot', new Tooltip());
     }
 
     connectedCallback() {

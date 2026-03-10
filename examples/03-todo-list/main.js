@@ -78,7 +78,7 @@ class TodoApp extends Component {
              * By adding the component to the slot, the library takes care
              * of finding the 'items-slot' in the DOM and mounting the component.
              */
-            this.addComponentToSlot('items-slot', newItem);
+            this.addToSlot('items-slot', newItem);
 
             // Clear UI
             refs.taskInput.value = '';

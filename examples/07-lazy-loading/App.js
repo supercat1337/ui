@@ -49,7 +49,7 @@ class App extends Component {
                 // Create the component instance
                 const profile = new UserProfile();
 
-                this.addComponentToSlot("content", profile);
+                this.addToSlot("content", profile);
 
                 // Finally, switch to the content slot
                 this.toggler.toggle('content');

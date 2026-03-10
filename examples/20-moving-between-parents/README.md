@@ -6,7 +6,7 @@ This example demonstrates how to move a component from a slot in one parent comp
 
 - **Changing parentage** – a component can be transferred from one parent to another without being destroyed.
 - **State persistence** – local state (e.g., a counter) is preserved across moves.
-- **Cross‑parent slot reassignment** – `addComponentToSlot()` automatically detaches the component from its previous parent (if any) and attaches it to the new parent’s slot.
+- **Cross‑parent slot reassignment** – `addToSlot()` automatically detaches the component from its previous parent (if any) and attaches it to the new parent’s slot.
 - **Unified refs** – after the move, the component’s `getRefs()` continue to work, and it becomes accessible via the new parent’s refs if declared.
 
 ## How It Works

@@ -43,7 +43,7 @@ export class MoveDemo extends Component {
         // Create the counter once
         this.counter = new Counter();
         // Initially place it in the left slot
-        this.addComponentToSlot('left', this.counter);
+        this.addToSlot('left', this.counter);
     }
 
     connectedCallback() {
@@ -62,7 +62,7 @@ export class MoveDemo extends Component {
      */
     moveToSlot(slotName) {
         // Add to the new slot (automatically moves the DOM element)
-        this.addComponentToSlot(slotName, this.counter);
+        this.addToSlot(slotName, this.counter);
     }
 
     moveToExternal() {

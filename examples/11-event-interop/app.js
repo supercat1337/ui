@@ -19,7 +19,7 @@ export class App extends Component {
             this.update();
         });
 
-        this.addComponentToSlot('main', sender);
+        this.addToSlot('main', sender);
     }
 
     refsAnnotation = {
