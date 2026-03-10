@@ -1398,7 +1398,7 @@ var Internals = class _Internals {
   refs = {};
   /** @type {Record<string, HTMLElement>} */
   scopeRefs = {};
-  /** @type {import('./component.js').Component|null} */
+  /** @type {Component|null} */
   parentComponent = null;
   /** @type {string} */
   assignedSlotName = "";

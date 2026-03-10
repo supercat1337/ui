@@ -5,11 +5,17 @@
     "license": "MIT",
     "author": "Albert Bazaleev",
     "type": "module",
-    "main": "dist/ui.esm.js",
+    "main": "./dist/ui.esm.js",
+    "types": "./dist/ui.esm.d.ts",
     "homepage": "https://github.com/supercat1337/ui",
     "repository": {
         "url": "git+https://github.com/supercat1337/ui.git"
     },
+    "files": [
+        "dist",
+        "README.md",
+        "package.json"
+    ],
     "keywords": [
         "ui-library",
         "vanilla-js",
@@ -38,12 +44,13 @@
         }
     },
     "scripts": {
-        "build": "npm run clean && npm run build_esm && npm run build_bundle_esm && npm run build_bundle_esm_min && npm run create_types",
+        "build": "npm run clean && npm run build_esm && npm run build_bundle_esm && npm run build_bundle_esm_min && npm run create_types && npm run post_build",
         "clean": "shx rm -rf ./dist && shx mkdir ./dist",
         "build_esm": "rollup ./src/index.js --file ./dist/ui.esm.js --format es",
         "build_bundle_esm": "esbuild --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.js",
         "build_bundle_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/ui.bundle.esm.min.js",
-        "create_types": "tsc --project my.tsconfig.types.json && shx cp ./dist/ui.esm.d.ts ./dist/ui.bundle.esm.d.ts",
+        "create_types": "tsc --project my.tsconfig.types.json && node ./scripts/fix-types.js",
+        "post_build": "node ./scripts/post-build.js",
         "examples": "live-server --open=./examples --watch=dist,examples"
     },
     "dependencies": {

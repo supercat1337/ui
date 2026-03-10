@@ -1,5 +1,3 @@
-// src/types.d.ts
-
 /**
  * Valid lifecycle events for the Component class.
  */

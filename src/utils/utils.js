@@ -431,6 +431,7 @@ html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
  * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
  */
 export function debounce(func, wait, immediate = false) {
+    /** @type {ReturnType<typeof setTimeout> | null} */ 
     let timeoutId = null;
     let result;
 
@@ -471,6 +472,7 @@ export function debounce(func, wait, immediate = false) {
  */
 export function throttle(func, wait, options = {}) {
     const { leading = true, trailing = true } = options;
+    /** @type {ReturnType<typeof setTimeout> | null} */ 
     let timeoutId = null;
     let lastArgs = null;
     let lastContext = null;

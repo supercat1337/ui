@@ -1,4 +1,85 @@
 /**
+ * Valid lifecycle events for the Component class.
+ */
+export type ComponentLifecycleEvent = 
+    | "connect" 
+    | "disconnect" 
+    | "mount" 
+    | "unmount" 
+    | "prepareRender" 
+    | "collapse" 
+    | "expand" 
+    | "restore";
+
+/**
+ * Represents a component event name. 
+ * Includes standard lifecycle events and allows custom string events with IDE autocomplete support.
+ */
+export type ComponentEvent = ComponentLifecycleEvent | (string & {});
+
+/**
+ * Strategy for inserting teleported content.
+ */
+export type TeleportStrategy = "append" | "prepend" | "replace";
+
+/**
+ * Configuration for a teleported fragment.
+ */
+export interface TeleportConfig {
+    /** A function that returns a markup fragment for teleportation. */
+    layout: () => DocumentFragment;
+    /** A target element, selector, or function that returns an element. */
+    target: Element | string | (() => Element | null);
+    /** Insertion strategy (default is "append"). */
+    strategy?: TeleportStrategy;
+}
+
+/**
+ * A map of teleport names to their configurations.
+ */
+export type TeleportList = Record<string, TeleportConfig>;
+
+/**
+ * Serialized component data used for SSR and hydration.
+ */
+export interface ComponentMetadata {
+    /** The constructor name for class instantiation. */
+    className: string;
+    /** Serialized state from component.serialize(). */
+    data: any;
+    /** Map of slot names to arrays of child instance IDs. */
+    slots: Record<string, string[]>;
+}
+
+/**
+ * Function responsible for updating text nodes within the component.
+ */
+export type TextUpdateFunction = (component: any) => void;
+
+/**
+ * Options for the Component constructor.
+ */
+export interface ComponentOptions {
+    instanceId?: string;
+    sid?: string;
+    [key: string]: any; // Allow for custom state initialization
+}
+
+/**
+ * Internal state and controllers.
+ */
+export interface Internals {
+    instanceId: string;
+    sid: string | null;
+    eventEmitter: any; // Ideally import { EventEmitter } from '@supercat1337/event-emitter'
+}
+
+/**
+ * Interface for DOM references annotation.
+ */
+export type RefsAnnotation = Record<string, any>;
+
+/**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
 export class Component<T extends import("dom-scope").RefsAnnotation = any> {
@@ -16,7 +97,7 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     $internals: Internals;
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout: ((component: this) => Node | string) | string | null | Node;
-    /** @type {import('./types.d.ts').TeleportList} */
+    /** @type {TeleportList} */
     teleports: any;
     /** @type {T} */
     refsAnnotation: T;
@@ -73,21 +154,21 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     serialize(): {};
     /**
      * Subscribes to a specified event.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
     on(event: any, callback: Function): () => void;
     /**
      * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function.
      * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
      */
     once(event: any, callback: Function): () => void;
     /**
      * Emits an event with the given arguments.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
+     * @param {ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event: any, ...args: any[]): void;
@@ -299,7 +380,7 @@ export function copyToClipboard(text: string): Promise<void>;
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
- * * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest - The hydration map.
+ * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
  * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
  * @returns {HTMLScriptElement}
  */
@@ -411,7 +492,7 @@ export function formatDateTime(unix_timestamp: number): string;
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, import('./types.d.ts').ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
  */
 export function generateManifest(...rootComponents: Component[]): Record<string, any>;
 /**
@@ -477,7 +558,7 @@ export function onClickOutside(element: Element, callback: (event: MouseEvent) =
 export function removeSpinnerFromButton(button: HTMLButtonElement): void;
 /**
  * Alternative for pure string-based SSR (Node.js without JSDOM)
- * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest
+ * @param {Record<string, ComponentMetadata>} manifest
  * @param {string} variableName
  * @returns {string}
  */
@@ -626,7 +707,7 @@ declare class Internals {
     disconnectController: AbortController;
     /** @type {Element|null} */
     root: Element | null;
-    /** @type {import('./types.d.ts').TextUpdateFunction|null} */
+    /** @type {TextUpdateFunction|null} */
     textUpdateFunction: any | null;
     /** @type {Record<string, any>} */
     textResources: Record<string, any>;
@@ -634,8 +715,8 @@ declare class Internals {
     refs: Record<string, HTMLElement>;
     /** @type {Record<string, HTMLElement>} */
     scopeRefs: Record<string, HTMLElement>;
-    /** @type {import('./component.js').Component|null} */
-    parentComponent: any | null;
+    /** @type {Component|null} */
+    parentComponent: Component | null;
     /** @type {string} */
     assignedSlotName: string;
     /** @type {"replace"|"append"|"prepend"|"hydrate"} */
@@ -787,7 +868,7 @@ declare class ConfigManager {
     window: typeof globalThis;
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
+     * @returns {{[key:string]:ComponentMetadata}|null}
      */
     getManifest(): {
         [key: string]: any;

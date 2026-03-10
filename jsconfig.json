@@ -1,15 +1,15 @@
 {
     "compilerOptions": {
-      "baseUrl": ".",
-      "target": "ESNext",
-      "module": "NodeNext",
-      "noEmit": true,
-      "lib": [
-          "DOM",
-          "ES2020"
-        ],
-        "moduleResolution": "NodeNext"
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "target": "ESNext",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "noEmit": true,
+        "lib": ["DOM", "ESNext"],
+        "paths": {
+            "@supercat1337/ui": ["./dist/ui.esm.d.ts"]
+        }
     },
-    "exclude": ["dist/*"],
-    "include": ["src/index.js", "node_modules/*", "src/**/*.d.ts"]
+    "exclude": ["node_modules", "dist"]
 }

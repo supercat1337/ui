@@ -1,6 +1,7 @@
 // @ts-check
 import { EventEmitter } from '@supercat1337/event-emitter';
 import { Config } from './config.js';
+import { Component } from './component.js';
 
 export class Internals {
     /** * Private storage for the lazy instance ID.
@@ -58,7 +59,7 @@ export class Internals {
     /** @type {Record<string, HTMLElement>} */
     scopeRefs = {};
 
-    /** @type {import('./component.js').Component|null} */
+    /** @type {Component|null} */
     parentComponent = null;
 
     /** @type {string} */

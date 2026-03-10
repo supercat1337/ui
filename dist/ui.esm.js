@@ -1,7 +1,9 @@
+// @ts-nocheck
+/// <reference types="./ui.esm.d.ts" />
 import { selectRefsExtended, checkRefs, walkDomScope } from 'dom-scope';
 import { EventEmitter } from '@supercat1337/event-emitter';
 
-// @ts-check
+
 
 /**
  * Configuration Manager for UI Library.
@@ -24,7 +26,7 @@ class ConfigManager {
 
     /**
      * Safely retrieves the hydration manifest from the global environment.
-     * @returns {{[key:string]:import('./types.d.ts').ComponentMetadata}|null}
+     * @returns {{[key:string]:ComponentMetadata}|null}
      */
     getManifest() {
         // globalThis works in both Node.js and Browsers
@@ -59,7 +61,7 @@ class ConfigManager {
 // Export a singleton instance
 const Config = new ConfigManager();
 
-// @ts-check
+
 
 
 /**
@@ -491,6 +493,7 @@ html`<ul>${[1, 2, 3].map(n => `<li>${n}</li>`)}</ul>`
  * @returns {T & { cancel(): void }} A new debounced function with a `cancel` method.
  */
 function debounce(func, wait, immediate = false) {
+    /** @type {ReturnType<typeof setTimeout> | null} */ 
     let timeoutId = null;
     let result;
 
@@ -531,6 +534,7 @@ function debounce(func, wait, immediate = false) {
  */
 function throttle(func, wait, options = {}) {
     const { leading = true, trailing = true } = options;
+    /** @type {ReturnType<typeof setTimeout> | null} */ 
     let timeoutId = null;
     let lastArgs = null;
     let lastContext = null;
@@ -620,7 +624,7 @@ const unsubscribe = onClickOutside(modal, () => {
 
 */
 
-// @ts-check
+
 
 /**
  * Formats the given timestamp into a human-readable string representation of
@@ -654,7 +658,7 @@ function unixtime(dateObject = new Date()) {
     return Math.floor(dateObject.getTime() / 1000);
 }
 
-// @ts-check
+
 
 /**
  * Creates an array of page numbers to be displayed in a pagination list.
@@ -763,7 +767,7 @@ function renderPaginationElement(
     return ul;
 }
 
-// @ts-check
+
 
 let idCounter = 0;
 
@@ -778,7 +782,7 @@ function uniqueId(prefix = '') {
     return prefix ? `${prefix}${id}` : String(id);
 }
 
-// @ts-check
+
 
 
 /**
@@ -949,7 +953,7 @@ unsubscribe();
 session.set('theme', 'dark');
 */
 
-// @ts-check
+
 
 class Toggler {
     /** @type {Map<string, { isActive: boolean, on: (itemName:string) => void, off: (itemName:string) => void }>} */
@@ -1041,7 +1045,7 @@ class Toggler {
     }
 }
 
-// @ts-check
+
 
 /**
  * Injects the core CSS styles into the document.
@@ -1073,7 +1077,7 @@ html-fragment {
     doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
 }
 
-// @ts-check
+
 
 class Slot {
     /** @type {string} */
@@ -1192,7 +1196,7 @@ class Slot {
     }
 }
 
-// @ts-check
+
 
 class SlotManager {
     /** @type {Map<string, Slot>} */
@@ -1456,7 +1460,7 @@ class SlotManager {
 
 }
 
-// @ts-check
+
 
 class Internals {
     /** * Private storage for the lazy instance ID.
@@ -1502,7 +1506,7 @@ class Internals {
     /** @type {Element|null} */
     root = null;
 
-    /** @type {import('./types.d.ts').TextUpdateFunction|null} */
+    /** @type {TextUpdateFunction|null} */
     textUpdateFunction = null;
 
     /** @type {Record<string, any>} */
@@ -1514,7 +1518,7 @@ class Internals {
     /** @type {Record<string, HTMLElement>} */
     scopeRefs = {};
 
-    /** @type {import('./component.js').Component|null} */
+    /** @type {Component|null} */
     parentComponent = null;
 
     /** @type {string} */
@@ -1555,7 +1559,7 @@ class Internals {
     }
 }
 
-// @ts-check
+
 
 /**
  *
@@ -1643,7 +1647,7 @@ function onDisconnectDefault(component) {
     }
 }
 
-// @ts-check
+
 
 
 
@@ -1657,7 +1661,7 @@ class Component {
     /** @type {((component: this) => Node|string)|string|null|Node} */
     layout = null;
 
-    /** @type {import('./types.d.ts').TeleportList} */
+    /** @type {TeleportList} */
     teleports = {};
 
     /** @type {T} */
@@ -1830,7 +1834,7 @@ class Component {
 
     /**
      * Subscribes to a specified event.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function to be executed when the event is triggered.
      * @returns {()=>void} A function that can be called to unsubscribe the listener.
      */
@@ -1840,7 +1844,7 @@ class Component {
 
     /**
      * Subscribes to a specified event and automatically unsubscribes after the first trigger.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to subscribe to.
+     * @param {ComponentEvent} event - The name of the event to subscribe to.
      * @param {Function} callback - The callback function.
      * @returns {() => void} A function that can be called to unsubscribe the listener before it triggers.
      */
@@ -1850,7 +1854,7 @@ class Component {
 
     /**
      * Emits an event with the given arguments.
-     * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
+     * @param {ComponentEvent} event - The name of the event to emit.
      * @param {...any} args - The arguments to be passed to the event handlers.
      */
     emit(event, ...args) {
@@ -2322,7 +2326,7 @@ class Component {
 
     /**
      * @param {string} name - Имя телепорта из объекта teleports
-     * @param {import('./types.d.ts').TeleportConfig} config - Конфигурация конкретного телепорта
+     * @param {TeleportConfig} config - Конфигурация конкретного телепорта
      * @returns {Element}
      */
     #renderTeleport(name, config) {
@@ -2369,7 +2373,7 @@ class Component {
 
     /**
      * @param {string} name
-     * @param {import('./types.d.ts').TeleportConfig} config
+     * @param {TeleportConfig} config
      */
     #mountTeleport(name, config) {
         const fragment = this.#renderTeleport(name, config);
@@ -2560,7 +2564,7 @@ class Component {
     }
 }
 
-// @ts-check
+
 
 class SlotToggler {
     #isDestroyed = false;
@@ -2658,13 +2662,13 @@ class SlotToggler {
     }
 }
 
-// @ts-check
+
 
 
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, import('./types.d.ts').ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
  */
 function generateManifest(...rootComponents) {
     /** @type {Record<string, any>} */
@@ -2731,7 +2735,7 @@ function generateManifest(...rootComponents) {
 /**
  * Creates an HTMLScriptElement containing the hydration manifest.
  * Useful for DOM-based environments or JSDOM on the server.
- * * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest - The hydration map.
+ * * @param {Record<string, ComponentMetadata>} manifest - The hydration map.
  * @param {string} variableName - Global variable name (default: __HYDRATION_DATA__).
  * @returns {HTMLScriptElement}
  */
@@ -2747,7 +2751,7 @@ function createManifestScript(manifest, variableName = '__HYDRATION_DATA__') {
 
 /**
  * Alternative for pure string-based SSR (Node.js without JSDOM)
- * @param {Record<string, import('./types.d.ts').ComponentMetadata>} manifest
+ * @param {Record<string, ComponentMetadata>} manifest
  * @param {string} variableName
  * @returns {string}
  */
