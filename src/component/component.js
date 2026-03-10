@@ -64,7 +64,7 @@ export class Component {
         const { instanceId = null, sid = null } = options;
         this.$internals = new Internals();
 
-        this.$internals.instanceId = instanceId || `uid-${Math.random().toString(36).slice(2, 9)}`;
+        this.$internals.instanceId = instanceId || Internals.generateInstanceId();
         this.on('connect', onConnectDefault);
         this.on('disconnect', onDisconnectDefault);
 

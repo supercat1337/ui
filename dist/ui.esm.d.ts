@@ -663,6 +663,7 @@ export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promis
 declare class Internals {
     /** @type {number} */
     static "__#private@#instanceIdCounter": number;
+    static "__#private@#sessionPrefix": string;
     /**
      * Generates a unique instance ID.
      * @returns {string} The unique instance ID.

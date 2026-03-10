@@ -92,12 +92,13 @@ export class Internals {
     /** @type {number} */
     static #instanceIdCounter = 0;
 
+    static #sessionPrefix = Math.random().toString(36).slice(2, 6);
     /**
      * Generates a unique instance ID.
      * @returns {string} The unique instance ID.
      */
     static generateInstanceId() {
         let counter = ++Internals.#instanceIdCounter;
-        return `c${counter}`;
+        return `${Internals.#sessionPrefix}-${counter}`;
     }
 }
