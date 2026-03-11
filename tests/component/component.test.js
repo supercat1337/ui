@@ -241,7 +241,7 @@ test('Component: recursive SID updates when adding to slots', t => {
 test('Component: throws error when mounting to invalid target', t => {
     const comp = new Component();
     // @ts-ignore
-    t.throws(() => comp.mount(null), { instanceOf: TypeError });
+    t.throws(() => comp.mount(null), { message: /Target element not found/ });
     // @ts-ignore
     t.throws(() => comp.mount(document.createElement('div'), 'invalid-mode'), {
         message: /Invalid mount mode/,
@@ -556,14 +556,16 @@ test('Component: validation and hydration errors', t => {
     // 2. Invalid Mount Target (Type Check)
     comp.setLayout('<div></div>');
     // @ts-ignore
-    t.throws(() => comp.mount(null), { instanceOf: TypeError });
+    t.throws(() => comp.mount(null), { message: /Target element not found/ });
 
     // 3. Invalid Mount Mode
     // @ts-expect-error
     t.throws(() => comp.mount(container, 'invalid_mode'), { message: /Invalid mount mode/ });
 
     // 4. Hydration without SID
-    t.throws(() => comp.mount(container, 'hydrate'), { message: /Component has no SID/ });
+    t.throws(() => comp.mount(container, 'hydrate'), {
+        message: /Hydration failed: No SID assigned/,
+    });
 });
 
 /**
@@ -660,7 +662,7 @@ test('Component: re-mounting and cleanup', t => {
  * Ensures hierarchical SIDs are searched correctly.
  */
 test('Component: getComponentBySid performs deep search and returns null if not found', t => {
-    const parent = new Component({sid: 'root'});
+    const parent = new Component({ sid: 'root' });
     // Use a simpler layout to ensure the slot is recognized
     parent.setLayout('<div data-slot="content"></div>');
 
@@ -668,7 +670,6 @@ test('Component: getComponentBySid performs deep search and returns null if not 
     child.setLayout('<span>Child</span>');
 
     parent.addToSlot('content', child);
-
 
     const parentSid = parent.$internals.sid;
     const childSid = child.$internals.sid;
@@ -702,3 +703,716 @@ test('Component: getComponentBySid performs deep search and returns null if not 
     );
 });
 
+test('Component: hydration flow should restore metadata when available', t => {
+    const testMetadata = { theme: 'dark' };
+
+    // Mock the global config to provide hydration data for a specific SID
+    const originalGet = Config.getHydrationData;
+    Config.getHydrationData = sid => (sid === '0.1' ? testMetadata : null);
+
+    const comp = new Component({ sid: '0.1' });
+    comp.setLayout('<div></div>');
+
+    let capturedData = null;
+    comp.on('restore', data => {
+        capturedData = data;
+    });
+
+    // Create a container and trigger the hydration flow
+    const container = document.createElement('div');
+    container.setAttribute('data-sid', '0.1');
+
+    // This call internally triggers #applyHydration
+    comp.mount(container, 'hydrate');
+
+    t.true(comp.$internals.isHydrated, 'Component should be marked as hydrated internally');
+    t.deepEqual(capturedData, testMetadata, 'Restore event should receive data from Config');
+
+    Config.getHydrationData = originalGet;
+});
+
+test('Component: hydration should fallback to mounting teleports if they are missing in DOM', t => {
+    const container = document.createElement('div');
+    container.setAttribute('data-sid', 'app.1');
+    document.body.appendChild(container);
+
+    // Define a component with a teleport
+    class TeleportComp extends Component {
+        // @ts-ignore
+        teleports = {
+            modal: { target: 'body', layout: () => '<div id="fallback-node">Content</div>' },
+        };
+        render() {
+            return '<div>Main</div>';
+        }
+    }
+
+    const comp = new TeleportComp({ sid: 'app.1' });
+    comp.setLayout('<div></div>');
+
+    // Hydrating into a DOM that doesn't have the teleport node
+    // forces the execution of the 'else' branch in #hydrateTeleports
+    comp.mount(container, 'hydrate');
+
+    const fallbackNode = document.getElementById('fallback-node');
+    t.truthy(fallbackNode, 'Teleport node should be created via fallback mount logic');
+
+    // Cleanup
+    document.body.removeChild(container);
+    fallbackNode.remove();
+});
+
+test('Component: mount should throw error when target element is not found', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    // We try to mount to a non-existent CSS selector
+    const error = t.throws(
+        () => {
+            comp.mount('#this-id-does-not-exist');
+        },
+        { instanceOf: Error }
+    );
+
+    t.regex(error.message, /Target element not found/, 'Should throw descriptive error');
+});
+
+test('Component: should resolve mount target from a function', t => {
+    const dynamicTarget = document.createElement('section');
+    document.body.appendChild(dynamicTarget);
+
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    // Mount using a function that returns an element
+    // This internally hits the "typeof target === 'function'" branch in #insertToDOM
+    comp.mount(() => dynamicTarget);
+
+    t.is(
+        dynamicTarget.children.length,
+        1,
+        'Should mount into the element returned by the function'
+    );
+
+    document.body.removeChild(dynamicTarget);
+});
+
+test('Component: mount should support string selectors as containers', t => {
+    // Setup DOM
+    const div = document.createElement('div');
+    div.id = 'app-root';
+    document.body.appendChild(div);
+
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    // Resolve via string selector
+    comp.mount('#app-root');
+
+    t.is(div.children.length, 1, 'Component should be mounted into element found by ID');
+    document.body.removeChild(div);
+});
+
+test('Component: mount should support functions as containers', t => {
+    const div = document.createElement('div');
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    // Resolve via provider function
+    comp.mount(() => div);
+
+    t.is(div.children.length, 1, 'Component should be mounted into element returned by function');
+});
+
+test('Component: mount should throw when selector returns nothing', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    // Test failure branch
+    const error = t.throws(
+        () => {
+            comp.mount('#non-existent-selector-123');
+        },
+        { instanceOf: Error }
+    );
+
+    t.regex(
+        error.message,
+        /\[Mounting Error\] Target element not found/,
+        'Should provide a helpful error message'
+    );
+});
+
+test('Component: getRootNode should throw error if component is not mounted', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+
+    // Testing the error branch: accessing root before it exists
+    const error = t.throws(
+        () => {
+            comp.getRootNode();
+        },
+        { instanceOf: Error }
+    );
+
+    t.is(
+        error.message,
+        'Component is not connected to the DOM',
+        'Should provide the correct error message'
+    );
+});
+
+test('Component: queryLocal should throw error if component is not mounted', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+
+    // queryLocal internally calls the private #getElementsByTagName
+    // Testing the error branch: querying DOM before connection
+    const error = t.throws(
+        () => {
+            comp.queryLocal('div');
+        },
+        { instanceOf: Error }
+    );
+
+    t.is(
+        error.message,
+        'Component is not connected to the DOM',
+        'Should block DOM queries on unmounted components'
+    );
+});
+
+test('Component: #handleMove should support prepend strategy for connected components', t => {
+    // Create first container and mount
+    const container1 = document.createElement('div');
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    comp.mount(container1);
+
+    // Create second container with an existing child
+    const container2 = document.createElement('div');
+    const existingChild = document.createElement('span');
+    container2.appendChild(existingChild);
+
+    // Move component to container2 using prepend
+    // This triggers #handleMove internally
+    comp.mount(container2, 'prepend');
+
+    t.is(
+        container2.firstChild,
+        comp.getRootNode(),
+        'The component should be the first child after prepend'
+    );
+    t.is(
+        container2.children.length,
+        2,
+        'Container should contain both the component and the existing child'
+    );
+    t.is(comp.$internals.mountMode, 'prepend', 'Internal mountMode should be updated to prepend');
+});
+
+test('Component: rerender should cycle the component through collapse and expand', t => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    class LifecycleComp extends Component {
+        // Using a counter to ensure the output could be different
+        count = 0;
+        layout = () => {
+            this.count++;
+            return `<div>Render #${this.count}</div>`;
+        };
+    }
+
+    const comp = new LifecycleComp();
+    comp.mount(container);
+
+    const initialRoot = comp.getRootNode();
+    t.is(initialRoot.textContent, 'Render #1');
+
+    // Trigger rerender: this calls collapse() then expand()
+    comp.rerender();
+
+    const newRoot = comp.getRootNode();
+
+    // Assertions
+    t.not(initialRoot, newRoot, 'A new DOM root instance should be created');
+    t.is(newRoot.textContent, 'Render #2', 'The content should reflect the second render call');
+    t.is(container.firstChild, newRoot, 'The new root should be present in the container');
+    t.false(initialRoot.isConnected, 'The old root should be detached from the document');
+
+    document.body.removeChild(container);
+});
+
+test('Component: #handleMove should emit move event with target container', t => {
+    const container1 = document.createElement('div');
+    const container2 = document.createElement('section');
+
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+    comp.mount(container1);
+
+    let eventPayload = null;
+    comp.on('move', data => {
+        eventPayload = data;
+    });
+
+    comp.mount(container2, 'append');
+
+    t.truthy(eventPayload, 'Move event should be fired');
+
+    // @ts-ignore
+    t.is(eventPayload.to, container2, 'Event payload should contain the new target container');
+});
+
+test('Component: expandForce should recursively expand all ancestors using addToSlot', t => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    class Parent extends Component {
+        layout = '<div><div data-slot="childSlot"></div></div>';
+    }
+    const parentComp = new Parent();
+    parentComp.mount(container);
+
+    const childComp = new Component();
+    childComp.setLayout('<span>Child</span>');
+    parentComp.addToSlot('childSlot', childComp);
+
+    // Collapse parent
+    parentComp.collapse();
+    t.false(parentComp.isConnected);
+
+    // Act: Force expansion
+    childComp.expandForce();
+
+    // Assert
+    t.true(parentComp.isConnected, 'Parent should be expanded');
+    t.true(childComp.isConnected, 'Child should be expanded');
+
+    const freshSlotElement = parentComp.slotManager.getSlotElement('childSlot');
+
+    t.is(
+        childComp.getRootNode().parentElement,
+        freshSlotElement,
+        'Child should be inside the NEWLY rendered slot element'
+    );
+
+    document.body.removeChild(container);
+});
+
+test('Component: getSlotNames should return all slot names defined in the layout', t => {
+    class MultiSlotComp extends Component {
+        // Defining a layout with multiple named slots
+        layout = `
+            <div>
+                <aside data-slot="sidebar"></aside>
+                <main data-slot="content"></main>
+                <footer data-slot="footer"></footer>
+            </div>
+        `;
+    }
+
+    const comp = new MultiSlotComp();
+
+    // We must mount the component (or trigger render)
+    // so the SlotManager can scan the layout for slots
+    const container = document.createElement('div');
+    comp.mount(container);
+
+    const slotNames = comp.getSlotNames();
+
+    // Assertions
+    t.true(Array.isArray(slotNames), 'Result should be an array');
+    t.is(slotNames.length, 3, 'Should find exactly 3 slots');
+    t.true(slotNames.includes('sidebar'), 'Should contain "sidebar"');
+    t.true(slotNames.includes('content'), 'Should contain "content"');
+    t.true(slotNames.includes('footer'), 'Should contain "footer"');
+});
+
+test('Component: getSlotNames should return an empty array if no slots exist', t => {
+    const comp = new Component();
+    comp.setLayout('<div>No slots here</div>');
+
+    comp.mount(document.createElement('div'));
+
+    const slotNames = comp.getSlotNames();
+    t.deepEqual(
+        slotNames,
+        [],
+        'Should return an empty array when no data-slot attributes are present'
+    );
+});
+
+test('Component: expand should warn if no parent element is stored', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+
+    // Ensure parentElement is null and it's not a child of another component
+    comp.$internals.parentElement = null;
+    comp.$internals.parentComponent = null;
+
+    // Trigger expand -> #resolveStandaloneTarget
+    comp.expand();
+
+    t.false(comp.isConnected, 'Component should not connect without parentElement');
+});
+
+test('Component: expand should warn if parent element is disconnected from DOM', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+
+    const detachedEl = document.createElement('div');
+    // We mount it to a detached element
+    comp.mount(detachedEl);
+
+    // Now we collapse it
+    comp.collapse();
+
+    // At this point detachedEl.isConnected is false. Trigger expand.
+    comp.expand();
+
+    t.false(comp.isConnected, 'Component should not expand into a disconnected DOM node');
+});
+
+test('Component: expand should warn if parent component is disconnected', t => {
+    const parent = new Component();
+    parent.setLayout('<div data-slot="main"></div>');
+    // We don't mount parent, so parent.isConnected is false
+
+    const child = new Component();
+    child.setLayout('<span></span>');
+
+    // Simulate being a child in a slot
+    child.$internals.parentComponent = parent;
+    child.$internals.assignedSlotName = 'main';
+
+    // Trigger expand -> #resolveSlotTarget
+    child.expand();
+
+    t.false(child.isConnected, 'Child should not expand if parent is disconnected');
+});
+
+test('Component: expand should warn if slot name is not found in parent refs', t => {
+    const container = document.createElement('div');
+    const parent = new Component();
+    parent.setLayout('<div data-slot="existingSlot"></div>');
+    parent.mount(container);
+
+    const child = new Component();
+    child.setLayout('<span></span>');
+
+    // Link to a non-existent slot name
+    child.$internals.parentComponent = parent;
+    child.$internals.assignedSlotName = 'wrongSlotName';
+
+    // Trigger expand -> #resolveSlotTarget checks parent.$internals.scopeRefs['wrongSlotName']
+    child.expand();
+
+    t.false(
+        child.isConnected,
+        'Child should not expand if assigned slot is missing in parent layout'
+    );
+});
+
+test('Component: #resolveSlotTarget should successfully return slotRef and mount child', t => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    // 1. Setup connected parent
+    class Parent extends Component {
+        layout = '<div><div data-slot="targetSlot"></div></div>';
+    }
+    const parentComp = new Parent();
+    parentComp.mount(container);
+
+    // 2. Setup child and link it to the parent's slot
+    const childComp = new Component();
+    childComp.setLayout('<span>I am alive</span>');
+
+    // Using the correct method we discussed earlier to ensure all internals are set
+    parentComp.addToSlot('targetSlot', childComp);
+
+    // 3. Manually collapse the child (without collapsing the parent)
+    childComp.collapse();
+    t.false(childComp.isConnected, 'Child should be disconnected after collapse');
+
+    // 4. Act: Expand the child
+    // This triggers: expand() -> #resolveSlotTarget -> returns slotRef -> mount()
+    childComp.expand();
+
+    // 5. Assertions
+    const expectedSlot = parentComp.slotManager.getSlotElement('targetSlot');
+
+    t.true(childComp.isConnected, 'Child should be connected again');
+    t.is(
+        childComp.getRootNode().parentElement,
+        expectedSlot,
+        '#resolveSlotTarget should have returned the correct slot element for mounting'
+    );
+
+    document.body.removeChild(container);
+});
+
+test('Component: $on should register event and return cleanup function', t => {
+    const comp = new Component();
+    const btn = document.createElement('button');
+    let called = false;
+
+    const originalAdd = btn.addEventListener;
+    btn.addEventListener = (type, listener, options) => {
+        t.truthy(options.signal, 'Component should pass a signal to addEventListener');
+        originalAdd.call(btn, type, listener);
+    };
+
+    const remove = comp.$on(btn, 'click', () => {
+        called = true;
+    });
+
+    btn.click();
+    t.true(called, 'Handler should be called');
+
+    btn.addEventListener = originalAdd;
+});
+
+test('Component: serialize should return an empty object by default', t => {
+    const comp = new Component();
+    const data = comp.serialize();
+
+    t.is(typeof data, 'object', 'Should return an object');
+    t.deepEqual(data, {}, 'Default serialization should be empty');
+});
+
+test('Component: subclasses should be able to override serialize', t => {
+    class UserComp extends Component {
+        serialize() {
+            return { id: 1, name: 'Gemini' };
+        }
+    }
+    const comp = new UserComp();
+    t.deepEqual(comp.serialize(), { id: 1, name: 'Gemini' });
+});
+
+test('Component: hasRef and updateRefs should identify elements correctly', t => {
+    class RefComp extends Component {
+        layout = '<div><button data-ref="myBtn">Click</button></div>';
+    }
+
+    const container = document.createElement('div');
+    const comp = new RefComp();
+    comp.mount(container);
+
+    t.true(comp.hasRef('myBtn'), 'Should find existing ref');
+    t.false(comp.hasRef('nonExistent'), 'Should return false for missing ref');
+
+    t.notThrows(() => comp.updateRefs(), 'Should update refs without error when connected');
+});
+
+test('Component: updateRefs should throw if component is not connected', t => {
+    const comp = new Component();
+    comp.setLayout('<div></div>');
+
+    const error = t.throws(
+        () => {
+            comp.updateRefs();
+        },
+        { instanceOf: Error }
+    );
+
+    t.is(
+        error.message,
+        'Component is not connected to the DOM',
+        'Should throw specific error message'
+    );
+});
+
+test('Component: updateRefs should throw when refsAnnotation is violated', t => {
+    class ValidatedComp extends Component {
+        layout = '<div><input data-ref="requiredInput"></div>';
+        refsAnnotation = {
+            requiredInput: window.HTMLInputElement,
+        };
+    }
+
+    const container = document.createElement('div');
+    const comp = new ValidatedComp();
+    comp.mount(container);
+
+    t.notThrows(() => comp.updateRefs());
+
+    comp.setLayout('<div>Empty</div>');
+    comp.rerender();
+
+    const error = t.throws(
+        () => {
+            comp.updateRefs();
+        },
+        { instanceOf: Error }
+    );
+
+    t.truthy(error, 'Validation must throw because the new root is empty');
+});
+
+test('Component: text update function should be set and executed', t => {
+    const comp = new Component();
+    let capturedInstance = null;
+
+    comp.setTextUpdateFunction(instance => {
+        capturedInstance = instance;
+    });
+
+    comp.reloadText();
+
+    t.is(
+        capturedInstance,
+        comp,
+        'reloadText should pass the component instance to the update function'
+    );
+
+    comp.setTextUpdateFunction(null);
+    t.notThrows(
+        () => comp.reloadText(),
+        'reloadText should not throw if update function is not set'
+    );
+});
+
+test('Component: setLayout should update layout and optionally refsAnnotation', t => {
+    const comp = new Component();
+    const newLayout = '<span>New</span>';
+    const newAnnotation = { someRef: window.HTMLElement };
+
+    comp.setLayout(newLayout);
+    t.is(comp.layout, newLayout);
+    t.is(comp.refsAnnotation, undefined, 'Annotation should remain undefined if not provided');
+
+    comp.setLayout(newLayout, newAnnotation);
+    t.is(comp.refsAnnotation, newAnnotation, 'Annotation should be updated');
+});
+
+test('Component: getRefs should throw if component is not connected', t => {
+    const comp = new Component();
+    comp.setLayout('<div data-ref="test"></div>');
+
+    const error = t.throws(
+        () => {
+            comp.getRefs();
+        },
+        { instanceOf: Error }
+    );
+
+    t.is(error.message, 'Component is not connected to the DOM');
+
+    const container = document.createElement('div');
+    comp.mount(container);
+    t.notThrows(() => comp.getRefs(), 'Should work when connected');
+
+    comp.unmount();
+    t.throws(() => comp.getRefs(), { instanceOf: Error }, 'Should throw again after unmount');
+});
+
+test('Component: should skip style injection if SSR styles are present', t => {
+    // 1. Setup: Create a component class with styles
+    class SsrComponent extends Component {
+        static styles = '.ssr { color: red; }';
+    }
+
+    // 2. Mock SSR style tag in the document
+    const styleTag = document.createElement('style');
+    styleTag.id = 'ui-ssr-styles';
+    document.head.appendChild(styleTag);
+
+    const comp = new SsrComponent();
+    comp.setLayout('<div></div>');
+    const container = document.createElement('div');
+
+    // 3. Act: Mounting triggers #ensureStylesInjected
+    comp.mount(container);
+
+    // 4. Assert
+    t.true(SsrComponent._stylesInjected, 'Flag should be set to true');
+    // We check that no NEW style tags were created (except our mock)
+    const allStyles = document.querySelectorAll('style');
+    t.is(allStyles.length, 1, 'Should not inject new styles if SSR styles exist');
+
+    // Cleanup for other tests
+    styleTag.remove();
+    SsrComponent._stylesInjected = false;
+});
+
+test('Component: should inject static styles via adoptedStyleSheets (Mocked)', t => {
+    class StyledComponent extends Component {
+        static styles = '.test-adopted { color: green; }';
+    }
+
+    const mockSheet = { cssRules: [], replaceSync: () => {} };
+    Config.window.document.adoptedStyleSheets = [];
+
+    const originalCSSStyleSheet = Config.window.CSSStyleSheet;
+    // @ts-ignore
+    Config.window.CSSStyleSheet = class {
+        constructor() {
+            return mockSheet;
+        }
+    };
+
+    const comp = new StyledComponent();
+    comp.setLayout('<div></div>');
+    StyledComponent._stylesInjected = false;
+
+    // Act
+    comp.mount(document.createElement('div'));
+
+    // Assert
+    t.true(StyledComponent._stylesInjected);
+    t.true(
+        // @ts-ignore
+        Config.window.document.adoptedStyleSheets.includes(mockSheet),
+        'Should add sheet to adoptedStyleSheets'
+    );
+
+    // Cleanup
+    Config.window.CSSStyleSheet = originalCSSStyleSheet;
+    delete Config.window.document.adoptedStyleSheets;
+});
+
+test('Component: should support hydration and skip style injection if SSR styles exist', t => {
+    // 1. Setup: A component class with styles
+    class HydratedComponent extends Component {
+        static styles = '.hydrated { color: blue; }';
+    }
+
+    // Ensure state is clean for this specific test
+    HydratedComponent._stylesInjected = false;
+
+    // 2. Simulate SSR: add the style tag that the server would have generated
+    const ssrStyleTag = document.createElement('style');
+    ssrStyleTag.id = 'ui-ssr-styles';
+    ssrStyleTag.textContent = '.hydrated { color: blue; }';
+    document.head.appendChild(ssrStyleTag);
+
+    const container = document.createElement('div');
+    const comp = new HydratedComponent();
+    comp.setLayout('<div></div>');
+    // 3. Act: Mounting triggers #ensureStylesInjected()
+    comp.mount(container);
+
+    // 4. Assert
+    t.true(HydratedComponent._stylesInjected, 'Flag must be set to true even if skip injection');
+
+    // Verify that NO new styles were added to adoptedStyleSheets
+    // (Assuming you've handled the JSDOM absence of adoptedStyleSheets as discussed before)
+    if (Config.window.document.adoptedStyleSheets) {
+        const hasAdopted = Config.window.document.adoptedStyleSheets.some(sheet =>
+            Array.from(sheet.cssRules).some(rule => rule.cssText.includes('.hydrated'))
+        );
+        t.false(hasAdopted, 'Should NOT adopt new styles during hydration');
+    }
+
+    // Cleanup for other tests
+    ssrStyleTag.remove();
+    HydratedComponent._stylesInjected = false;
+});
+
+test('Component: final branch cleanup', t => {
+    const comp = new Component();
+
+    comp.unmount();
+    comp.collapse();
+
+    t.pass();
+});

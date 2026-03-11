@@ -28,6 +28,6 @@ export class LanguageSwitcher extends Component {
             refs.btnRu.textContent = t('russian');
         });
 
-        this.once("disconnect", unsubscribe);
+        this.once('disconnect', unsubscribe);
     }
 }

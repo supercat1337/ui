@@ -44,6 +44,6 @@ export class Counter extends Component {
         });
 
         // Cleanup on disconnect
-        this.once("disconnect", unsubscribe);
+        this.once('disconnect', unsubscribe);
     }
 }

@@ -16,15 +16,15 @@ export class StyledButton extends Component {
         this.props = props;
     }
 
-    // We use the styles object to apply scoped classes
     layout = () => {
         const { label, type, isActive } = this.props;
 
-        // Logic to combine scoped classes
-        const classList = [styles.btn, styles[type], isActive ? styles.active : '']
-            .join(' ')
-            .trim();
+        const classList = [
+            styles.btn, 
+            styles[type], 
+            isActive ? styles.active : ''
+        ].filter(Boolean).join(' ');
 
-        return html` <button class="${classList}" data-ref="button">${label}</button> `;
+        return html`<button class="${classList}" data-ref="button">${label}</button>`;
     };
 }

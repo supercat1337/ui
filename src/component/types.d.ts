@@ -78,3 +78,37 @@ export interface Internals {
  * Interface for DOM references annotation.
  */
 export type RefsAnnotation = Record<string, any>;
+
+/**
+ * Options for DOM scanning utilities (like selectRefsExtended or walkDomScope).
+ */
+export interface DomScopeOptions {
+    /** Attributes that define a new naming scope (e.g., ['data-slot', 'data-component-root']). */
+    scopeAttribute: string[];
+    /** Attribute used for reference tracking (e.g., 'data-ref'). */
+    refAttribute: string;
+    /** The window object (for Node.js/JSDOM compatibility). */
+    window: any;
+}
+
+/**
+ * Callbacks used during the recursive SID update and hydration process.
+ */
+export interface HydrationCallbacks {
+    /** Called to set the SID on a component instance. */
+    onUpdateSid: (component: any, sid: string) => void;
+    /** Called to trigger the hydration logic (restore state, etc.) for a component. */
+    onApplyHydration: (component: any) => void;
+    /** Called to retrieve the map of slots from a component instance. */
+    getSlots: (component: any) => Map<string, any>;
+}
+
+/**
+ * The structure returned after scanning a DOM tree for references.
+ */
+export interface RefScanResult {
+    /** Map of elements marked with data-ref. */
+    refs: Record<string, HTMLElement>;
+    /** Map of elements that act as slot containers or sub-scopes. */
+    scopeRefs: Record<string, HTMLElement>;
+}

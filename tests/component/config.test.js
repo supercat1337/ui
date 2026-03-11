@@ -63,3 +63,4 @@ test('Config: provides a reference to globalThis', t => {
     t.truthy(Config.window, 'Config.window should be defined');
     t.is(Config.window, globalThis, 'In modern environments, Config.window should point to globalThis');
 });
+

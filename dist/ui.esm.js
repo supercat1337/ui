@@ -1698,12 +1698,385 @@ function onDisconnectDefault(component) {
 }
 
 
+const UI_COMPONENT_SHEET = Symbol('isUIComponentSheet');
+
+function extractComponentStyles(doc = document) {
+    if (!doc.adoptedStyleSheets) return '';
+
+    return doc.adoptedStyleSheets
+        .filter(sheet => sheet[UI_COMPONENT_SHEET] === true)
+        .map(sheet => {
+            return Array.from(sheet.cssRules)
+                .map(rule => rule.cssText)
+                .join('\n');
+        })
+        .join('\n');
+}
+
+
+
+
+
+/**
+ * Recursively updates SIDs for a component tree.
+ * Pure logic extracted from the Component class to allow isolated testing.
+ * * @param {any} component - The root component to start from.
+ * @param {string} newSid - The new SID to assign.
+ * @param {HydrationCallbacks} callbacks - Methods to interact with the component instance.
+ */
+function updateComponentTreeSid(component, newSid, callbacks) {
+    // 1. Update the current component's SID via callback
+    callbacks.onUpdateSid(component, newSid);
+
+    // 2. Trigger hydration for this level
+    callbacks.onApplyHydration(component);
+
+    // 3. Process children in slots
+    const slots = callbacks.getSlots(component);
+
+    slots.forEach((slot, name) => {
+        // Assume slot has a method to get its children (components)
+        const subComponents = typeof slot.getComponents === 'function' ? slot.getComponents() : [];
+        
+        for (let j = 0; j < subComponents.length; j++) {
+            const subChild = subComponents[j];
+            // Format: "parentSid.slotName.index" (e.g., "0.main.1")
+            const subSid = `${newSid}.${name}.${j}`;
+            
+            // Recursive call
+            updateComponentTreeSid(subChild, subSid, callbacks);
+        }
+    });
+}
+
+
+
+
+
+/**
+ * Filters elements by tag name within a specific DOM scope.
+ * * @param {Element} root - The starting element for the search.
+ * @param {string} tagName - Tag name to filter by (or '*' for all).
+ * @param {Function} walkDomScope - The utility function for scoped traversal.
+ * @param {DomScopeOptions} options - Configuration for the traversal.
+ * @returns {Element[]} Array of matched elements.
+ */
+function filterElementsByTagName(root, tagName, walkDomScope, options) {
+    const targetTag = tagName.toLowerCase().trim();
+    /** @type {Element[]} */
+    const filteredElements = [];
+
+    walkDomScope(
+        root,
+        node => {
+            if (node.nodeType === options.window.Node.ELEMENT_NODE) {
+                const el = /** @type {Element} */ (node);
+                if (targetTag === '*' || el.tagName.toLowerCase() === targetTag) {
+                    filteredElements.push(el);
+                }
+            }
+        },
+        options
+    );
+
+    return filteredElements;
+}
+
+/**
+ * Logic for inserting fragments or elements into the DOM based on a strategy.
+ * * @param {Element|DocumentFragment} fragment - The content to insert.
+ * @param {Element} resolvedTarget - The destination element.
+ * @param {"prepend"|"append"|"replace"} strategy - The insertion strategy.
+ * @param {any} window - The window object.
+ * @returns {Element|null} The root element of the inserted content.
+ */
+function insertToDOM(fragment, resolvedTarget, strategy, window) {
+    // 1. Identify the root element for reference tracking
+    const rootElement =
+        fragment instanceof window.Element
+            ? /** @type {Element} */ (fragment)
+            : fragment.firstElementChild;
+
+    // 2. Execute DOM manipulation
+    switch (strategy) {
+        case 'prepend':
+            resolvedTarget.prepend(fragment);
+            break;
+        case 'replace':
+            resolvedTarget.replaceChildren(fragment);
+            break;
+        case 'append':
+        default:
+            resolvedTarget.append(fragment);
+            break;
+    }
+
+    return rootElement;
+}
+
+
+
+/**
+ * Prepares a DOM element to act as a teleport root by setting necessary attributes.
+ * @param {Element} node - The element to prepare.
+ * @param {string} name - Teleport name from the config.
+ * @param {string|null} parentSid - The SID of the owning component (for SSR/Hydration).
+ * @param {string} instanceId - The unique ID of the component instance.
+ */
+function prepareTeleportNode(node, name, parentSid, instanceId) {
+    node.setAttribute('data-component-teleport', name);
+    node.setAttribute('data-component-root', instanceId);
+    
+    if (parentSid) {
+        node.setAttribute('data-parent-sid', parentSid);
+    }
+}
+
+/**
+ * Attempts to find an existing teleport node in the DOM during hydration.
+ * @param {Document|Element} root - Search root (usually document).
+ * @param {string} parentSid - The owner's SID.
+ * @param {string} teleportName - The name of the teleport.
+ * @returns {Element|null}
+ */
+function findExistingTeleport(root, parentSid, teleportName) {
+    const selector = `[data-parent-sid="${parentSid}"][data-component-teleport="${teleportName}"]`;
+    return root.querySelector(selector);
+}
+
+/**
+ * Claims an existing teleport node by updating its attributes for the new instance.
+ * @param {Element} node - The teleport node to claim.
+ * @param {string} instanceId - The new instance ID.
+ */
+function claimTeleportNode(node, instanceId) {
+    node.setAttribute('data-component-root', instanceId);
+    node.removeAttribute('data-parent-sid');
+}
+
+
+
+/**
+ * Creates and returns a CSSStyleSheet from a string or an existing sheet.
+ * Marks it with a special symbol for library tracking.
+ * * @param {string | CSSStyleSheet} styles - CSS string or existing stylesheet.
+ * @param {symbol} marker - Unique symbol to mark the sheet as internal.
+ * @param {any} window - The window object for constructor access.
+ * @returns {CSSStyleSheet | null}
+ */
+function createComponentStyleSheet(styles, marker, window) {
+    if (typeof window.CSSStyleSheet === 'undefined') return null;
+
+    let sheet;
+    if (styles instanceof window.CSSStyleSheet) {
+        sheet = styles;
+    } else {
+        sheet = new window.CSSStyleSheet();
+        // @ts-ignore
+        sheet.replaceSync(styles);
+    }
+
+    // Mark it as ours so SSR and other components can identify it
+    sheet[marker] = true;
+    return sheet;
+}
+
+/**
+ * Injects a stylesheet into the document's adoptedStyleSheets.
+ * Ensures no duplicates by checking the marker.
+ * * @param {Document} doc - The target document.
+ * @param {CSSStyleSheet} sheet - The sheet to inject.
+ */
+function injectSheet(doc, sheet) {
+    if (!doc.adoptedStyleSheets) {
+        // Fallback for environments without adoptedStyleSheets support
+        // @ts-ignore
+        doc.adoptedStyleSheets = [];
+    }
+
+    // Double check to prevent adding the exact same instance twice
+    if (!doc.adoptedStyleSheets.includes(sheet)) {
+        doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
+    }
+}
+
+
+
+/**
+ * Prepares the rendered element by setting identifying attributes and managing cache.
+ * @param {Element} element - The fresh or resolved element from layout.
+ * @param {Object} options
+ * @param {string} options.instanceId - The unique ID of the component instance.
+ * @param {string|null} [options.sid] - The stable Session ID for SSR/Hydration.
+ * @param {boolean} [options.isSSR] - Whether the current environment is SSR.
+ * @returns {Element} The prepared element.
+ */
+function prepareRenderResult(element, { instanceId, sid, isSSR }) {
+    // 1. Always set instanceId for internal tracking
+    if (instanceId) {
+        element.setAttribute('data-component-root', instanceId);
+    }
+
+    // 2. If we are on the server (or preparing SSR), we MUST set the sid
+    if (isSSR && sid) {
+        element.setAttribute('data-sid', sid);
+    }
+
+    return element;
+}
+
+/**
+ * Handles the cloning logic for static layouts to improve performance.
+ * @param {Element|null} cachedElement - The previously cached element.
+ * @param {boolean} shouldClone - Whether cloning is enabled in internals.
+ * @returns {Element|null} A clone of the element or null if not available.
+ */
+function getCloneFromCache(cachedElement, shouldClone) {
+    if (shouldClone && cachedElement) {
+        return /** @type {Element} */ (cachedElement.cloneNode(true));
+    }
+    return null;
+}
+
+
+
+
+/**
+ * Pure logic to collect and merge references from multiple roots.
+ * @param {Element[]} roots - All root elements to scan (main + additional).
+ * @param {Function} selectRefsExtended - The external utility for deep scanning.
+ * @param {Object} options - Scanning configuration.
+ * @returns {RefScanResult}
+ */
+function scanRootsForRefs(roots, selectRefsExtended, options) {
+    // 1. Initial deep scan
+    let { refs, scopeRefs } = selectRefsExtended(roots, null, options);
+
+    const rootRefs = {};
+    const window = options.window;
+
+    // 2. Scan the roots themselves (selectRefsExtended usually scans children)
+    for (const root of roots) {
+        if (root instanceof window.Element) {
+            const refName = root.getAttribute(options.refAttribute);
+            if (refName) {
+                rootRefs[refName] = root;
+            }
+
+            const slotAttribute = options.scopeAttribute.find(attr => root.hasAttribute(attr));
+            if (slotAttribute && root.getAttribute(slotAttribute)) {
+                const slotName = root.getAttribute(slotAttribute);
+                // We specifically look for slots in roots
+                if (root.hasAttribute('data-slot')) {
+                    scopeRefs[slotName] = /** @type {HTMLElement} */ (root);
+                }
+            }
+        }
+    }
+
+    return {
+        refs: { ...refs, ...rootRefs },
+        scopeRefs
+    };
+}
+
+
+
+/**
+ * Recursively finds a component in the tree by its SID.
+ * Includes optimization checks to skip irrelevant branches.
+ * * @param {Component} startComponent - Where to start the search.
+ * @param {string} targetSid - The SID to find.
+ * @returns {Component | null}
+ */
+function findComponentBySid(startComponent, targetSid) {
+    const currentSid = startComponent.$internals.sid;
+
+    // 1. Quick check: is it the current component?
+    if (currentSid === targetSid) {
+        return startComponent;
+    }
+
+    // 2. Optimization: if targetSid doesn't start with currentSid,
+    // the target cannot be in this branch.
+    if (currentSid && !targetSid.startsWith(currentSid + '.')) {
+        return null;
+    }
+
+    // 3. Recursive search through slots
+    const slots = startComponent.slotManager.getSlots();
+    for (const slot of slots.values()) {
+        for (const child of slot.getComponents()) {
+            const found = findComponentBySid(child, targetSid);
+            if (found) return found;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Collects all ancestor components starting from the current one up to the root.
+ * @param {Component} component
+ * @returns {Component[]} Array of components from self to top-level root.
+ */
+function collectComponentAncestors(component) {
+    /** @type {Component<any>[]} */
+    const ancestors = [];
+    let current = component;
+
+    while (current) {
+        ancestors.push(current);
+        current = current.$internals.parentComponent;
+    }
+
+    return ancestors;
+}
+
+
+
+/**
+ * Validates the container and the mount mode.
+ * @param {any} container 
+ * @param {string} mode 
+ * @param {Object} window - Configured window object
+ * @throws {TypeError|Error}
+ */
+function validateMountArgs(container, mode, window) {
+    if (!(container instanceof window.Element)) {
+        throw new TypeError('Mount target must be a valid DOM Element.');
+    }
+
+    const validModes = ['replace', 'append', 'prepend', 'hydrate'];
+    if (!validModes.includes(mode)) {
+        throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(', ')}`);
+    }
+}
+
+/**
+ * Resolves the actual element that should be the component's root during hydration.
+ * @param {Element} container 
+ * @param {string} sid 
+ * @returns {Element|null}
+ */
+function findHydrationRoot(container, sid) {
+    if (container.getAttribute('data-sid') === sid) {
+        return container;
+    }
+    return container.querySelector(`[data-sid="${sid}"]`);
+}
+
+
 
 
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
 class Component {
+    /** @type {string | CSSStyleSheet | null} */
+    static styles = null;
+    static _stylesInjected = false;
+
     /** @type {Internals} */
     $internals = new Internals();
 
@@ -1798,6 +2171,38 @@ class Component {
         }
     }
 
+    #ensureStylesInjected() {
+        const ctor = /** @type {typeof Component} */ (this.constructor);
+
+        if (ctor._stylesInjected) return;
+
+        if (Config.window.document.getElementById('ui-ssr-styles')) {
+            ctor._stylesInjected = true;
+            return;
+        }
+
+        if (ctor.styles) {
+            this.#injectStaticStyles(ctor.styles);
+        }
+
+        ctor._stylesInjected = true;
+    }
+
+    /**
+     *
+     * @param {string | CSSStyleSheet | null} styles
+     * @returns
+     */
+    #injectStaticStyles(styles) {
+        // Use the utility to create the sheet
+        const sheet = createComponentStyleSheet(styles, UI_COMPONENT_SHEET, Config.window);
+
+        if (sheet) {
+            // Inject it into the global document
+            injectSheet(document, sheet);
+        }
+    }
+
     /* Refs */
 
     /**
@@ -1839,43 +2244,29 @@ class Component {
 
         this.emit('before-update-refs');
 
-        const allRoots =
+        // 1. Prepare roots
+        const allRoots = /** @type {Element[]} */ (
             this.$internals.additionalRoots.length > 0
                 ? [this.$internals.root, ...this.$internals.additionalRoots]
-                : [this.$internals.root];
+                : [this.$internals.root]
+        );
 
-        let { refs, scopeRefs } = selectRefsExtended(allRoots, null, {
+        // 2. Delegate "heavy" scanning to pure utility
+        const { refs, scopeRefs } = scanRootsForRefs(allRoots, selectRefsExtended, {
             scopeAttribute: ['data-slot', 'data-component-root'],
             refAttribute: 'data-ref',
             window: Config.window,
         });
 
-        let rootRefs = {};
-        for (let i = 0; i < allRoots.length; i++) {
-            let root = allRoots[i];
-            if (root instanceof Config.window.Element) {
-                let refName = root.getAttribute('data-ref');
-                if (refName) {
-                    rootRefs[refName] = root;
-                }
-
-                let slotName = root.getAttribute('data-slot');
-                if (slotName) {
-                    scopeRefs[slotName] = /** @type {HTMLElement } */ (root);
-                }
-
-            }
-        }
-
-        refs = { ...refs, ...rootRefs };
-
-        for (let key in scopeRefs) {
+        // 3. Post-processing (Orchestration)
+        for (const key in scopeRefs) {
             this.slotManager.registerSlot(key);
         }
 
         this.$internals.refs = refs;
         this.$internals.scopeRefs = scopeRefs;
 
+        // 4. Validation
         if (this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
@@ -1940,14 +2331,12 @@ class Component {
      * @param {HTMLElement} componentRoot - The root element to connect the component to.
      */
     #connect(componentRoot) {
-        if (this.#isConnected === true) {
-            throw new Error('Component is already connected');
-        }
-
         this.$internals.root = componentRoot;
         this.updateRefs();
 
-        this.$internals.disconnectController = new AbortController();
+        this.$internals.disconnectController = new (
+            Config.window.AbortController || AbortController
+        )();
         this.#isConnected = true;
         this.slotManager.mountAllSlots();
 
@@ -2003,122 +2392,118 @@ class Component {
      */
     #render() {
         const layout = this.layout;
-        if (!layout) {
-            throw new Error('Layout is not defined for the component.');
-        }
+        if (!layout) throw new Error('Layout is not defined.');
 
-        // Static check: if layout is not a function, it is considered a static string
         const isStatic = typeof layout !== 'function';
+        const shouldClone = this.$internals.cloneTemplateOnRender;
 
-        // 1. Fast path for static: return a clone from cache if available
-        if (isStatic && this.$internals.cloneTemplateOnRender && this.#cachedElement) {
-            return /** @type {Element} */ (this.#cachedElement.cloneNode(true));
+        if (isStatic) {
+            const cached = getCloneFromCache(this.#cachedElement, shouldClone);
+            if (cached) return cached;
         }
 
         const result = resolveLayout(layout, this);
 
-        this.$internals.sid;
+        prepareRenderResult(result, {
+            instanceId: this.instanceId,
+            sid: this.$internals.sid,
+            isSSR: Config.isSSR,
+        });
 
-        // 4. Set identifying attributes
-        // Always set instanceId for internal tracking
-        if (this.instanceId) {
-            result.setAttribute('data-component-root', this.instanceId);
-        }
-
-        // If we are on the server (or preparing SSR), we MUST set the sid
-        if (Config.isSSR && this.$internals.sid) {
-            result.setAttribute('data-sid', this.$internals.sid);
-        }
-
-        // 5. Cache the result ONLY if it was a static layout
-        if (isStatic && this.$internals.cloneTemplateOnRender) {
+        // Cache the result ONLY if it was a static layout
+        if (isStatic && shouldClone) {
             this.#cachedElement = result;
-            // Return a clone to keep the cached original "pristine"
             return /** @type {Element} */ (result.cloneNode(true));
         }
 
-        // For functions, return the "live" result directly without long-term caching
         return result;
     }
 
     /**
      * Mounts the component to a DOM container or hydrates existing HTML.
-     * @param {Element} container - The target DOM element (the "hole").
+     * @param {string|HTMLElement|(() => HTMLElement)} container - The target (selector, element, or provider).
      * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
      */
     mount(container, mode = 'replace') {
-        if (this.#isCollapsed) return;
+        if (this.isCollapsed) return;
 
-        // Validation
-        if (!(container instanceof Config.window.Element)) {
-            throw new TypeError('Mount target must be a valid DOM Element.');
+        // Resolve the container to a guaranteed Element before validation
+        const resolvedContainer = this.#resolveTarget(container);
+
+        // Validate using the guaranteed Element
+        validateMountArgs(resolvedContainer, mode, Config.window);
+
+        if (mode === 'hydrate') {
+            return this.#handleHydration(resolvedContainer);
         }
 
-        const validModes = ['replace', 'append', 'prepend', 'hydrate'];
-        if (!validModes.includes(mode)) {
-            throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(', ')}`);
+        if (this.isConnected) {
+            this.#handleMove(resolvedContainer, mode);
+        } else {
+            this.#handleInitialMount(resolvedContainer, mode);
         }
+    }
 
-        const isHydrating = mode === 'hydrate';
-        const isMoving = this.isConnected;
+    /**
+     * @param {Element} container
+     */
+    #handleHydration(container) {
+        this.#ensureStylesInjected();
+        const sid = this.$internals.sid;
 
-        // 2. Hydration Path
-        if (isHydrating) {
-            const sid = this.$internals.sid;
-            if (!sid) {
-                throw new Error('Hydration failed: Component has no SID assigned.');
-            }
+        if (!sid) throw new Error('Hydration failed: No SID assigned.');
 
-            const componentRoot =
-                container.getAttribute('data-sid') === sid
-                    ? container
-                    : container.querySelector(`[data-sid="${sid}"]`);
+        const root = findHydrationRoot(container, sid);
+        if (!root) throw new Error(`Hydration failed: SID "${sid}" not found.`);
 
-            if (!componentRoot) {
-                throw new Error(`Hydration failed: Node with data-sid="${sid}" not found.`);
-            }
+        root.removeAttribute('data-sid');
+        root.setAttribute('data-component-root', this.instanceId);
 
-            componentRoot.removeAttribute('data-sid');
-            componentRoot.setAttribute('data-component-root', this.instanceId);
+        this.$internals.root = root;
+        this.$internals.parentElement = root.parentElement;
+        this.$internals.mountMode = 'replace';
 
-            this.$internals.root = componentRoot;
-            this.$internals.parentElement = componentRoot.parentElement;
-            this.$internals.mountMode = 'replace'; // Hydration is logically a replacement of SSR content
-            this.#applyHydration();
+        this.#applyHydration();
+        this.#connect(/** @type {HTMLElement} */ (root));
+        this.emit('mount');
+    }
 
-            // Standard finalization for hydration
-            this.#connect(/** @type {HTMLElement} */ (componentRoot));
-            this.emit('mount');
-            return;
-        }
+    /**
+     * @param {Element} container
+     * @param {"replace"|"append"|"prepend"} mode
+     */
+    #handleInitialMount(container, mode) {
+        const root = this.#render();
 
-        // 3. Render or Reuse Path
-        // If moving, we use the existing root. If new, we call #render().
-        const componentRoot = isMoving ? this.getRootNode() : this.#render();
+        if (mode === 'replace') container.replaceChildren(root);
+        else if (mode === 'append') container.append(root);
+        else if (mode === 'prepend') container.prepend(root);
 
-        // 3. DOM Insertion
-        if (mode === 'replace') container.replaceChildren(componentRoot);
-        else if (mode === 'append') container.append(componentRoot);
-        else if (mode === 'prepend') container.prepend(componentRoot);
-
-        // Finalize Connection
-        this.$internals.root = componentRoot;
-        this.$internals.parentElement = componentRoot.parentElement;
-
+        this.$internals.root = root;
         this.$internals.parentElement = container;
         this.$internals.mountMode = mode;
 
-        // 5. Lifecycle Logic
-        if (!isMoving) {
-            // Only mount teleports and connect logic if it's the FIRST time
-            this.#mountTeleports();
-            this.emit('prepareRender', componentRoot);
-            this.#connect(/** @type {HTMLElement} */ (componentRoot));
-            this.emit('mount');
-        } else {
-            // If it was just a move, we might want a specific event
-            this.emit('move', { to: container });
-        }
+        this.#ensureStylesInjected();
+        this.#mountTeleports();
+        this.emit('prepareRender', root);
+        this.#connect(/** @type {HTMLElement} */ (root));
+        this.emit('mount');
+    }
+
+    /**
+     * @param {Element} container
+     * @param {"replace"|"append"|"prepend"} mode
+     */
+    #handleMove(container, mode) {
+        const root = this.getRootNode();
+
+        if (mode === 'replace') container.replaceChildren(root);
+        else if (mode === 'append') container.append(root);
+        else if (mode === 'prepend') container.prepend(root);
+
+        this.$internals.parentElement = container;
+        this.$internals.mountMode = mode;
+        this.emit('move', { to: container });
     }
 
     /**
@@ -2137,6 +2522,7 @@ class Component {
         this.#cleanupTeleports();
         this.$internals.additionalRoots = [];
         this.$internals.root?.remove();
+        this.$internals.root = null;
 
         this.$internals.elementsToRemove.forEach(el => {
             el.remove();
@@ -2177,51 +2563,65 @@ class Component {
 
     /**
      * Re-mounts a collapsed component back into its original DOM position.
-     * If the parent component is also collapsed, this may not result in immediate
-     * visibility unless `expandForce()` is used.
      */
     expand() {
         this.#isCollapsed = false;
-        if (this.#isConnected === true) return;
 
-        let parentComponent = this.$internals.parentComponent;
+        // 1. If already connected, nothing to do
+        if (this.#isConnected) return;
 
-        if (parentComponent === null) {
-            if (this.$internals.parentElement) {
-                if (this.$internals.parentElement.isConnected) {
-                    this.mount(this.$internals.parentElement, this.$internals.mountMode);
-                } else {
-                    console.warn(
-                        'Cannot expand a disconnected component without a parent element (parent element is not connected)'
-                    );
-                    return;
-                }
-            } else {
-                console.warn(
-                    'Cannot expand a disconnected component without a parent element (no parent element specified)'
-                );
-                return;
-            }
-        } else {
-            if (parentComponent.isConnected === false) {
-                console.warn('Cannot expand a disconnected parent component');
-                return;
-            }
+        const parent = this.$internals.parentComponent;
 
-            let assignedSlotRef =
-                parentComponent.$internals.scopeRefs[this.$internals.assignedSlotName];
+        // 2. Delegate to specific resolution logic
+        const target = parent ? this.#resolveSlotTarget(parent) : this.#resolveStandaloneTarget();
 
-            if (!assignedSlotRef) {
-                console.warn(
-                    `Cannot find a rendered slot with name "${this.$internals.assignedSlotName}" in the parent component`
-                );
-                return;
-            }
+        if (!target) return;
 
-            this.mount(assignedSlotRef, this.$internals.mountMode);
+        // 3. Perform the mount and notify
+        this.mount(target, this.$internals.mountMode);
+        this.emit('expand');
+    }
+
+    /**
+     * Resolves the target element for a standalone component.
+     * @returns {HTMLElement|null}
+     */
+    #resolveStandaloneTarget() {
+        const el = this.$internals.parentElement;
+
+        if (!el) {
+            console.warn('[Expand] Cannot expand: no parent element specified.');
+            return null;
         }
 
-        this.emit('expand');
+        if (!el.isConnected) {
+            console.warn('[Expand] Cannot expand: parent element is disconnected from DOM.');
+            return null;
+        }
+
+        return /** @type {HTMLElement} */ (el);
+    }
+
+    /**
+     * Resolves the target slot in a parent component.
+     * @param {Component} parent
+     * @returns {HTMLElement|null}
+     */
+    #resolveSlotTarget(parent) {
+        if (!parent.isConnected) {
+            console.warn('[Expand] Cannot expand: parent component is not connected.');
+            return null;
+        }
+
+        const slotName = this.$internals.assignedSlotName;
+        const slotRef = parent.$internals.scopeRefs[slotName];
+
+        if (!slotRef) {
+            console.warn(`[Expand] Cannot find slot "${slotName}" in parent component.`);
+            return null;
+        }
+
+        return slotRef;
     }
 
     /**
@@ -2231,19 +2631,10 @@ class Component {
      */
     expandForce() {
         /** @type {Component[]} */
-        let components = [];
+        const ancestors = collectComponentAncestors(this);
 
-        /** @type {Component} */
-        let currentComponent = this;
-
-        while (currentComponent) {
-            components.push(currentComponent);
-            currentComponent = currentComponent.$internals.parentComponent;
-        }
-
-        for (let i = components.length - 1; i >= 0; i--) {
-            let component = components[i];
-            component.expand();
+        for (let i = ancestors.length - 1; i >= 0; i--) {
+            ancestors[i].expand();
         }
     }
 
@@ -2340,31 +2731,11 @@ class Component {
             throw new Error('Component is not connected to the DOM');
         }
 
-        tagName = tagName.toLowerCase().trim();
-
-        /** @type {Element[]} */
-        let filteredElements = [];
-
-        walkDomScope(
-            this.$internals.root,
-            node => {
-                if (node.nodeType === Config.window.Node.ELEMENT_NODE) {
-                    let el = /** @type {Element} */ (node);
-                    if (tagName === '*') {
-                        filteredElements.push(el);
-                    } else if (el.tagName.toLowerCase() === tagName) {
-                        filteredElements.push(el);
-                    }
-                }
-            },
-            {
-                scopeAttribute: ['data-slot', 'data-component-root'],
-                refAttribute: 'data-ref',
-                window: Config.window,
-            }
-        );
-
-        return filteredElements;
+        return filterElementsByTagName(this.$internals.root, tagName, walkDomScope, {
+            scopeAttribute: ['data-slot', 'data-component-root'],
+            refAttribute: 'data-ref',
+            window: Config.window,
+        });
     }
 
     /**
@@ -2385,28 +2756,14 @@ class Component {
     }
 
     /**
-     * @param {string} name - Имя телепорта из объекта teleports
-     * @param {TeleportConfig} config - Конфигурация конкретного телепорта
+     * @param {string} name - teleport name
+     * @param {TeleportConfig} config - teleport config
      * @returns {Element}
      */
     #renderTeleport(name, config) {
         const result = resolveLayout(config.layout, this);
-        const sid = this.$internals.sid;
 
-        // 1. Always set the teleport name for identification
-        result.setAttribute('data-component-teleport', name);
-
-        // 2. Set the owner identification
-        if (sid) {
-            // We are in SSR or Hydration mode.
-            // We need the stable SID so the client can find this node globally.
-            result.setAttribute('data-parent-sid', sid);
-        }
-
-        // Always set the instanceId.
-        // On the server, it will be the server-generated ID.
-        // On the client, it will trigger the lazy getter and set the real ID.
-        result.setAttribute('data-component-root', this.instanceId);
+        prepareTeleportNode(result, name, this.$internals.sid, this.instanceId);
 
         return result;
     }
@@ -2437,61 +2794,49 @@ class Component {
      */
     #mountTeleport(name, config) {
         const fragment = this.#renderTeleport(name, config);
-        const target =
-            typeof config.target === 'function' ? config.target.call(this) : config.target;
 
-        const rootElement = this.#insertToDOM(fragment, target, config.strategy);
+        // Resolve the target to a guaranteed HTMLElement
+        const resolvedTarget = this.#resolveTarget(config.target);
+
+        // Now #insertToDOM only deals with Element and Fragment
+        const rootElement = this.#insertToDOM(fragment, resolvedTarget, config.strategy);
         this.#registerRemoteRoot(name, rootElement);
+    }
+
+    /**
+     * Resolves a target (string, function, or Element) into a guaranteed HTMLElement.
+     * @param {any} target
+     * @returns {HTMLElement}
+     * @throws {Error}
+     */
+    #resolveTarget(target) {
+        let element = null;
+
+        if (typeof target === 'function') {
+            element = target.call(this);
+        } else if (typeof target === 'string') {
+            element = document.querySelector(target);
+        } else if (target instanceof Config.window.Element) {
+            element = target;
+        }
+
+        if (!element) {
+            throw new Error(`[Mounting Error] Target element not found for: ${target}`);
+        }
+
+        return element;
     }
 
     /**
      * Mounts a fragment or element into a specified target using a given strategy.
      * @param {Element|DocumentFragment} fragment - The content to insert (result of resolveLayout).
-     * @param {Element|string|(() => Element|null)} target - The destination: element, selector, or provider function.
+     * @param {HTMLElement} target - The destination: element, selector, or provider function.
      * @param {"prepend"|"append"|"replace"} [strategy="append"] - The insertion strategy.
      * @returns {Element|null} The root element of the inserted content.
      */
     #insertToDOM(fragment, target, strategy = 'append') {
-        /** @type {Element|null} */
-        let resolvedTarget = null;
-
-        // 1. Resolve the target location
-        if (typeof target === 'function') {
-            // Bind 'this' to the component instance so it can access props/state
-            resolvedTarget = target.call(this);
-        } else if (typeof target === 'string') {
-            resolvedTarget = document.querySelector(target);
-        } else if (target instanceof Config.window.Element) {
-            resolvedTarget = target;
-        }
-
-        if (!resolvedTarget) {
-            throw new Error(
-                `[Mounting Error] Target element not found for strategy "${strategy}".`
-            );
-        }
-
-        // 2. Identify the root element for reference tracking
-        // If it's a DocumentFragment, we take the first child; if it's an Element, it is the root.
-        const rootElement =
-            fragment instanceof Config.window.Element ? fragment : fragment.firstElementChild;
-
-        // 3. Execute DOM manipulation based on the chosen strategy
-        switch (strategy) {
-            case 'prepend':
-                resolvedTarget.prepend(fragment);
-                break;
-            case 'replace':
-                // Clears all children and inserts the new fragment
-                resolvedTarget.replaceChildren(fragment);
-                break;
-            case 'append':
-            default:
-                resolvedTarget.append(fragment);
-                break;
-        }
-
-        return rootElement;
+        // We can still keep a small safety check, but the heavy lifting is done in #resolveTarget
+        return insertToDOM(fragment, target, strategy, Config.window);
     }
 
     #cleanupTeleports() {
@@ -2508,27 +2853,16 @@ class Component {
      * Synchronizes already existing teleported nodes (SSR) with the component instance.
      */
     #hydrateTeleports() {
-        if (!this.teleports) return;
-
-        // During hydration, we must use the Server ID (sid)
-        // because the client's instanceId won't match the one generated by the server.
-        const searchId = this.$internals.sid;
-        if (!searchId) return;
+        if (!this.teleports || !this.$internals.sid) return;
 
         for (const [name, config] of Object.entries(this.teleports)) {
-            // Look for the teleport using the stable SID instead of the volatile instanceId
-            const selector = `[data-parent-sid="${searchId}"][data-component-teleport="${name}"]`;
-            const existingTeleport = document.querySelector(selector);
+            const existing = findExistingTeleport(document, this.$internals.sid, name);
 
-            if (existingTeleport) {
-                // Found it! Register and "claim" it by switching to the current instanceId
-                existingTeleport.setAttribute('data-component-root', this.instanceId);
-                existingTeleport.removeAttribute('data-parent-sid'); // Clean up
-
-                this.#registerRemoteRoot(name, existingTeleport);
+            if (existing) {
+                claimTeleportNode(existing, this.instanceId);
+                this.#registerRemoteRoot(name, existing);
             } else {
-                // Fallback: If SSR missed it, mount normally
-                console.warn(`[Hydration] Teleport "${name}" not found with SID "${searchId}".`);
+                console.warn(`[Hydration] Teleport "${name}" not found. Falling back to mount.`);
                 this.#mountTeleport(name, config);
             }
         }
@@ -2559,26 +2893,18 @@ class Component {
      * @param {Component} component
      * @param {string} newSid
      */
+
     #recursiveUpdateSid(component, newSid) {
-        // 1. Update the current component's SID
-        component.$internals.sid = newSid;
-
-        // 2. Try to hydrate THIS component before going deeper
-        // This ensures parent data is available before children try to hydrate
-        if (!component.$internals.isHydrated) {
-            component.#applyHydration();
-        }
-
-        // 3. Update all children in slots
-        const slots = component.slotManager.getSlots();
-
-        slots.forEach((slot, name) => {
-            const subComponents = slot.getComponents();
-            for (let j = 0; j < subComponents.length; j++) {
-                const subChild = subComponents[j];
-                const subSid = `${newSid}.${name}.${j}`;
-                this.#recursiveUpdateSid(subChild, subSid);
-            }
+        updateComponentTreeSid(component, newSid, {
+            onUpdateSid: (comp, sid) => {
+                comp.$internals.sid = sid;
+            },
+            onApplyHydration: comp => {
+                comp.#applyHydration();
+            },
+            getSlots: comp => {
+                return comp.slotManager.getSlots();
+            },
         });
     }
 
@@ -2588,27 +2914,7 @@ class Component {
      * @returns {Component|null}
      */
     getComponentBySid(targetSid) {
-        // 1. Quick check: is it me?
-        if (this.$internals.sid === targetSid) {
-            return this;
-        }
-
-        // 2. Optimization: if the targetSid doesn't start with my SID,
-        // it's not in my branch.
-        if (this.$internals.sid && !targetSid.startsWith(this.$internals.sid + '.')) {
-            return null;
-        }
-
-        // 3. Search through all slots
-        const slots = this.slotManager.getSlots();
-        for (const [_, slot] of slots) {
-            for (const child of slot.getComponents()) {
-                const found = child.getComponentBySid(targetSid);
-                if (found) return found;
-            }
-        }
-
-        return null;
+        return findComponentBySid(this, targetSid);
     }
 
     /**
@@ -2775,7 +3081,7 @@ function generateManifest(...rootComponents) {
         container[sid] = {
             className: component.constructor.name,
             // Fallback to empty object if no serialize method
-            data: typeof component.serialize === 'function' ? component.serialize() : {},
+            data: component.serialize(),
             slots: slots,
         };
     }
@@ -2852,4 +3158,4 @@ const fullHtml = `
 `;
 */
 
-export { Component, Config, DOMReady, SlotToggler, Toggler, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateManifest, getDefaultLanguage, hideElements, html, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, uniqueId, unixtime, unsafeHTML, withMinimumTime };
+export { Component, Config, DOMReady, SlotToggler, Toggler, UI_COMPONENT_SHEET, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, extractComponentStyles, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateManifest, getDefaultLanguage, hideElements, html, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, uniqueId, unixtime, unsafeHTML, withMinimumTime };

@@ -1,41 +1,43 @@
 // @ts-check
 import { Component, html } from '@supercat1337/ui';
-// @ts-ignore
-import blueSheet from './blue-component.css' with { type: 'css' };
-// @ts-ignore
-import redSheet from './red-component.css' with { type: 'css' };
 
 export class BlueComponent extends Component {
-    // We wrap layout in a class-based namespace
-    layout = html`
-        <div class="blue-component">
-            <div class="card">
-                <h2 class="title">Blue Component</h2>
-                <p>Safe styles via .blue-component prefix.</p>
-            </div>
-        </div>
+    static styles = `
+        .blue-box {
+            padding: 20px;
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            color: #0d47a1;
+            margin-bottom: 10px;
+        }
+        .blue-box h3 { margin-top: 0; }
     `;
 
-    connectedCallback() {
-        if (!document.adoptedStyleSheets.includes(blueSheet)) {
-            document.adoptedStyleSheets = [...document.adoptedStyleSheets, blueSheet];
-        }
-    }
+    layout = () => html`
+        <div class="blue-box">
+            <h3>Blue Component</h3>
+            <p>My styles were injected via static styles!</p>
+        </div>
+    `;
 }
 
 export class RedComponent extends Component {
-    layout = html`
-        <div class="red-component">
-            <div class="card">
-                <h2 class="title">Red Component</h2>
-                <p>Safe styles via .red-component prefix.</p>
-            </div>
-        </div>
+    static styles = `
+        .red-box {
+            padding: 20px;
+            background-color: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 8px;
+            color: #b71c1c;
+        }
+        .red-box h3 { margin-top: 0; }
     `;
 
-    connectedCallback() {
-        if (!document.adoptedStyleSheets.includes(redSheet)) {
-            document.adoptedStyleSheets = [...document.adoptedStyleSheets, redSheet];
-        }
-    }
+    layout = () => html`
+        <div class="red-box">
+            <h3>Red Component</h3>
+            <p>I have my own isolated static styles.</p>
+        </div>
+    `;
 }

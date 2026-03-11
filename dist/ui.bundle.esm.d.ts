@@ -80,9 +80,46 @@ export interface Internals {
 export type RefsAnnotation = Record<string, any>;
 
 /**
+ * Options for DOM scanning utilities (like selectRefsExtended or walkDomScope).
+ */
+export interface DomScopeOptions {
+    /** Attributes that define a new naming scope (e.g., ['data-slot', 'data-component-root']). */
+    scopeAttribute: string[];
+    /** Attribute used for reference tracking (e.g., 'data-ref'). */
+    refAttribute: string;
+    /** The window object (for Node.js/JSDOM compatibility). */
+    window: any;
+}
+
+/**
+ * Callbacks used during the recursive SID update and hydration process.
+ */
+export interface HydrationCallbacks {
+    /** Called to set the SID on a component instance. */
+    onUpdateSid: (component: any, sid: string) => void;
+    /** Called to trigger the hydration logic (restore state, etc.) for a component. */
+    onApplyHydration: (component: any) => void;
+    /** Called to retrieve the map of slots from a component instance. */
+    getSlots: (component: any) => Map<string, any>;
+}
+
+/**
+ * The structure returned after scanning a DOM tree for references.
+ */
+export interface RefScanResult {
+    /** Map of elements marked with data-ref. */
+    refs: Record<string, HTMLElement>;
+    /** Map of elements that act as slot containers or sub-scopes. */
+    scopeRefs: Record<string, HTMLElement>;
+}
+
+/**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
 export class Component<T extends import("dom-scope").RefsAnnotation = any> {
+    /** @type {string | CSSStyleSheet | null} */
+    static styles: string | CSSStyleSheet | null;
+    static _stylesInjected: boolean;
     /**
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
@@ -204,10 +241,10 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     restoreCallback(data: any): void;
     /**
      * Mounts the component to a DOM container or hydrates existing HTML.
-     * @param {Element} container - The target DOM element (the "hole").
+     * @param {string|HTMLElement|(() => HTMLElement)} container - The target (selector, element, or provider).
      * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
      */
-    mount(container: Element, mode?: "replace" | "append" | "prepend" | "hydrate"): void;
+    mount(container: string | HTMLElement | (() => HTMLElement), mode?: "replace" | "append" | "prepend" | "hydrate"): void;
     /**
      * Unmounts the component from the DOM.
      * Emits "beforeUnmount" and "unmount" events through the event emitter.
@@ -233,8 +270,6 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     collapse(): void;
     /**
      * Re-mounts a collapsed component back into its original DOM position.
-     * If the parent component is also collapsed, this may not result in immediate
-     * visibility unless `expandForce()` is used.
      */
     expand(): void;
     /**
@@ -371,6 +406,7 @@ export class Toggler {
     init(active: string): void;
     #private;
 }
+export const UI_COMPONENT_SHEET: unique symbol;
 /**
  * Copies the given text to the clipboard using the Clipboard API.
  * @param {string} text - The text to be copied to the clipboard.
@@ -443,6 +479,7 @@ export function delegateEvent(eventType: string, ancestorElement: Element, targe
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe: string): string;
+export function extractComponentStyles(doc?: Document): string;
 /**
  * Fades in the given element with the given duration.
  * The element is set to be block level and its opacity is set to 0.

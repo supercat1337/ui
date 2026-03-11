@@ -19,7 +19,7 @@ function bundleTypes() {
 
             // 2. Очищаем сгенерированный tsc контент от относительных импортов,
             // так как теперь всё будет в одном файле.
-            const cleanedGenerated = generatedTypes.replace(/import\(['"].\/types[^'"]+['"]\)\./g, '');
+            const cleanedGenerated = generatedTypes.replace(/import\(['"].+\/types[^'"]+['"]\)\./g, '');
 
             // 3. Склеиваем: Базовые типы + Сгенерированные классы
             const finalContent = baseTypes + '\n\n' + cleanedGenerated;

@@ -1517,8 +1517,207 @@ function onDisconnectDefault(component) {
   }
 }
 
+// src/component/style.js
+var UI_COMPONENT_SHEET = /* @__PURE__ */ Symbol("isUIComponentSheet");
+function extractComponentStyles(doc = document) {
+  if (!doc.adoptedStyleSheets) return "";
+  return doc.adoptedStyleSheets.filter((sheet) => sheet[UI_COMPONENT_SHEET] === true).map((sheet) => {
+    return Array.from(sheet.cssRules).map((rule) => rule.cssText).join("\n");
+  }).join("\n");
+}
+
+// src/component/internals/hydration-utils.js
+function updateComponentTreeSid(component, newSid, callbacks) {
+  callbacks.onUpdateSid(component, newSid);
+  callbacks.onApplyHydration(component);
+  const slots = callbacks.getSlots(component);
+  slots.forEach((slot, name) => {
+    const subComponents = typeof slot.getComponents === "function" ? slot.getComponents() : [];
+    for (let j = 0; j < subComponents.length; j++) {
+      const subChild = subComponents[j];
+      const subSid = `${newSid}.${name}.${j}`;
+      updateComponentTreeSid(subChild, subSid, callbacks);
+    }
+  });
+}
+
+// src/component/internals/dom-utils.js
+function filterElementsByTagName(root, tagName, walkDomScope2, options) {
+  const targetTag = tagName.toLowerCase().trim();
+  const filteredElements = [];
+  walkDomScope2(
+    root,
+    (node) => {
+      if (node.nodeType === options.window.Node.ELEMENT_NODE) {
+        const el = (
+          /** @type {Element} */
+          node
+        );
+        if (targetTag === "*" || el.tagName.toLowerCase() === targetTag) {
+          filteredElements.push(el);
+        }
+      }
+    },
+    options
+  );
+  return filteredElements;
+}
+function insertToDOM(fragment, resolvedTarget, strategy, window2) {
+  const rootElement = fragment instanceof window2.Element ? (
+    /** @type {Element} */
+    fragment
+  ) : fragment.firstElementChild;
+  switch (strategy) {
+    case "prepend":
+      resolvedTarget.prepend(fragment);
+      break;
+    case "replace":
+      resolvedTarget.replaceChildren(fragment);
+      break;
+    case "append":
+    default:
+      resolvedTarget.append(fragment);
+      break;
+  }
+  return rootElement;
+}
+
+// src/component/internals/teleport-utils.js
+function prepareTeleportNode(node, name, parentSid, instanceId) {
+  node.setAttribute("data-component-teleport", name);
+  node.setAttribute("data-component-root", instanceId);
+  if (parentSid) {
+    node.setAttribute("data-parent-sid", parentSid);
+  }
+}
+function findExistingTeleport(root, parentSid, teleportName) {
+  const selector = `[data-parent-sid="${parentSid}"][data-component-teleport="${teleportName}"]`;
+  return root.querySelector(selector);
+}
+function claimTeleportNode(node, instanceId) {
+  node.setAttribute("data-component-root", instanceId);
+  node.removeAttribute("data-parent-sid");
+}
+
+// src/component/internals/style-utils.js
+function createComponentStyleSheet(styles, marker, window2) {
+  if (typeof window2.CSSStyleSheet === "undefined") return null;
+  let sheet;
+  if (styles instanceof window2.CSSStyleSheet) {
+    sheet = styles;
+  } else {
+    sheet = new window2.CSSStyleSheet();
+    sheet.replaceSync(styles);
+  }
+  sheet[marker] = true;
+  return sheet;
+}
+function injectSheet(doc, sheet) {
+  if (!doc.adoptedStyleSheets) {
+    doc.adoptedStyleSheets = [];
+  }
+  if (!doc.adoptedStyleSheets.includes(sheet)) {
+    doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
+  }
+}
+
+// src/component/internals/render-utils.js
+function prepareRenderResult(element, { instanceId, sid, isSSR }) {
+  if (instanceId) {
+    element.setAttribute("data-component-root", instanceId);
+  }
+  if (isSSR && sid) {
+    element.setAttribute("data-sid", sid);
+  }
+  return element;
+}
+function getCloneFromCache(cachedElement, shouldClone) {
+  if (shouldClone && cachedElement) {
+    return (
+      /** @type {Element} */
+      cachedElement.cloneNode(true)
+    );
+  }
+  return null;
+}
+
+// src/component/internals/ref-utils.js
+function scanRootsForRefs(roots, selectRefsExtended2, options) {
+  let { refs, scopeRefs } = selectRefsExtended2(roots, null, options);
+  const rootRefs = {};
+  const window2 = options.window;
+  for (const root of roots) {
+    if (root instanceof window2.Element) {
+      const refName = root.getAttribute(options.refAttribute);
+      if (refName) {
+        rootRefs[refName] = root;
+      }
+      const slotAttribute = options.scopeAttribute.find((attr) => root.hasAttribute(attr));
+      if (slotAttribute && root.getAttribute(slotAttribute)) {
+        const slotName = root.getAttribute(slotAttribute);
+        if (root.hasAttribute("data-slot")) {
+          scopeRefs[slotName] = /** @type {HTMLElement} */
+          root;
+        }
+      }
+    }
+  }
+  return {
+    refs: { ...refs, ...rootRefs },
+    scopeRefs
+  };
+}
+
+// src/component/internals/tree-utils.js
+function findComponentBySid(startComponent, targetSid) {
+  const currentSid = startComponent.$internals.sid;
+  if (currentSid === targetSid) {
+    return startComponent;
+  }
+  if (currentSid && !targetSid.startsWith(currentSid + ".")) {
+    return null;
+  }
+  const slots = startComponent.slotManager.getSlots();
+  for (const slot of slots.values()) {
+    for (const child of slot.getComponents()) {
+      const found = findComponentBySid(child, targetSid);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+function collectComponentAncestors(component) {
+  const ancestors = [];
+  let current = component;
+  while (current) {
+    ancestors.push(current);
+    current = current.$internals.parentComponent;
+  }
+  return ancestors;
+}
+
+// src/component/internals/mounting-utils.js
+function validateMountArgs(container, mode, window2) {
+  if (!(container instanceof window2.Element)) {
+    throw new TypeError("Mount target must be a valid DOM Element.");
+  }
+  const validModes = ["replace", "append", "prepend", "hydrate"];
+  if (!validModes.includes(mode)) {
+    throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(", ")}`);
+  }
+}
+function findHydrationRoot(container, sid) {
+  if (container.getAttribute("data-sid") === sid) {
+    return container;
+  }
+  return container.querySelector(`[data-sid="${sid}"]`);
+}
+
 // src/component/component.js
 var Component = class {
+  /** @type {string | CSSStyleSheet | null} */
+  static styles = null;
+  static _stylesInjected = false;
   /** @type {Internals} */
   $internals = new Internals();
   /** @type {((component: this) => Node|string)|string|null|Node} */
@@ -1593,6 +1792,32 @@ var Component = class {
       this.refsAnnotation = annotation;
     }
   }
+  #ensureStylesInjected() {
+    const ctor = (
+      /** @type {typeof Component} */
+      this.constructor
+    );
+    if (ctor._stylesInjected) return;
+    if (Config.window.document.getElementById("ui-ssr-styles")) {
+      ctor._stylesInjected = true;
+      return;
+    }
+    if (ctor.styles) {
+      this.#injectStaticStyles(ctor.styles);
+    }
+    ctor._stylesInjected = true;
+  }
+  /**
+   *
+   * @param {string | CSSStyleSheet | null} styles
+   * @returns
+   */
+  #injectStaticStyles(styles) {
+    const sheet = createComponentStyleSheet(styles, UI_COMPONENT_SHEET, Config.window);
+    if (sheet) {
+      injectSheet(document, sheet);
+    }
+  }
   /* Refs */
   /**
    * Returns the refs object.
@@ -1631,29 +1856,16 @@ var Component = class {
       throw new Error("Component is not connected to the DOM");
     }
     this.emit("before-update-refs");
-    const allRoots = this.$internals.additionalRoots.length > 0 ? [this.$internals.root, ...this.$internals.additionalRoots] : [this.$internals.root];
-    let { refs, scopeRefs } = selectRefsExtended(allRoots, null, {
+    const allRoots = (
+      /** @type {Element[]} */
+      this.$internals.additionalRoots.length > 0 ? [this.$internals.root, ...this.$internals.additionalRoots] : [this.$internals.root]
+    );
+    const { refs, scopeRefs } = scanRootsForRefs(allRoots, selectRefsExtended, {
       scopeAttribute: ["data-slot", "data-component-root"],
       refAttribute: "data-ref",
       window: Config.window
     });
-    let rootRefs = {};
-    for (let i = 0; i < allRoots.length; i++) {
-      let root = allRoots[i];
-      if (root instanceof Config.window.Element) {
-        let refName = root.getAttribute("data-ref");
-        if (refName) {
-          rootRefs[refName] = root;
-        }
-        let slotName = root.getAttribute("data-slot");
-        if (slotName) {
-          scopeRefs[slotName] = /** @type {HTMLElement } */
-          root;
-        }
-      }
-    }
-    refs = { ...refs, ...rootRefs };
-    for (let key in scopeRefs) {
+    for (const key in scopeRefs) {
       this.slotManager.registerSlot(key);
     }
     this.$internals.refs = refs;
@@ -1714,12 +1926,9 @@ var Component = class {
    * @param {HTMLElement} componentRoot - The root element to connect the component to.
    */
   #connect(componentRoot) {
-    if (this.#isConnected === true) {
-      throw new Error("Component is already connected");
-    }
     this.$internals.root = componentRoot;
     this.updateRefs();
-    this.$internals.disconnectController = new AbortController();
+    this.$internals.disconnectController = new (Config.window.AbortController || AbortController)();
     this.#isConnected = true;
     this.slotManager.mountAllSlots();
     this.emit("connect");
@@ -1771,25 +1980,20 @@ var Component = class {
    */
   #render() {
     const layout = this.layout;
-    if (!layout) {
-      throw new Error("Layout is not defined for the component.");
-    }
+    if (!layout) throw new Error("Layout is not defined.");
     const isStatic = typeof layout !== "function";
-    if (isStatic && this.$internals.cloneTemplateOnRender && this.#cachedElement) {
-      return (
-        /** @type {Element} */
-        this.#cachedElement.cloneNode(true)
-      );
+    const shouldClone = this.$internals.cloneTemplateOnRender;
+    if (isStatic) {
+      const cached = getCloneFromCache(this.#cachedElement, shouldClone);
+      if (cached) return cached;
     }
     const result = resolveLayout(layout, this);
-    const sid = this.$internals.sid;
-    if (this.instanceId) {
-      result.setAttribute("data-component-root", this.instanceId);
-    }
-    if (Config.isSSR && this.$internals.sid) {
-      result.setAttribute("data-sid", this.$internals.sid);
-    }
-    if (isStatic && this.$internals.cloneTemplateOnRender) {
+    prepareRenderResult(result, {
+      instanceId: this.instanceId,
+      sid: this.$internals.sid,
+      isSSR: Config.isSSR
+    });
+    if (isStatic && shouldClone) {
       this.#cachedElement = result;
       return (
         /** @type {Element} */
@@ -1800,61 +2004,76 @@ var Component = class {
   }
   /**
    * Mounts the component to a DOM container or hydrates existing HTML.
-   * @param {Element} container - The target DOM element (the "hole").
+   * @param {string|HTMLElement|(() => HTMLElement)} container - The target (selector, element, or provider).
    * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
    */
   mount(container, mode = "replace") {
-    if (this.#isCollapsed) return;
-    if (!(container instanceof Config.window.Element)) {
-      throw new TypeError("Mount target must be a valid DOM Element.");
+    if (this.isCollapsed) return;
+    const resolvedContainer = this.#resolveTarget(container);
+    validateMountArgs(resolvedContainer, mode, Config.window);
+    if (mode === "hydrate") {
+      return this.#handleHydration(resolvedContainer);
     }
-    const validModes = ["replace", "append", "prepend", "hydrate"];
-    if (!validModes.includes(mode)) {
-      throw new Error(`Invalid mount mode "${mode}". Expected: ${validModes.join(", ")}`);
+    if (this.isConnected) {
+      this.#handleMove(resolvedContainer, mode);
+    } else {
+      this.#handleInitialMount(resolvedContainer, mode);
     }
-    const isHydrating = mode === "hydrate";
-    const isMoving = this.isConnected;
-    if (isHydrating) {
-      const sid = this.$internals.sid;
-      if (!sid) {
-        throw new Error("Hydration failed: Component has no SID assigned.");
-      }
-      const componentRoot2 = container.getAttribute("data-sid") === sid ? container : container.querySelector(`[data-sid="${sid}"]`);
-      if (!componentRoot2) {
-        throw new Error(`Hydration failed: Node with data-sid="${sid}" not found.`);
-      }
-      componentRoot2.removeAttribute("data-sid");
-      componentRoot2.setAttribute("data-component-root", this.instanceId);
-      this.$internals.root = componentRoot2;
-      this.$internals.parentElement = componentRoot2.parentElement;
-      this.$internals.mountMode = "replace";
-      this.#applyHydration();
-      this.#connect(
-        /** @type {HTMLElement} */
-        componentRoot2
-      );
-      this.emit("mount");
-      return;
-    }
-    const componentRoot = isMoving ? this.getRootNode() : this.#render();
-    if (mode === "replace") container.replaceChildren(componentRoot);
-    else if (mode === "append") container.append(componentRoot);
-    else if (mode === "prepend") container.prepend(componentRoot);
-    this.$internals.root = componentRoot;
-    this.$internals.parentElement = componentRoot.parentElement;
+  }
+  /**
+   * @param {Element} container
+   */
+  #handleHydration(container) {
+    this.#ensureStylesInjected();
+    const sid = this.$internals.sid;
+    if (!sid) throw new Error("Hydration failed: No SID assigned.");
+    const root = findHydrationRoot(container, sid);
+    if (!root) throw new Error(`Hydration failed: SID "${sid}" not found.`);
+    root.removeAttribute("data-sid");
+    root.setAttribute("data-component-root", this.instanceId);
+    this.$internals.root = root;
+    this.$internals.parentElement = root.parentElement;
+    this.$internals.mountMode = "replace";
+    this.#applyHydration();
+    this.#connect(
+      /** @type {HTMLElement} */
+      root
+    );
+    this.emit("mount");
+  }
+  /**
+   * @param {Element} container
+   * @param {"replace"|"append"|"prepend"} mode
+   */
+  #handleInitialMount(container, mode) {
+    const root = this.#render();
+    if (mode === "replace") container.replaceChildren(root);
+    else if (mode === "append") container.append(root);
+    else if (mode === "prepend") container.prepend(root);
+    this.$internals.root = root;
     this.$internals.parentElement = container;
     this.$internals.mountMode = mode;
-    if (!isMoving) {
-      this.#mountTeleports();
-      this.emit("prepareRender", componentRoot);
-      this.#connect(
-        /** @type {HTMLElement} */
-        componentRoot
-      );
-      this.emit("mount");
-    } else {
-      this.emit("move", { to: container });
-    }
+    this.#ensureStylesInjected();
+    this.#mountTeleports();
+    this.emit("prepareRender", root);
+    this.#connect(
+      /** @type {HTMLElement} */
+      root
+    );
+    this.emit("mount");
+  }
+  /**
+   * @param {Element} container
+   * @param {"replace"|"append"|"prepend"} mode
+   */
+  #handleMove(container, mode) {
+    const root = this.getRootNode();
+    if (mode === "replace") container.replaceChildren(root);
+    else if (mode === "append") container.append(root);
+    else if (mode === "prepend") container.prepend(root);
+    this.$internals.parentElement = container;
+    this.$internals.mountMode = mode;
+    this.emit("move", { to: container });
   }
   /**
    * Unmounts the component from the DOM.
@@ -1869,6 +2088,7 @@ var Component = class {
     this.#cleanupTeleports();
     this.$internals.additionalRoots = [];
     this.$internals.root?.remove();
+    this.$internals.root = null;
     this.$internals.elementsToRemove.forEach((el) => {
       el.remove();
     });
@@ -1903,44 +2123,52 @@ var Component = class {
   }
   /**
    * Re-mounts a collapsed component back into its original DOM position.
-   * If the parent component is also collapsed, this may not result in immediate
-   * visibility unless `expandForce()` is used.
    */
   expand() {
     this.#isCollapsed = false;
-    if (this.#isConnected === true) return;
-    let parentComponent = this.$internals.parentComponent;
-    if (parentComponent === null) {
-      if (this.$internals.parentElement) {
-        if (this.$internals.parentElement.isConnected) {
-          this.mount(this.$internals.parentElement, this.$internals.mountMode);
-        } else {
-          console.warn(
-            "Cannot expand a disconnected component without a parent element (parent element is not connected)"
-          );
-          return;
-        }
-      } else {
-        console.warn(
-          "Cannot expand a disconnected component without a parent element (no parent element specified)"
-        );
-        return;
-      }
-    } else {
-      if (parentComponent.isConnected === false) {
-        console.warn("Cannot expand a disconnected parent component");
-        return;
-      }
-      let assignedSlotRef = parentComponent.$internals.scopeRefs[this.$internals.assignedSlotName];
-      if (!assignedSlotRef) {
-        console.warn(
-          `Cannot find a rendered slot with name "${this.$internals.assignedSlotName}" in the parent component`
-        );
-        return;
-      }
-      this.mount(assignedSlotRef, this.$internals.mountMode);
-    }
+    if (this.#isConnected) return;
+    const parent = this.$internals.parentComponent;
+    const target = parent ? this.#resolveSlotTarget(parent) : this.#resolveStandaloneTarget();
+    if (!target) return;
+    this.mount(target, this.$internals.mountMode);
     this.emit("expand");
+  }
+  /**
+   * Resolves the target element for a standalone component.
+   * @returns {HTMLElement|null}
+   */
+  #resolveStandaloneTarget() {
+    const el = this.$internals.parentElement;
+    if (!el) {
+      console.warn("[Expand] Cannot expand: no parent element specified.");
+      return null;
+    }
+    if (!el.isConnected) {
+      console.warn("[Expand] Cannot expand: parent element is disconnected from DOM.");
+      return null;
+    }
+    return (
+      /** @type {HTMLElement} */
+      el
+    );
+  }
+  /**
+   * Resolves the target slot in a parent component.
+   * @param {Component} parent
+   * @returns {HTMLElement|null}
+   */
+  #resolveSlotTarget(parent) {
+    if (!parent.isConnected) {
+      console.warn("[Expand] Cannot expand: parent component is not connected.");
+      return null;
+    }
+    const slotName = this.$internals.assignedSlotName;
+    const slotRef = parent.$internals.scopeRefs[slotName];
+    if (!slotRef) {
+      console.warn(`[Expand] Cannot find slot "${slotName}" in parent component.`);
+      return null;
+    }
+    return slotRef;
   }
   /**
    * Forces the expansion of the entire component hierarchy from the current node up to the root.
@@ -1948,15 +2176,9 @@ var Component = class {
    * even if its ancestors were previously collapsed.
    */
   expandForce() {
-    let components = [];
-    let currentComponent = this;
-    while (currentComponent) {
-      components.push(currentComponent);
-      currentComponent = currentComponent.$internals.parentComponent;
-    }
-    for (let i = components.length - 1; i >= 0; i--) {
-      let component = components[i];
-      component.expand();
+    const ancestors = collectComponentAncestors(this);
+    for (let i = ancestors.length - 1; i >= 0; i--) {
+      ancestors[i].expand();
     }
   }
   /* Slots, parent, children */
@@ -2039,30 +2261,11 @@ var Component = class {
     if (!this.#isConnected) {
       throw new Error("Component is not connected to the DOM");
     }
-    tagName = tagName.toLowerCase().trim();
-    let filteredElements = [];
-    walkDomScope(
-      this.$internals.root,
-      (node) => {
-        if (node.nodeType === Config.window.Node.ELEMENT_NODE) {
-          let el = (
-            /** @type {Element} */
-            node
-          );
-          if (tagName === "*") {
-            filteredElements.push(el);
-          } else if (el.tagName.toLowerCase() === tagName) {
-            filteredElements.push(el);
-          }
-        }
-      },
-      {
-        scopeAttribute: ["data-slot", "data-component-root"],
-        refAttribute: "data-ref",
-        window: Config.window
-      }
-    );
-    return filteredElements;
+    return filterElementsByTagName(this.$internals.root, tagName, walkDomScope, {
+      scopeAttribute: ["data-slot", "data-component-root"],
+      refAttribute: "data-ref",
+      window: Config.window
+    });
   }
   /**
    * Returns an array of elements matching the given tag name within the component's scope.
@@ -2081,18 +2284,13 @@ var Component = class {
     }
   }
   /**
-   * @param {string} name - Имя телепорта из объекта teleports
-   * @param {import('./types.d.ts').TeleportConfig} config - Конфигурация конкретного телепорта
+   * @param {string} name - teleport name
+   * @param {import('./types.d.ts').TeleportConfig} config - teleport config
    * @returns {Element}
    */
   #renderTeleport(name, config) {
     const result = resolveLayout(config.layout, this);
-    const sid = this.$internals.sid;
-    result.setAttribute("data-component-teleport", name);
-    if (sid) {
-      result.setAttribute("data-parent-sid", sid);
-    }
-    result.setAttribute("data-component-root", this.instanceId);
+    prepareTeleportNode(result, name, this.$internals.sid, this.instanceId);
     return result;
   }
   /**
@@ -2117,45 +2315,39 @@ var Component = class {
    */
   #mountTeleport(name, config) {
     const fragment = this.#renderTeleport(name, config);
-    const target = typeof config.target === "function" ? config.target.call(this) : config.target;
-    const rootElement = this.#insertToDOM(fragment, target, config.strategy);
+    const resolvedTarget = this.#resolveTarget(config.target);
+    const rootElement = this.#insertToDOM(fragment, resolvedTarget, config.strategy);
     this.#registerRemoteRoot(name, rootElement);
+  }
+  /**
+   * Resolves a target (string, function, or Element) into a guaranteed HTMLElement.
+   * @param {any} target
+   * @returns {HTMLElement}
+   * @throws {Error}
+   */
+  #resolveTarget(target) {
+    let element = null;
+    if (typeof target === "function") {
+      element = target.call(this);
+    } else if (typeof target === "string") {
+      element = document.querySelector(target);
+    } else if (target instanceof Config.window.Element) {
+      element = target;
+    }
+    if (!element) {
+      throw new Error(`[Mounting Error] Target element not found for: ${target}`);
+    }
+    return element;
   }
   /**
    * Mounts a fragment or element into a specified target using a given strategy.
    * @param {Element|DocumentFragment} fragment - The content to insert (result of resolveLayout).
-   * @param {Element|string|(() => Element|null)} target - The destination: element, selector, or provider function.
+   * @param {HTMLElement} target - The destination: element, selector, or provider function.
    * @param {"prepend"|"append"|"replace"} [strategy="append"] - The insertion strategy.
    * @returns {Element|null} The root element of the inserted content.
    */
   #insertToDOM(fragment, target, strategy = "append") {
-    let resolvedTarget = null;
-    if (typeof target === "function") {
-      resolvedTarget = target.call(this);
-    } else if (typeof target === "string") {
-      resolvedTarget = document.querySelector(target);
-    } else if (target instanceof Config.window.Element) {
-      resolvedTarget = target;
-    }
-    if (!resolvedTarget) {
-      throw new Error(
-        `[Mounting Error] Target element not found for strategy "${strategy}".`
-      );
-    }
-    const rootElement = fragment instanceof Config.window.Element ? fragment : fragment.firstElementChild;
-    switch (strategy) {
-      case "prepend":
-        resolvedTarget.prepend(fragment);
-        break;
-      case "replace":
-        resolvedTarget.replaceChildren(fragment);
-        break;
-      case "append":
-      default:
-        resolvedTarget.append(fragment);
-        break;
-    }
-    return rootElement;
+    return insertToDOM(fragment, target, strategy, Config.window);
   }
   #cleanupTeleports() {
     for (const rootElement of this.$internals.teleportRoots.values()) {
@@ -2167,18 +2359,14 @@ var Component = class {
    * Synchronizes already existing teleported nodes (SSR) with the component instance.
    */
   #hydrateTeleports() {
-    if (!this.teleports) return;
-    const searchId = this.$internals.sid;
-    if (!searchId) return;
+    if (!this.teleports || !this.$internals.sid) return;
     for (const [name, config] of Object.entries(this.teleports)) {
-      const selector = `[data-parent-sid="${searchId}"][data-component-teleport="${name}"]`;
-      const existingTeleport = document.querySelector(selector);
-      if (existingTeleport) {
-        existingTeleport.setAttribute("data-component-root", this.instanceId);
-        existingTeleport.removeAttribute("data-parent-sid");
-        this.#registerRemoteRoot(name, existingTeleport);
+      const existing = findExistingTeleport(document, this.$internals.sid, name);
+      if (existing) {
+        claimTeleportNode(existing, this.instanceId);
+        this.#registerRemoteRoot(name, existing);
       } else {
-        console.warn(`[Hydration] Teleport "${name}" not found with SID "${searchId}".`);
+        console.warn(`[Hydration] Teleport "${name}" not found. Falling back to mount.`);
         this.#mountTeleport(name, config);
       }
     }
@@ -2203,17 +2391,15 @@ var Component = class {
    * @param {string} newSid
    */
   #recursiveUpdateSid(component, newSid) {
-    component.$internals.sid = newSid;
-    if (!component.$internals.isHydrated) {
-      component.#applyHydration();
-    }
-    const slots = component.slotManager.getSlots();
-    slots.forEach((slot, name) => {
-      const subComponents = slot.getComponents();
-      for (let j = 0; j < subComponents.length; j++) {
-        const subChild = subComponents[j];
-        const subSid = `${newSid}.${name}.${j}`;
-        this.#recursiveUpdateSid(subChild, subSid);
+    updateComponentTreeSid(component, newSid, {
+      onUpdateSid: (comp, sid) => {
+        comp.$internals.sid = sid;
+      },
+      onApplyHydration: (comp) => {
+        comp.#applyHydration();
+      },
+      getSlots: (comp) => {
+        return comp.slotManager.getSlots();
       }
     });
   }
@@ -2223,20 +2409,7 @@ var Component = class {
    * @returns {Component|null}
    */
   getComponentBySid(targetSid) {
-    if (this.$internals.sid === targetSid) {
-      return this;
-    }
-    if (this.$internals.sid && !targetSid.startsWith(this.$internals.sid + ".")) {
-      return null;
-    }
-    const slots = this.slotManager.getSlots();
-    for (const [_, slot] of slots) {
-      for (const child of slot.getComponents()) {
-        const found = child.getComponentBySid(targetSid);
-        if (found) return found;
-      }
-    }
-    return null;
+    return findComponentBySid(this, targetSid);
   }
   /**
    * Retrieves hydration data for this specific component instance from the global manifest.
@@ -2353,7 +2526,7 @@ function generateManifest(...rootComponents) {
     container[sid] = {
       className: component.constructor.name,
       // Fallback to empty object if no serialize method
-      data: typeof component.serialize === "function" ? component.serialize() : {},
+      data: component.serialize(),
       slots
     };
   }
@@ -2381,6 +2554,7 @@ export {
   DOMReady,
   SlotToggler,
   Toggler,
+  UI_COMPONENT_SHEET,
   copyToClipboard,
   createManifestScript,
   createPaginationArray,
@@ -2388,6 +2562,7 @@ export {
   debounce,
   delegateEvent,
   escapeHtml,
+  extractComponentStyles,
   fadeIn,
   fadeOut,
   formatBytes,

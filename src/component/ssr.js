@@ -52,7 +52,7 @@ export function generateManifest(...rootComponents) {
         container[sid] = {
             className: component.constructor.name,
             // Fallback to empty object if no serialize method
-            data: typeof component.serialize === 'function' ? component.serialize() : {},
+            data: component.serialize(),
             slots: slots,
         };
     }
