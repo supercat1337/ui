@@ -2109,7 +2109,8 @@ class Component {
         const { instanceId = null, sid = null } = options;
         this.$internals = new Internals();
 
-        this.$internals.instanceId = instanceId || Internals.generateInstanceId();
+        if (instanceId) this.$internals.instanceId = instanceId;
+
         this.on('connect', onConnectDefault);
         this.on('disconnect', onDisconnectDefault);
 
@@ -3036,7 +3037,7 @@ class SlotToggler {
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by SID.
  */
 function generateManifest(...rootComponents) {
     /** @type {Record<string, any>} */

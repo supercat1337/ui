@@ -521,7 +521,7 @@ export function formatDateTime(unix_timestamp: number): string;
 /**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
- * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by instanceId.
+ * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by SID.
  */
 export function generateManifest(...rootComponents: Component[]): Record<string, any>;
 /**

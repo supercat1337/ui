@@ -1740,7 +1740,7 @@ var Component = class {
   constructor(options = {}) {
     const { instanceId = null, sid = null } = options;
     this.$internals = new Internals();
-    this.$internals.instanceId = instanceId || Internals.generateInstanceId();
+    if (instanceId) this.$internals.instanceId = instanceId;
     this.on("connect", onConnectDefault);
     this.on("disconnect", onDisconnectDefault);
     if (sid) {
