@@ -22,6 +22,8 @@ class ConfigManager {
          */
         // @ts-ignore
         this.window = typeof globalThis !== 'undefined' ? globalThis : {};
+
+        this.checkRefsFlag = true;
     }
 
     /**
@@ -2267,7 +2269,7 @@ class Component {
         this.$internals.scopeRefs = scopeRefs;
 
         // 4. Validation
-        if (this.refsAnnotation) {
+        if (Config.checkRefsFlag && this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
     }
@@ -2301,10 +2303,10 @@ class Component {
     /**
      * Emits an event with the given arguments.
      * @param {ComponentEvent} event - The name of the event to emit.
-     * @param {...any} args - The arguments to be passed to the event handlers.
+     * @param {any} data - The data object to be passed to the event handlers.
      */
-    emit(event, ...args) {
-        return this.$internals.eventEmitter.emit(event, ...args, this);
+    emit(event, data) {
+        return this.$internals.eventEmitter.emit(event, data, this);
     }
 
     /**

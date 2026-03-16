@@ -17,6 +17,8 @@ class ConfigManager {
          */
         // @ts-ignore
         this.window = typeof globalThis !== 'undefined' ? globalThis : {};
+
+        this.checkRefsFlag = true;
     }
 
     /**

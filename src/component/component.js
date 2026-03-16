@@ -218,7 +218,7 @@ export class Component {
         this.$internals.scopeRefs = scopeRefs;
 
         // 4. Validation
-        if (this.refsAnnotation) {
+        if (Config.checkRefsFlag && this.refsAnnotation) {
             checkRefs(refs, this.refsAnnotation);
         }
     }
@@ -252,10 +252,10 @@ export class Component {
     /**
      * Emits an event with the given arguments.
      * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
-     * @param {...any} args - The arguments to be passed to the event handlers.
+     * @param {any} data - The data object to be passed to the event handlers.
      */
-    emit(event, ...args) {
-        return this.$internals.eventEmitter.emit(event, ...args, this);
+    emit(event, data) {
+        return this.$internals.eventEmitter.emit(event, data, this);
     }
 
     /**

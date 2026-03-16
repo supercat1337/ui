@@ -4,6 +4,7 @@ var ConfigManager = class {
     this.isSSR = false;
     this.hydrationDataKey = "__HYDRATION_DATA__";
     this.window = typeof globalThis !== "undefined" ? globalThis : {};
+    this.checkRefsFlag = true;
   }
   /**
    * Safely retrieves the hydration manifest from the global environment.
@@ -1870,7 +1871,7 @@ var Component = class {
     }
     this.$internals.refs = refs;
     this.$internals.scopeRefs = scopeRefs;
-    if (this.refsAnnotation) {
+    if (Config.checkRefsFlag && this.refsAnnotation) {
       checkRefs(refs, this.refsAnnotation);
     }
   }
@@ -1899,10 +1900,10 @@ var Component = class {
   /**
    * Emits an event with the given arguments.
    * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
-   * @param {...any} args - The arguments to be passed to the event handlers.
+   * @param {any} data - The data object to be passed to the event handlers.
    */
-  emit(event, ...args) {
-    return this.$internals.eventEmitter.emit(event, ...args, this);
+  emit(event, data) {
+    return this.$internals.eventEmitter.emit(event, data, this);
   }
   /**
    * Attaches an event listener to the specified element.

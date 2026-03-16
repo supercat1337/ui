@@ -66,15 +66,6 @@ export interface ComponentOptions {
 }
 
 /**
- * Internal state and controllers.
- */
-export interface Internals {
-    instanceId: string;
-    sid: string | null;
-    eventEmitter: any; // Ideally import { EventEmitter } from '@supercat1337/event-emitter'
-}
-
-/**
  * Interface for DOM references annotation.
  */
 export type RefsAnnotation = Record<string, any>;

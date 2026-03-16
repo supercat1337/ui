@@ -66,15 +66,6 @@ export interface ComponentOptions {
 }
 
 /**
- * Internal state and controllers.
- */
-export interface Internals {
-    instanceId: string;
-    sid: string | null;
-    eventEmitter: any; // Ideally import { EventEmitter } from '@supercat1337/event-emitter'
-}
-
-/**
  * Interface for DOM references annotation.
  */
 export type RefsAnnotation = Record<string, any>;
@@ -206,9 +197,9 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     /**
      * Emits an event with the given arguments.
      * @param {ComponentEvent} event - The name of the event to emit.
-     * @param {...any} args - The arguments to be passed to the event handlers.
+     * @param {any} data - The data object to be passed to the event handlers.
      */
-    emit(event: any, ...args: any[]): void;
+    emit(event: any, data: any): void;
     /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
@@ -897,6 +888,7 @@ declare class ConfigManager {
      * @type {globalThis}
      */
     window: typeof globalThis;
+    checkRefsFlag: boolean;
     /**
      * Safely retrieves the hydration manifest from the global environment.
      * @returns {{[key:string]:ComponentMetadata}|null}
