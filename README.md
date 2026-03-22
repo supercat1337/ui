@@ -59,29 +59,53 @@ npm install https://github.com/supercat1337/ui.git
 import { Component, html } from '@supercat1337/ui';
 
 class Header extends Component {
+    // Defined a semantic layout with Bootstrap-like utility classes
     layout = html`
-        <div class="d-flex justify-content-between">
+        <div class="d-flex justify-content-between p-3 border-bottom">
             <h2>My App</h2>
-            <button data-ref="refreshBtn">Refresh</button>
+            <button class="btn btn-outline-secondary" data-ref="refreshBtn">Refresh</button>
         </div>
     `;
+
+    // Runtime validation for references
     refsAnnotation = { refreshBtn: HTMLButtonElement.prototype };
 
     connectedCallback() {
-        this.getRefs().refreshBtn.onclick = () => location.reload();
+        const { refreshBtn } = this.getRefs();
+
+        refreshBtn.onclick = () => location.reload();
+
+        // Or use $on for auto-cleanup.
+        // This avoids memory leaks when the header is unmounted.
+        this.$on(refreshBtn, 'click', () => location.reload());
     }
 }
 
 class DynamicBody extends Component {
-    layout = () => html`<div>Time: ${new Date().toLocaleTimeString()}</div>`;
+    // Functional layout that re-evaluates on every rerender()
+    layout = () => html`
+        <div class="p-3"><strong>Time:</strong> ${new Date().toLocaleTimeString()}</div>
+    `;
+
+    connectedCallback() {
+        // Use addDisposer to ensure the interval is cleared when component unmounts
+        const timerId = setInterval(() => this.rerender(), 1000);
+        this.addDisposer(() => clearInterval(timerId));
+    }
 }
 
 class App extends Component {
-    layout = html`<header data-slot="header"></header>
-        <main data-slot="content"></main>`;
+    // Define slots for composition
+    layout = html`
+        <div class="app-wrapper">
+            <header data-slot="header"></header>
+            <main data-slot="content"></main>
+        </div>
+    `;
 
     constructor() {
         super();
+        // Compose the application using the Slot API
         this.addToSlot('header', new Header());
         this.addToSlot('content', new DynamicBody());
     }
