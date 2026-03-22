@@ -5,13 +5,13 @@ import { UniversalCard } from './universal-card.js';
 export class App extends Component {
     constructor() {
         super();
-        
+
         // Creating different flavors of the same component
         const lightCard = new UniversalCard('is-light', 'Light Mode');
         const darkCard = new UniversalCard('is-dark', 'Dark Mode');
 
         // Declaratively adding them to the pre-defined slot
-        this.addToSlot('content', lightCard, darkCard);
+        this.addToSlot('content', [lightCard, darkCard]);
     }
 
     layout = html`

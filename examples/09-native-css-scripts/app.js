@@ -16,9 +16,9 @@ export class App extends Component {
             new BlueComponent(),
             new BlueComponent(),
             new RedComponent(),
-            new RedComponent()
+            new RedComponent(),
         ];
 
-        this.addToSlot('content', ...components);
+        this.addToSlot('content', components);
     }
 }

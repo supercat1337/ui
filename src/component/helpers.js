@@ -64,9 +64,10 @@ export function resolveLayout(layout, ctx) {
  * Default handler for the "connect" event.
  * This function calls the `reloadText` method and then the `connectedCallback` method of the component.
  * If the `connectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {any} ctx
  * @param {Component} component - The component instance
  */
-export function onConnectDefault(component) {
+export function onConnectDefault(ctx, component) {
     component.reloadText();
     try {
         component.connectedCallback();
@@ -79,9 +80,10 @@ export function onConnectDefault(component) {
  * Default handler for the "disconnect" event.
  * This function calls the `disconnectedCallback` method of the component.
  * If the `disconnectedCallback` method throws an error, it is caught and console.error is called with the error.
+ * @param {any} ctx
  * @param {Component} component - The component instance
  */
-export function onDisconnectDefault(component) {
+export function onDisconnectDefault(ctx, component) {
     try {
         component.disconnectedCallback();
     } catch (e) {

@@ -7,13 +7,13 @@ export class SlotManager {
     slots = new Map();
 
     /** @type {Component} */
-    #component;
+    #ownerComponent;
 
     /**
      * @param {Component} component
      */
     constructor(component) {
-        this.#component = component;
+        this.#ownerComponent = component;
     }
 
     /**
@@ -25,14 +25,12 @@ export class SlotManager {
      * @returns {Slot} Returns the slot.
      */
     registerSlot(slotName) {
-        let slot = this.getSlot(slotName);
-        if (slot != null) {
-            return slot;
-        } else {
-            let slot = new Slot(slotName, this.#component);
+        let slot = this.slots.get(slotName);
+        if (!slot) {
+            slot = new Slot(slotName, this.#ownerComponent);
             this.slots.set(slotName, slot);
-            return slot;
         }
+        return slot;
     }
 
     /**
@@ -49,11 +47,11 @@ export class SlotManager {
      * @returns {HTMLElement|null}
      */
     getSlotElement(slotName) {
-        if (!this.#component.isConnected) {
+        if (!this.#ownerComponent.isConnected) {
             return null;
         }
 
-        return this.#component.$internals.scopeRefs[slotName] || null;
+        return this.#ownerComponent.$internals.scopeRefs[slotName] || null;
     }
 
     /**
@@ -72,9 +70,9 @@ export class SlotManager {
      * @param {string} slotName - The name of the slot to remove.
      */
     removeSlot(slotName) {
-        let slotExists = this.hasSlot(slotName);
-        if (slotExists) {
-            this.clearSlotContent(slotName);
+        const slot = this.slots.get(slotName);
+        if (slot) {
+            slot.clear();
             this.slots.delete(slotName);
         }
     }
@@ -87,7 +85,7 @@ export class SlotManager {
     hasSlotContent(slotName) {
         let slot = this.getSlot(slotName);
         if (slot == null) return false;
-        return slot.components.size > 0;
+        return slot.getLength() > 0;
     }
 
     /**
@@ -120,7 +118,7 @@ export class SlotManager {
      * The children components are mounted to the slot ref element with the "append" mode.
      */
     mountAllSlots() {
-        if (!this.#component.isConnected) return;
+        if (!this.#ownerComponent.isConnected) return;
 
         this.slots.forEach(slot => {
             slot.mount();
@@ -138,7 +136,7 @@ export class SlotManager {
         if (!slot) {
             console.warn(
                 `Slot "${slotName}" does not exist in component "${
-                    this.#component.constructor.name
+                    this.#ownerComponent.constructor.name
                 }"`
             );
             return;
@@ -152,9 +150,9 @@ export class SlotManager {
      * This method iterates over all children components of the component and calls their unmount method.
      */
     unmountAll() {
-        for (let [slotName, slot] of this.slots) {
+        this.slots.forEach(slot => {
             slot.unmount();
-        }
+        });
     }
 
     /**
@@ -171,10 +169,11 @@ export class SlotManager {
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} components - The components to add to the slot.
+     * @param {Component[]} components - The components to add to the slot.
+     * @param {"append"|"replace"|"prepend"} [mode="append"]
      * @returns {Slot} Returns the slot.
      */
-    attachToSlot(slotName, ...components) {
+    attachToSlot(slotName, components, mode = 'append') {
         let slot = this.registerSlot(slotName);
 
         for (let i = 0; i < components.length; i++) {
@@ -184,9 +183,9 @@ export class SlotManager {
             if (usingSlot != null) {
                 usingSlot.detach(component);
             }
-
-            slot.attach(component);
         }
+
+        slot.attachMany(components, mode);
 
         return slot;
     }
@@ -215,19 +214,9 @@ export class SlotManager {
      * @returns {Slot | null} The slot associated with the child component, or null if no slot is found.
      */
     findSlotByComponent(component) {
-        /*
-        for (let [slotName, slot] of this.slots) {
-            if (slot.components.has(component)) {
-                return slot;
-            }
-        }
-
-        return null;
-        */
-
         let parentComponent = component.$internals.parentComponent;
 
-        if (parentComponent != this.#component) {
+        if (parentComponent != this.#ownerComponent) {
             return null;
         }
 
@@ -260,6 +249,6 @@ export class SlotManager {
 
     getSlots() {
         return this.slots;
+        //return new Map(this.slots);
     }
-
 }

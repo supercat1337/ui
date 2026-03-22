@@ -8,11 +8,11 @@ test('Integration: Moving a component between slots', t => {
     const child = /** @type {any} */ ({ $internals: { parentComponent: null, assignedSlotName: '' } });
 
     // Step 1: Attach to Header
-    manager.attachToSlot('header', child);
+    manager.attachToSlot('header', [child]);
     t.is(child.$internals.assignedSlotName, 'header');
 
     // Step 2: Move to Footer
-    manager.attachToSlot('footer', child);
+    manager.attachToSlot('footer', [child]);
     t.is(child.$internals.assignedSlotName, 'footer');
     t.is(manager.getSlotLength('header'), 0, 'Old slot should be empty');
     t.is(manager.getSlotLength('footer'), 1, 'New slot should have the component');

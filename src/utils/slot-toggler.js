@@ -18,12 +18,12 @@ export class SlotToggler {
      * Creates a new instance of SlotToggler.
      * @param {Component} component - The component that owns the slots.
      * @param {string[]} slotNames - The names of the slots.
-     * @param {string} activeSlotName - The name of the slot that is currently active.
+     * @param {string} [activeSlotName] - The name of the slot that is currently active.
      */
     constructor(component, slotNames, activeSlotName) {
         this.component = component;
         this.#slotNames = slotNames.slice();
-        this.#activeSlotName = activeSlotName;
+        this.#activeSlotName = activeSlotName ? activeSlotName : this.#slotNames[0];
     }
 
     get slotNames() {

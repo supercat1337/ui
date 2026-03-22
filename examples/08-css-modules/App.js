@@ -23,6 +23,6 @@ export class App extends Component {
             type: 'secondary',
         });
 
-        this.addToSlot('buttonContainer', saveBtn, cancelBtn);
+        this.addToSlot('buttonContainer', [saveBtn, cancelBtn]);
     }
 }

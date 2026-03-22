@@ -600,10 +600,11 @@ export class Component {
         return this.slotManager.slotNames;
     }
 
-    #detachFromParentSlot() {
+    detachFromSlot() {
         let oldParentComponent = this.parentComponent;
-        if (oldParentComponent) {
-            let slot = oldParentComponent.slotManager.findSlotByComponent(this);
+        if (oldParentComponent && this.$internals.assignedSlotName) {
+            //let slot = oldParentComponent.slotManager.findSlotByComponent(this);
+            let slot = oldParentComponent.slotManager.getSlot(this.$internals.assignedSlotName);
             if (!slot) return false;
 
             return slot.detach(this);
@@ -614,29 +615,65 @@ export class Component {
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} components - The component to add to the slot.
+     * @param {Component|Component[]} componentOrComponents - The component to add to the slot.
+     * @param {"append"|"replace"|"prepend"} [mode="append"]
+     * @returns {Component<T>}
      * @throws {Error} If the slot does not exist.
      */
-    addToSlot(slotName, ...components) {
+    addToSlot(slotName, componentOrComponents, mode = 'append') {
+        /** @type {Component[]} */
+        const components = Array.isArray(componentOrComponents)
+            ? componentOrComponents
+            : [componentOrComponents];
+
+        const validModes = new Set(['append', 'replace', 'prepend']);
+        if (!validModes.has(mode)) mode = 'append';
+
+        const oldLength = this.slotManager.getSlotLength(slotName);
+        const slot = this.slotManager.attachToSlot(slotName, components, mode);
+
         const parentSid = this.$internals.sid;
-        const startIndex = this.slotManager.getSlotLength(slotName);
+        if (parentSid) {
+            const allComponents = slot.getComponents();
+            let startIndex = 0;
 
-        for (let i = 0; i < components.length; i++) {
-            const child = components[i];
-
-            if (parentSid) {
-                const newSid = `${parentSid}.${slotName}.${startIndex + i}`;
-                this.#recursiveUpdateSid(child, newSid);
+            if (mode === 'append') {
+                startIndex = oldLength;
             }
 
-            child.#detachFromParentSlot();
+            for (let i = startIndex; i < allComponents.length; i++) {
+                const child = allComponents[i];
+                const newSid = `${parentSid}.${slotName}.${i}`;
+                this.#recursiveUpdateSid(child, newSid);
+            }
         }
-
-        let slot = this.slotManager.attachToSlot(slotName, ...components);
 
         if (this.#isConnected) {
-            slot.mount();
+            if (mode == 'replace') {
+                slot.unmount();
+                slot.mount();
+            } else {
+                const slotRoot = this.slotManager.getSlotElement(slotName);
+                if (!slotRoot) {
+                    console.warn(`Slot root for "${slotName}" not found, cannot mount children`);
+                    return this;
+                }
+
+                if (mode == 'append') {
+                    for (let i = 0; i < components.length; i++) {
+                        let child = components[i];
+                        child.mount(slotRoot, 'append');
+                    }
+                } else if (mode == 'prepend') {
+                    for (let i = components.length - 1; i >= 0; i--) {
+                        let child = components[i];
+                        child.mount(slotRoot, 'prepend');
+                    }
+                }
+            }
         }
+
+        return this;
     }
 
     /**

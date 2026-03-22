@@ -297,7 +297,7 @@ test('SlotManager: removes and unmounts slots correctly', t => {
     const child = new Component();
     child.setLayout('<div></div>');
 
-    manager.attachToSlot('sidebar', child);
+    manager.attachToSlot('sidebar', [child]);
 
     // Targets lines 165-169 (unmountSlot)
     manager.unmountSlot('sidebar');
@@ -329,7 +329,7 @@ test('SlotManager: child and slot lookup branches', t => {
     );
 
     // 2. Targets findSlotByComponent success
-    manager.attachToSlot('main', child);
+    manager.attachToSlot('main', [child]);
     const foundSlot = manager.findSlotByComponent(child);
     t.is(foundSlot.name, 'main', 'Should find the correct slot by component reference');
 
@@ -350,7 +350,7 @@ test('SlotManager: utility methods coverage', t => {
     t.is(manager.getSlotLength('empty'), 0, 'Length of unknown slot should be 0');
 
     manager.registerSlot('active');
-    manager.attachToSlot('active', new Component(), new Component());
+    manager.attachToSlot('active', [new Component(), new Component()]);
     t.is(manager.getSlotLength('active'), 2, 'Should return correct number of components');
 
     // Targets mountAllSlots (ensure it respects parent connection)

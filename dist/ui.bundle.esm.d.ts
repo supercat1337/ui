@@ -274,13 +274,16 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * @returns {string[]}
      */
     getSlotNames(): string[];
+    detachFromSlot(): boolean;
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} components - The component to add to the slot.
+     * @param {Component|Component[]} componentOrComponents - The component to add to the slot.
+     * @param {"append"|"replace"|"prepend"} [mode="append"]
+     * @returns {Component<T>}
      * @throws {Error} If the slot does not exist.
      */
-    addToSlot(slotName: string, ...components: Component[]): void;
+    addToSlot(slotName: string, componentOrComponents: Component | Component[], mode?: "append" | "replace" | "prepend"): Component<T>;
     /**
      * Returns the parent component of the current component, or null if the current component is a root component.
      * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
@@ -337,9 +340,9 @@ export class SlotToggler {
      * Creates a new instance of SlotToggler.
      * @param {Component} component - The component that owns the slots.
      * @param {string[]} slotNames - The names of the slots.
-     * @param {string} activeSlotName - The name of the slot that is currently active.
+     * @param {string} [activeSlotName] - The name of the slot that is currently active.
      */
-    constructor(component: Component, slotNames: string[], activeSlotName: string);
+    constructor(component: Component, slotNames: string[], activeSlotName?: string);
     /** @type {Component} */
     component: Component;
     get slotNames(): string[];
@@ -841,10 +844,11 @@ declare class SlotManager {
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
-     * @param {...Component} components - The components to add to the slot.
+     * @param {Component[]} components - The components to add to the slot.
+     * @param {"append"|"replace"|"prepend"} [mode="append"]
      * @returns {Slot} Returns the slot.
      */
-    attachToSlot(slotName: string, ...components: Component[]): Slot;
+    attachToSlot(slotName: string, components: Component[], mode?: "append" | "replace" | "prepend"): Slot;
     /**
      * Removes the given child component from all slots.
      * This method first checks if the child component exists in the component's internal maps.
@@ -926,15 +930,20 @@ declare class Slot {
     constructor(name: string, component: Component);
     /** @type {string} */
     name: string;
-    /** @type {Set<Component>} */
-    components: Set<Component>;
     /**
      * Attaches a component to the slot.
      * This method sets the given component's parent component and parent slot name,
-     * and adds the component to the slot's internal set of components.
+     * and adds the component to the slot's internal array of components.
      * @param {Component} component - The component to attach to the slot.
+     * @param {"append"|"replace"|"prepend"} [mode='append']
      */
-    attach(component: Component): void;
+    attach(component: Component, mode?: "append" | "replace" | "prepend"): void;
+    /**
+     *
+     * @param {Component[]} components
+     * @param {"append"|"replace"|"prepend"} [mode='append']
+     */
+    attachMany(components: Component[], mode?: "append" | "replace" | "prepend"): void;
     /**
      * Detaches a component from the slot.
      * This method sets the given component's parent component and parent slot name to null,
