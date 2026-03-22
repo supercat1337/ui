@@ -48,6 +48,9 @@ export class Component {
 
     #cachedElement = null;
 
+    /** @type {Function[]} */
+    #disposers = [];
+
     /**
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
@@ -309,6 +312,7 @@ export class Component {
         this.$internals.disconnectController.abort();
         this.$internals.refs = {};
         this.$internals.scopeRefs = {};
+        this.#runDisposers();
         this.emit('disconnect');
     }
 
@@ -343,6 +347,7 @@ export class Component {
      * @returns {Element}
      */
     #render() {
+        //const layout = this.layout || `<html-fragment></html-fragment>`;
         const layout = this.layout;
         if (!layout) throw new Error('Layout is not defined.');
 
@@ -590,6 +595,40 @@ export class Component {
         }
     }
 
+    /**
+     * Registers a cleanup function to be executed when the component is unmounted.
+     * * This is the recommended way to manage third-party resources (like MobX disposers,
+     * timers, or external library instances) to ensure they are properly cleaned up
+     * without manually overriding `disconnectedCallback`.
+     *
+     * @param {() => void} fn - The cleanup function to register.
+     * @example
+     * connectedCallback() {
+     * // Example: Auto-cleanup for a timer
+     * const timerId = setInterval(() => this.tick(), 1000);
+     * this.addDisposer(() => clearInterval(timerId));
+     * * // Example: Auto-cleanup for a third-party library
+     * const chart = new Chart(this.getRefs().canvas, config);
+     * this.addDisposer(() => chart.destroy());
+     * }
+     */
+    addDisposer(fn) {
+        if (typeof fn === 'function') {
+            this.#disposers.push(fn);
+        }
+    }
+
+    #runDisposers() {
+        this.#disposers.forEach(dispose => {
+            try {
+                dispose();
+            } catch (e) {
+                console.error(`Error in disposer:`, e);
+            }
+        });
+        this.#disposers = [];
+    }
+
     /* Slots, parent, children */
 
     /**
@@ -600,6 +639,30 @@ export class Component {
         return this.slotManager.slotNames;
     }
 
+    /**
+     * Clears the given slot name of all its children components.
+     * This method first removes all children components of the given slot name from the component,
+     * then unmounts them and finally removes them from the component's internal maps.
+     * @param {string} slotName - The name of the slot to clear.
+     * @returns {boolean} True if the slot was cleared, false otherwise.
+     */
+    clearSlotContent(slotName) {
+        return this.slotManager.clearSlotContent(slotName);
+    }
+
+    /**
+     * Checks if the given slot name has any children components associated with it.
+     * @param {string} slotName - The name of the slot to check.
+     * @returns {boolean} True if the slot has children components, false otherwise.
+     */
+    hasSlotContent(slotName) {
+        return this.slotManager.hasSlotContent(slotName);
+    }
+
+    /**
+     * Detaches a component from the slot.
+     * @returns {boolean}
+     */
     detachFromSlot() {
         let oldParentComponent = this.parentComponent;
         if (oldParentComponent && this.$internals.assignedSlotName) {
@@ -610,6 +673,15 @@ export class Component {
             return slot.detach(this);
         }
         return false;
+    }
+
+    /**
+     * Returns a slot element
+     * @param {string} slotName
+     * @returns {HTMLElement|null}
+     */
+    getSlotElement(slotName) {
+        return this.slotManager.getSlotElement(slotName);
     }
 
     /**

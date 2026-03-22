@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Component, html, SlotToggler } from '@supercat1337/ui';
+import { Component, html, Toggler, hideElements, showElements } from '@supercat1337/ui';
 
 class App extends Component {
     layout = html`
@@ -9,57 +9,90 @@ class App extends Component {
             <button data-ref="loadBtn">Fetch Profile Module</button>
 
             <div class="stage">
-                <div data-slot="empty">No profile loaded yet.</div>
-
-                <div data-slot="loading">
+                <div data-ref="emptyState">No profile loaded yet.</div>
+                <div data-ref="loadingState" class="d-none">
                     <div class="loader">Fetching ESM module...</div>
                 </div>
-
-                <div data-slot="content"></div>
+                <div data-ref="errorState" class="error-message" class="d-none"></div>
+                <div data-slot="content" data-ref="contentState" class="d-none"></div>
             </div>
         </div>
     `;
 
-    // Type annotation for the load button
     refsAnnotation = {
         loadBtn: HTMLButtonElement.prototype,
+        emptyState: HTMLElement.prototype,
+        loadingState: HTMLElement.prototype,
+        errorState: HTMLElement.prototype,
+        contentState: HTMLElement.prototype,
     };
 
-    /** @type {SlotToggler} */
-    toggler = new SlotToggler(this, ['empty', 'loading', 'content'], 'empty');
+    // Toggler for static UI states (empty, loading, error)
+    stateToggler = new Toggler();
+
+    // Reference to the currently loaded component (if any)
+    loadedComponent = null;
 
     connectedCallback() {
         const refs = this.getRefs();
 
-        // Initialize the toggler with three possible slots
-        this.toggler.init();
+        // Setup Toggler items for static states
+        this.stateToggler
+            .addItem(
+                'empty',
+                () => showElements(refs.emptyState),
+                () => hideElements(refs.emptyState)
+            )
+            .addItem(
+                'loading',
+                () => showElements(refs.loadingState),
+                () => hideElements(refs.loadingState)
+            )
+            .addItem(
+                'error',
+                () => showElements(refs.errorState),
+                () => hideElements(refs.errorState)
+            )
+            .addItem(
+                'content',
+                () => showElements(refs.contentState),
+                () => hideElements(refs.contentState)
+            )
+            .init('empty');
 
         refs.loadBtn.onclick = async () => {
-            // Prevent multiple loads if already active
-            if (this.toggler.activeSlotName === 'content') return;
+            if (this.loadedComponent) return; // already loaded
 
-            // Switch to loading state and disable UI
-            this.toggler.toggle('loading');
+            this.stateToggler.setActive('loading');
             refs.loadBtn.disabled = true;
 
             try {
-                // Dynamic import of the ESM module
                 const { UserProfile } = await import('./UserProfile.js');
-
-                // Create the component instance
                 const profile = new UserProfile();
 
-                this.addToSlot("content", profile);
+                // Replace any existing content in the content slot
+                this.addToSlot('content', profile, 'replace');
+                this.loadedComponent = profile;
 
-                // Finally, switch to the content slot
-                this.toggler.toggle('content');
+                this.stateToggler.setActive('content');
             } catch (err) {
                 console.error('Failed to load ESM component:', err);
-                // Revert to empty state on error
-                this.toggler.toggle('empty');
+                refs.errorState.textContent = `Failed to load: ${err.message}`;
+                this.stateToggler.setActive('error');
                 refs.loadBtn.disabled = false;
+                this.clearSlotContent('content');
             }
         };
+    }
+
+    // Optional: cleanup when component unmounts
+    disconnectedCallback() {
+        if (this.loadedComponent) {
+            this.loadedComponent.detachFromSlot();
+            this.loadedComponent = null;
+        }
+
+        this.stateToggler.clear();
     }
 }
 

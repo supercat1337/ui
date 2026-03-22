@@ -58,6 +58,7 @@ test('Helpers: resolveLayout normalizes fragments and text', t => {
  */
 test('Helpers: lifecycle defaults catch errors', t => {
     const comp = new Component();
+    const ctx = {};
     
     // Mock console.error to verify the catch block
     const originalError = console.error;
@@ -66,13 +67,13 @@ test('Helpers: lifecycle defaults catch errors', t => {
 
     // 1. Test onConnectDefault error (Line 75)
     comp.connectedCallback = () => { throw new Error('Fail'); };
-    onConnectDefault(comp);
+    onConnectDefault(ctx, comp);
     t.true(errorIntercepted, 'Should catch and log error in connectedCallback');
 
     // 2. Test onDisconnectDefault error (Line 89)
     errorIntercepted = false;
     comp.disconnectedCallback = () => { throw new Error('Fail'); };
-    onDisconnectDefault(comp);
+    onDisconnectDefault(ctx, comp);
     t.true(errorIntercepted, 'Should catch and log error in disconnectedCallback');
 
     console.error = originalError;

@@ -5,7 +5,7 @@ export class Toggler {
     items = new Map();
 
     /** @type {string} */
-    #active = "";
+    #active = '';
 
     /**
      * Adds an item to the toggler.
@@ -15,10 +15,11 @@ export class Toggler {
      */
     addItem(itemName, on, off) {
         if (this.items.has(itemName)) {
-            throw new Error("Item already exists");
+            throw new Error('Item already exists');
         }
 
         this.items.set(itemName, { isActive: false, on, off });
+        return this;
     }
 
     /**
@@ -27,7 +28,7 @@ export class Toggler {
      */
     removeItem(itemName) {
         if (this.#active === itemName) {
-            this.#active = "";
+            this.#active = '';
         }
 
         this.items.delete(itemName);
@@ -40,7 +41,7 @@ export class Toggler {
      */
     setActive(active) {
         if (!this.items.has(active)) {
-            throw new Error("Item not found");
+            throw new Error('Item not found');
         }
 
         if (this.#active === active) {
@@ -87,5 +88,10 @@ export class Toggler {
     init(active) {
         this.setActive(active);
         this.runCallbacks();
+    }
+
+    clear() {
+        this.items = new Map();
+        this.#active = '';
     }
 }

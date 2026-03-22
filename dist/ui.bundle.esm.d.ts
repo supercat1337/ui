@@ -270,11 +270,53 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     expandForce(): void;
     /**
+     * Registers a cleanup function to be executed when the component is unmounted.
+     * * This is the recommended way to manage third-party resources (like MobX disposers,
+     * timers, or external library instances) to ensure they are properly cleaned up
+     * without manually overriding `disconnectedCallback`.
+     *
+     * @param {() => void} fn - The cleanup function to register.
+     * @example
+     * connectedCallback() {
+     * // Example: Auto-cleanup for a timer
+     * const timerId = setInterval(() => this.tick(), 1000);
+     * this.addDisposer(() => clearInterval(timerId));
+     * * // Example: Auto-cleanup for a third-party library
+     * const chart = new Chart(this.getRefs().canvas, config);
+     * this.addDisposer(() => chart.destroy());
+     * }
+     */
+    addDisposer(fn: () => void): void;
+    /**
      * Returns an array of the slot names defined in the component.
      * @returns {string[]}
      */
     getSlotNames(): string[];
+    /**
+     * Clears the given slot name of all its children components.
+     * This method first removes all children components of the given slot name from the component,
+     * then unmounts them and finally removes them from the component's internal maps.
+     * @param {string} slotName - The name of the slot to clear.
+     * @returns {boolean} True if the slot was cleared, false otherwise.
+     */
+    clearSlotContent(slotName: string): boolean;
+    /**
+     * Checks if the given slot name has any children components associated with it.
+     * @param {string} slotName - The name of the slot to check.
+     * @returns {boolean} True if the slot has children components, false otherwise.
+     */
+    hasSlotContent(slotName: string): boolean;
+    /**
+     * Detaches a component from the slot.
+     * @returns {boolean}
+     */
     detachFromSlot(): boolean;
+    /**
+     * Returns a slot element
+     * @param {string} slotName
+     * @returns {HTMLElement|null}
+     */
+    getSlotElement(slotName: string): HTMLElement | null;
     /**
      * Adds a child component to a slot.
      * @param {string} slotName - The name of the slot to add the component to.
@@ -374,7 +416,7 @@ export class Toggler {
      * @param {(itemName:string) => void} on - The function to be called when the item is set as active.
      * @param {(itemName:string) => void} off - The function to be called when the item is set as inactive.
      */
-    addItem(itemName: string, on: (itemName: string) => void, off: (itemName: string) => void): void;
+    addItem(itemName: string, on: (itemName: string) => void, off: (itemName: string) => void): this;
     /**
      * Removes the item with the given name from the toggler.
      * @param {string} itemName - The name of the item to be removed.
@@ -398,6 +440,7 @@ export class Toggler {
      * @param {string} active - The name of the item to be set as active.
      */
     init(active: string): void;
+    clear(): void;
     #private;
 }
 export const UI_COMPONENT_SHEET: unique symbol;
