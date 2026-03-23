@@ -203,16 +203,17 @@ All native approaches (1–3) work without any build step, making them ideal for
 
 ### Utilities
 
-| Method                           | Description                                                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `serialize()`                    | Returns a plain object containing the component’s state (for SSR). Override to provide custom serialization.             |
-| `getRootNode()`                  | Returns the root DOM element of the component.                                                                           |
-| `removeOnUnmount(...elements)`   | Marks elements to be automatically removed from the DOM when the component unmounts.                                     |
-| `queryLocal(tagName, selector?)` | Searches for elements **only** within the current component’s direct DOM (excluding child components). Returns an array. |
-| `getComponentBySid(targetSid)`   | Finds a descendant component by its server ID (`sid`).                                                                   |
-| `getHydrationData()`             | Returns the hydration data for this instance from the global manifest (if any).                                          |
-| `reloadText()`                   | Triggers the registered text update function (useful for i18n).                                                          |
-| `setTextUpdateFunction(func)`    | Registers a function to update text nodes when `reloadText()` is called.                                                 |
+| Method                              | Description                                                                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serialize()`                       | Returns a plain object containing the component’s state (for SSR). Override to provide custom serialization.                                                |
+| `getRootNode()`                     | Returns the root DOM element of the component.                                                                                                              |
+| `removeOnUnmount(...elements)`      | Marks elements to be automatically removed from the DOM when the component unmounts.                                                                        |
+| `queryLocal(tagName, selector?)`    | Searches for elements **only** within the current component’s direct DOM (excluding child components). Returns an array.                                    |
+| `getComponentBySid(targetSid)`      | Finds a descendant component by its server ID (`sid`).                                                                                                      |
+| `getHydrationData()`                | Returns the hydration data for this instance from the global manifest (if any).                                                                             |
+| `reloadText()`                      | Triggers the registered text update function (useful for i18n).                                                                                             |
+| `setTextUpdateFunction(func)`       | Registers a function to update text nodes when `reloadText()` is called.                                                                                    |
+| `addDisposer(fn: () => void): void` | Registers a cleanup function that is automatically called when the component unmounts. Useful for timers, subscriptions, and third‑party library instances. |
 
 ---
 
@@ -227,7 +228,7 @@ Attaches the component to the DOM.
 
 ```js
 const widget = new MyWidget();
-widget.setLayout("<div>Hello world!</div>");
+widget.setLayout('<div>Hello world!</div>');
 widget.mount('#app', 'append');
 ```
 

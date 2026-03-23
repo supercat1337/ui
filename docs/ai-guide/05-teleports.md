@@ -117,3 +117,107 @@ export class ModalComponent extends Component {
 - Floating panels or context menus.
 
 Teleports are fully integrated with the component lifecycle – they are created when the component mounts and destroyed when it unmounts.
+
+## Modal Patterns: When to Use Teleports
+
+Modals are a classic use case for teleports because they often need to break out of parent containers to avoid `overflow: hidden` or z‑index issues. However, the way you structure your components depends on the number of triggers.
+
+### Pattern 1: Single Trigger (Button inside the Modal)
+
+If the modal is opened by exactly one button (e.g., a settings modal), it’s often simplest to keep the button and the modal together in a single component. The modal’s teleported content is managed by the same component, and the button’s click event toggles visibility.
+
+```js
+class SettingsModal extends Component {
+    layout = () => html`<button data-ref="openBtn">Settings</button>`;
+    teleports = { /* modal content */ };
+    // ...
+}
+```
+
+### Pattern 2: Multiple Triggers (Centralized Modal)
+
+If the same modal needs to be opened from different places (e.g., “Edit” buttons in a list), create the modal as a **separate component** and control it via a shared reference. Each trigger component can import the modal instance and call an `open` method directly.
+
+**Step 1: Create the modal component (exported)**
+
+```js
+// EditModal.js
+import { Component, html } from '@supercat1337/ui';
+
+export class EditModal extends Component {
+    teleports = {
+        modal: {
+            layout: () => html`
+                <div class="modal-overlay" data-ref="overlay" style="display:none">
+                    <div class="modal-content">
+                        <form data-ref="form">
+                            <input data-ref="nameInput" />
+                            <button data-ref="saveBtn">Save</button>
+                        </form>
+                    </div>
+                </div>
+            `,
+            target: document.body,
+        },
+    };
+
+    open(itemData) {
+        const { nameInput, overlay } = this.getRefs();
+        nameInput.value = itemData.name;
+        overlay.classList.toggle('d-none');
+    }
+
+    close() {
+        const { overlay } = this.getRefs();
+        overlay.classList.toggle('d-none');
+    }
+
+    connectedCallback() {
+        const { saveBtn, overlay } = this.getRefs();
+        this.$on(saveBtn, 'click', () => this.close());
+        this.$on(overlay, 'click', (e) => {
+            if (e.target === overlay) this.close();
+        });
+    }
+}
+```
+
+**Step 2: Instantiate the modal once (e.g., in the main app)**
+
+```js
+// main.js
+import { EditModal } from './EditModal.js';
+
+const modal = new EditModal();
+modal.mount(document.body); // mounts the teleport and the anchor (anchor is empty)
+```
+
+**Step 3: In each trigger component, import and use the modal**
+
+```js
+// TableRow.js
+import { Component, html } from '@supercat1337/ui';
+import { modal } from '../main.js'; // or pass it via props
+
+export class TableRow extends Component {
+    layout = html`<button data-ref="editBtn">Edit</button>`;
+
+    constructor(itemData) {
+        super();
+        this.itemData = itemData;
+    }
+
+    connectedCallback() {
+        this.$on(this.getRefs().editBtn, 'click', () => {
+            modal.open(this.itemData);
+        });
+    }
+}
+```
+
+**Why this pattern works well:**
+
+- **No event listeners between components** – you simply call a method on the shared modal instance.
+- **Clean separation** – the modal handles its own DOM and teleport; triggers only need a reference.
+- **Resource efficient** – only one modal instance exists, regardless of how many triggers.
+

@@ -1,7 +1,7 @@
 ---
 title: BareDOM – Utility Functions & Classes
 version: 2.0.0
-tags: [utilities, helpers, dom]
+tags: [utilities, helpers, dom, Toggler, SlotToggler]
 ---
 
 # Utility Functions
@@ -16,113 +16,122 @@ BareDOM ships with a collection of pure helper functions that you can import and
 | `delegateEvent(eventType, ancestor, selector, listener)` | Attaches a delegated event listener.               |
 | `fadeIn(element, duration?, wnd?)`                       | Fades in an element using `requestAnimationFrame`. |
 | `fadeOut(element, duration?, wnd?)`                      | Fades out an element.                              |
-| `hideElements(...elements)`                              | Adds the `d-none` class to each element.           |
+| `hideElements(...elements) `                             | Adds the `d-none` class to each element.           |
 | `showElements(...elements)`                              | Removes the `d-none` class.                        |
 | `scrollToBottom(element)`                                | Scrolls the element to its bottom.                 |
 | `scrollToTop(element)`                                   | Scrolls the element to its top.                    |
-| `injectCoreStyles(doc?)`                                 | Injects minimal CSS (`.d-none`, `html-fragment`).  |
-| `extractComponentStyles(doc?)`                           | Extracts all `<style>` content as a string.        |
+| `injectCoreStyles(doc?)`                                 | Injects minimal CSS (`.d-none`, etc.) into head.   |
 
-## Async & Timing
-
-| Function                            | Description                                              |
-| ----------------------------------- | -------------------------------------------------------- |
-| `sleep(ms)`                         | Returns a promise that resolves after `ms` milliseconds. |
-| `debounce(func, wait, immediate?)`  | Returns a debounced version of `func`.                   |
-| `throttle(func, wait, options?)`    | Returns a throttled version of `func`.                   |
-| `withMinimumTime(promise, minTime)` | Ensures a promise takes at least `minTime` ms.           |
-
-## String & Formatting
-
-| Function                                       | Description                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------- |
-| `escapeHtml(unsafe)`                           | Escapes `&`, `<`, `>`, `"`, `'`.                              |
-| `unsafeHTML(html)`                             | Marks a string as safe to bypass escaping in `html` template. |
-| `formatBytes(bytes, decimals?, lang?, sizes?)` | Converts bytes to human‑readable string.                      |
-| `formatDate(unix_timestamp)`                   | Returns a localized date string.                              |
-| `formatDateTime(unix_timestamp)`               | Returns a localized date + time string.                       |
-| `getDefaultLanguage()`                         | Returns user's language (or `'en'`).                          |
-| `unixtime(dateObject?)`                        | Returns Unix timestamp (seconds).                             |
-
-## Pagination
-
-| Function                                                                      | Description                                                             |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `createPaginationArray(current, total, delta?, gap?)`                         | Returns an array of page numbers with gaps (e.g., `[1, 2, "...", 10]`). |
-| `renderPaginationElement(current, total, itemUrlRenderer?, onClickCallback?)` | Returns a Bootstrap‑style `<ul>` pagination element.                    |
-
-## Storage Helpers
-
-| Function                 | Description                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------- |
-| `createStorage(storage)` | Wraps `localStorage`/`sessionStorage` with JSON serialization and change subscriptions. |
-| `local`                  | Pre‑wrapped `localStorage` with subscriptions.                                          |
-| `session`                | Pre‑wrapped `sessionStorage` with subscriptions.                                        |
-
-```js
-import { local } from '@supercat1337/ui';
-local.set('theme', 'dark');
-local.on('theme', (newVal, oldVal) => console.log('Theme changed', newVal));
-```
-
-## Misc
-
-| Function                                              | Description                                                   |
-| ----------------------------------------------------- | ------------------------------------------------------------- |
-| `copyToClipboard(text, wnd?)`                         | Copies text to the clipboard.                                 |
-| `isDarkMode(wnd?)`                                    | Detects if the user prefers dark mode.                        |
-| `uniqueId(prefix?)`                                   | Generates a unique ID with an optional prefix.                |
-| `onClickOutside(element, callback)`                   | Calls callback when a click occurs outside the given element. |
-| `showSpinnerInButton(button, customClassName?, doc?)` | Adds a spinner inside a button.                               |
-| `removeSpinnerFromButton(button)`                     | Removes the spinner from a button.                            |
-| `ui_button_status_waiting_on(button, text)`           | Disables button and shows spinner.                            |
-| `ui_button_status_waiting_off(button, text)`          | Restores button.                                              |
-| `ui_button_status_waiting_off_html(button, html)`     | Restores button with HTML content.                            |
+---
 
 ## Utility Classes
 
-### `Toggler`
+### `Toggler` (Visibility Management)
 
-Manages a set of items where only one can be active at a time.
+`Toggler` is a general-purpose state manager. It manages a set of items where only one can be active at a time by toggling CSS classes or executing custom callbacks. It **does not** affect the DOM lifecycle (no unmounting).
+
+**Important:** Always call `toggler.clear()` in your component's `disconnectedCallback`. This removes all internal references and callbacks, allowing the GC to reclaim DOM elements held in closures.
 
 ```js
-import { Toggler } from '@supercat1337/ui';
+import { Component, Toggler, injectCoreStyles } from '@supercat1337/ui';
 
-const toggler = new Toggler();
-toggler.addItem(
-    'tab1',
-    name => showTab1(),
-    name => hideTab1()
-);
-toggler.addItem(
-    'tab2',
-    name => showTab2(),
-    name => hideTab2()
-);
-toggler.init('tab1'); // activates tab1, calls its on callback
-toggler.setActive('tab2'); // switches to tab2
+injectCoreStyles();
+
+class SimpleTabs extends Component {
+    layout = html`
+        <div>
+            <button data-ref="btn1">Tab 1</button>
+            <button data-ref="btn2">Tab 2</button>
+
+            <div data-ref="pane1" class="d-none">Content 1</div>
+            <div data-ref="pane2" class="d-none">Content 2</div>
+        </div>
+    `;
+
+    refsAnnotation = {
+        btn1: HTMLButtonElement.prototype,
+        btn2: HTMLButtonElement.prototype,
+        pane1: HTMLDivElement.prototype,
+        pane2: HTMLDivElement.prototype,
+    };
+
+    connectedCallback() {
+        const { btn1, btn2, pane1, pane2 } = this.getRefs();
+        const toggler = new Toggler();
+
+        // Register items with ON/OFF callbacks
+        toggler.addItem(
+            't1',
+            () => pane1.classList.remove('d-none'),
+            () => pane1.classList.add('d-none')
+        );
+        toggler.addItem(
+            't2',
+            () => pane2.classList.remove('d-none'),
+            () => pane2.classList.add('d-none')
+        );
+
+        this.$on(btn1, 'click', () => toggler.setActive('t1'));
+        this.$on(btn2, 'click', () => toggler.setActive('t2'));
+
+        toggler.init('t1');
+    }
+
+    disconnectedCallback() {
+        // ⚠️ Crucial: Clear the toggler to prevent memory leaks from DOM references in callbacks
+        this.tabsToggler.clear();
+    }
+}
 ```
 
-### `SlotToggler`
+### `SlotToggler` (Lifecycle Management)
 
-A specialized version for toggling slots (see [Slots](./03-slots.md)).
-
-```js
-new SlotToggler(component, slotNames, activeSlotName);
-```
-
-### `Config`
-
-Configuration manager for SSR flags and hydration data access.
+`SlotToggler` is a specialized version for toggling between multiple `data-slot` areas.
+**Crucial Difference:** It automatically **mounts** the active slot's components and **unmounts** the inactive ones, triggering their `disconnectedCallback` and freeing resources.
 
 ```js
-import { Config } from '@supercat1337/ui';
-console.log(Config.isSSR); // true on server, false on client
-Config.checkRefsFlag = false; // disable runtime ref validation
+import { Component, SlotToggler } from '@supercat1337/ui';
+
+class App extends Component {
+    layout = html`
+        <div data-slot="view1"></div>
+        <div data-slot="view2"></div>
+    `;
+
+    connectedCallback() {
+        // Automatically manages mount/unmount for components in these slots
+        this.slotToggler = new SlotToggler(this, ['view1', 'view2']);
+
+        this.addToSlot('view1', new HomeView());
+        this.addToSlot('view2', new SettingsView());
+
+        // Switching to 'view2' will physically unmount HomeView from the DOM
+        this.slotToggler.setActive('view2');
+    }
+}
 ```
 
 ---
 
-## Full List
+## UI Helpers (Button Status)
 
-For a complete list of exported utilities, refer to the TypeScript definitions (`ui.esm.d.ts`).
+These functions manage button states (disabling and showing spinners). They require `injectCoreStyles()` to be called once in your app.
+
+| Function                                          | Description                                               |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| `ui_button_status_waiting_on(button, text)`       | Disables the button and shows a spinner with text.        |
+| `ui_button_status_waiting_off(button, text)`      | Re-enables the button and restores the original text.     |
+| `ui_button_status_waiting_off_html(button, html)` | Re-enables the button and sets the provided HTML content. |
+
+---
+
+## `Config`
+
+Global configuration manager for SSR and hydration.
+
+```js
+import { Config } from '@supercat1337/ui';
+
+// Example: accessing hydration data manually
+const data = Config.getHydrationData('my-component-sid');
+```

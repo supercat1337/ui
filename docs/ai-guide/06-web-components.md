@@ -6,16 +6,15 @@ tags: [web-components, custom-elements, shadow-dom, integration]
 
 # Using Web Components with BareDOM
 
-BareDOM components can seamlessly work with native Web Components (custom elements). You can use them in your layout and even access their internal Shadow DOM elements through the unified refs system.
+BareDOM components can seamlessly work with native Web Components. You can use them in your layout and even access their internal Shadow DOM elements through the unified refs system.
 
 ## Basic Integration
 
-Simply use the custom element tag in your layout. The component will be rendered as expected.
+Simply use the custom element tag in your layout.
 
 ```js
 import { Component, html } from '@supercat1337/ui';
 
-// Define a simple Web Component
 class MyButton extends HTMLElement {
     constructor() {
         super();
@@ -31,23 +30,35 @@ class Demo extends Component {
 }
 ```
 
-However, `data-ref` attributes inside the shadow root will **not** be automatically discovered because the ref scanner only looks in the main component's light DOM.
+By default, the ref scanner only looks in the main component’s light DOM. Elements inside the shadow root will not be automatically discovered.
 
 ## Accessing Shadow DOM Refs
 
-To include elements from a custom element's shadow root, you need to add that shadow root to the list of additional roots the ref scanner should traverse. Do this by subscribing to the `before-update-refs` event.
+To include elements from a custom element’s shadow root into your component’s `getRefs()`, you need to register that shadow root as an additional scanning target.
+
+### The Reliable Way: Use `querySelector` in `before-update-refs`
+
+The `before-update-refs` event fires just before the component scans for refs. Inside the callback, you can locate the custom element using `this.getRootNode().querySelector()` (or any DOM method) and push its `shadowRoot` into `this.$internals.additionalRoots`.
 
 ```js
-class Demo extends Component {
+class ShadowDemo extends Component {
+    // Declare refs from both light DOM and shadow DOM
     refsAnnotation = {
-        btn: HTMLButtonElement.prototype, // from shadow DOM
+        title: HTMLHeadingElement.prototype, // light DOM
+        shadowBtn: HTMLButtonElement.prototype, // inside <my-button> shadow DOM
     };
 
-    layout = html`<my-button></my-button>`;
+    layout = html`
+        <div>
+            <h1 data-ref="title">Host Content</h1>
+            <my-button></my-button>
+        </div>
+    `;
 
     constructor() {
         super();
 
+        // Register the shadow root before refs are scanned
         this.on('before-update-refs', () => {
             const myButton = this.getRootNode().querySelector('my-button');
             if (myButton?.shadowRoot) {
@@ -57,73 +68,39 @@ class Demo extends Component {
     }
 
     connectedCallback() {
-        const refs = this.getRefs();
-        refs.btn.onclick = () => alert('Shadow button clicked!');
-    }
-}
-```
-
-### `additionalRoots` Property
-
-`this.$internals.additionalRoots` is an array that the ref scanner uses to find elements with `data-ref`. You can push any `Document` or `ShadowRoot` into it.
-
-- The ref scanner runs during mount and whenever `updateRefs()` is called.
-- It also respects the `scopeAttribute` configuration (by default, it stops at `data-component-root` and `data-slot`).
-
-## Example: Full Integration with `FancyCard`
-
-See `examples/16-web-components` for a complete working example. It defines a custom element with Shadow DOM containing a title and a button, and the BareDOM component accesses both.
-
-```js
-// FancyCard.js
-class FancyCard extends HTMLElement {
-    constructor() {
-        super();
-        const shadow = this.attachShadow({ mode: 'open' });
-        shadow.innerHTML = `
-            <h3 data-ref="cardTitle">Default Title</h3>
-            <button data-ref="cardBtn">Click me</button>
-        `;
-    }
-}
-customElements.define('fancy-card', FancyCard);
-
-// WebComponentIntegration.js
-export class WebComponentIntegration extends Component {
-    refsAnnotation = {
-        mainBtn: HTMLButtonElement.prototype,
-        cardTitle: HTMLHeadingElement.prototype,
-        cardBtn: HTMLButtonElement.prototype,
-    };
-
-    layout = html`
-        <div>
-            <button data-ref="mainBtn">Main Button</button>
-            <fancy-card></fancy-card>
-        </div>
-    `;
-
-    constructor() {
-        super();
-        this.on('before-update-refs', () => {
-            const fancyCard = this.getRootNode().querySelector('fancy-card');
-            if (fancyCard?.shadowRoot) {
-                this.$internals.additionalRoots.push(fancyCard.shadowRoot);
-            }
+        // All refs (light + shadow) are now available
+        const { title, shadowBtn } = this.getRefs();
+        this.$on(shadowBtn, 'click', () => {
+            title.textContent = 'Interacted with Shadow DOM!';
         });
     }
-
-    connectedCallback() {
-        const refs = this.getRefs();
-        refs.mainBtn.onclick = () => (refs.cardTitle.textContent = 'Updated!');
-        refs.cardBtn.onclick = () => alert('Shadow button clicked!');
-    }
 }
 ```
 
-## Benefits
+> **Important:** Do not rely on `this.getRefs()` inside `before-update-refs` – refs are still being collected at that point. The `getRootNode().querySelector()` approach is safe and works regardless of whether the custom element has a `data-ref` attribute.
 
-- **Unified refs** – treat shadow DOM elements just like light DOM elements.
-- **Type safety** – include them in `refsAnnotation`.
-- **Automatic cleanup** – listeners added with `$on` are removed when the component unmounts.
-- **No conflict** – BareDOM components and Web Components can coexist peacefully.
+### Alternative: Using a Ref on the Custom Element
+
+If you give the custom element a `data-ref`, you could theoretically use that ref inside `before-update-refs`. However, because refs are not yet ready, this will not work as expected. The recommended pattern is to use `querySelector` as shown above.
+
+```js
+// ❌ Not recommended – refs are not yet available
+this.on('before-update-refs', () => {
+    const { customEl } = this.getRefs(); // may be undefined
+    if (customEl?.shadowRoot) {
+        this.$internals.additionalRoots.push(customEl.shadowRoot);
+    }
+});
+
+// ✅ Correct – use direct DOM query
+this.on('before-update-refs', () => {
+    const customEl = this.getRootNode().querySelector('[data-ref="customEl"]');
+    if (customEl?.shadowRoot) {
+        this.$internals.additionalRoots.push(customEl.shadowRoot);
+    }
+});
+```
+
+## Complete Example
+
+A fully runnable example is available in [`examples/16-web-components`](./examples/16-web-components). It shows how to integrate a custom element with Shadow DOM and access its internal refs.

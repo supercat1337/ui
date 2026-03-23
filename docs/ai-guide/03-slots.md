@@ -1,7 +1,7 @@
 ---
 title: BareDOM – Slots & Composition
 version: 2.0.0
-tags: [slots, composition, addToSlot]
+tags: [slots, composition, addToSlot, SlotToggler, Toggler]
 ---
 
 # Slots
@@ -44,10 +44,10 @@ this.addToSlot('main', [new Article(), new Comments()], 'prepend');
 this.addToSlot('content', new NewContent(), 'replace');
 ```
 
-**Chaining:** `addToSlot` returns the component instance, so you can chain multiple calls.
+**Chaining:** `addToSlot` returns the component instance, so you can chain calls:
 
 ```js
-this.addToSlot('header', new Header()).addToSlot('footer', new Footer());
+this.addToSlot('a', compA).addToSlot('b', compB);
 ```
 
 ## Managing Slots
@@ -76,126 +76,147 @@ this.detachFromSlot();
 parentComponent.addToSlot('new-slot', this);
 ```
 
-## The `SlotToggler` Utility
+---
 
-`SlotToggler` helps you toggle between multiple slots (e.g., tabs). It automatically hides inactive slots and shows the active one.
+## `SlotToggler`
+
+`SlotToggler` is a specialized utility for managing the lifecycle of components across multiple slots (e.g., in a tabbed UI or a multi‑step form). Unlike simple CSS toggling, `SlotToggler` **automatically unmounts** components in inactive slots and **mounts** them in the active slot. This ensures that only the visible view consumes DOM resources and that lifecycle hooks (`connectedCallback`, `disconnectedCallback`) are triggered correctly.
+
+### Key Difference: `SlotToggler` vs. `Toggler`
+
+- **`SlotToggler`**: Mounts/unmounts components. Best for performance and heavy views where you want to free resources when hidden.
+- **`Toggler`**: Toggles CSS visibility (using the `d-none` class). Best for preserving component state (like form inputs) or simple static elements.
+
+### Example: Tabbed Interface
 
 ```js
-import { SlotToggler } from '@supercat1337/ui';
+import { Component, html, SlotToggler } from '@supercat1337/ui';
 
-class Tabs extends Component {
+class TabbedApp extends Component {
     layout = html`
-        <div data-slot="tab1"></div>
-        <div data-slot="tab2"></div>
-        <div data-slot="tab3"></div>
+        <div class="tabs-container">
+            <nav class="tab-menu">
+                <button data-ref="tab1Btn">Dashboard</button>
+                <button data-ref="tab2Btn">Settings</button>
+            </nav>
+            <div data-slot="dashboard"></div>
+            <div data-slot="settings"></div>
+        </div>
     `;
 
-    constructor() {
-        super();
-        this.addToSlot('tab1', new Tab1());
-        this.addToSlot('tab2', new Tab2());
-        this.addToSlot('tab3', new Tab3());
+    refsAnnotation = {
+        tab1Btn: HTMLButtonElement.prototype,
+        tab2Btn: HTMLButtonElement.prototype,
+    };
 
-        this.toggler = new SlotToggler(this, ['tab1', 'tab2', 'tab3'], 'tab1');
-    }
+    connectedCallback() {
+        const { tab1Btn, tab2Btn } = this.getRefs();
 
-    switchTo(tab) {
-        this.toggler.toggle(tab);
+        // 1. Initialize SlotToggler with the component and slot names
+        this.slotToggler = new SlotToggler(this, ['dashboard', 'settings']);
+
+        // 2. Add components to slots (they will be managed by the toggler)
+        this.addToSlot('dashboard', new HeavyDashboard());
+        this.addToSlot('settings', new SettingsForm());
+
+        // 3. Setup navigation using $on for automatic cleanup
+        this.$on(tab1Btn, 'click', () => this.slotToggler.toggle('dashboard'));
+        this.$on(tab2Btn, 'click', () => this.slotToggler.toggle('settings'));
+
+        // 4. Set initial active slot
+        this.slotToggler.init(); // activates the first slot (dashboard)
     }
 }
 ```
 
-**Important:** The `SlotToggler` expects that the slot elements are direct children of the component's root. It works by adding/removing the `d-none` class to the slot containers. You must have the core styles injected (call `injectCoreStyles()` once in your app) for the `d-none` class to work.
+---
 
-### Example: Lazy Loading with Slots
+## Advanced Composition: Lazy Loading
 
-The following example demonstrates how to load a component dynamically and manage UI states (empty, loading, error, content) using a `Toggler`. Only the dynamic component lives in a slot; static states are simple DOM elements whose visibility is toggled via CSS.
+Slots can be used for dynamic content loading. In this example, we use a simple `Toggler` to switch between UI states because we are working with a single slot and static elements.
 
 ```js
-import { Component, html, Toggler, hideElements, showElements } from '@supercat1337/ui';
+import { Component, html, Toggler } from '@supercat1337/ui';
 
-class App extends Component {
+class LazyLoader extends Component {
     layout = html`
-        <div class="app-wrapper">
-            <h2>Async Module Loading</h2>
-            <button data-ref="loadBtn">Fetch Profile Module</button>
+        <div class="wrapper">
+            <button data-ref="loadBtn">Load Profile</button>
 
-            <div class="stage">
-                <div data-ref="emptyState">No profile loaded yet.</div>
-                <div data-ref="loadingState" class="d-none">
-                    <div class="loader">Fetching ESM module...</div>
-                </div>
-                <div data-ref="errorState" class="error-message d-none"></div>
-                <div data-slot="content" data-ref="contentState" class="d-none"></div>
-            </div>
+            <div data-ref="loadingState" class="d-none">Loading...</div>
+            <div data-ref="errorState" class="d-none text-danger"></div>
+
+            <div data-slot="content"></div>
         </div>
     `;
 
     refsAnnotation = {
         loadBtn: HTMLButtonElement.prototype,
-        emptyState: HTMLElement.prototype,
-        loadingState: HTMLElement.prototype,
-        errorState: HTMLElement.prototype,
-        contentState: HTMLElement.prototype,
+        loadingState: HTMLDivElement.prototype,
+        errorState: HTMLDivElement.prototype,
     };
 
-    // Toggler for UI states (empty, loading, error, content)
-    stateToggler = new Toggler();
-
-    // Reference to the currently loaded component (if any)
-    loadedComponent = null;
-
     connectedCallback() {
-        const refs = this.getRefs();
+        const { loadBtn, loadingState, errorState } = this.getRefs();
 
-        // Setup Toggler items for each state (chaining enabled)
+        // Use Toggler for simple visibility switching (CSS-based)
+        this.stateToggler = new Toggler();
         this.stateToggler
-            .addItem('empty', () => showElements(refs.emptyState), () => hideElements(refs.emptyState))
-            .addItem('loading', () => showElements(refs.loadingState), () => hideElements(refs.loadingState))
-            .addItem('error', () => showElements(refs.errorState), () => hideElements(refs.errorState))
-            .addItem('content', () => showElements(refs.contentState), () => hideElements(refs.contentState))
-            .init('empty'); // activate the 'empty' state initially
+            .addItem(
+                'idle',
+                () => {},
+                () => {}
+            )
+            .addItem(
+                'loading',
+                () => loadingState.classList.remove('d-none'),
+                () => loadingState.classList.add('d-none')
+            )
+            .addItem(
+                'error',
+                () => errorState.classList.remove('d-none'),
+                () => errorState.classList.add('d-none')
+            )
+            .addItem(
+                'content',
+                () => {},
+                () => {}
+            )
+            .init('idle');
 
-        refs.loadBtn.onclick = async () => {
-            if (this.loadedComponent) return; // already loaded
-
+        this.$on(loadBtn, 'click', async () => {
             this.stateToggler.setActive('loading');
-            refs.loadBtn.disabled = true;
+            loadBtn.disabled = true;
 
             try {
-                const { UserProfile } = await import('./UserProfile.js');
-                const profile = new UserProfile();
+                // Dynamic import (ESM)
+                const { ProfileCard } = await import('./ProfileCard.js');
+                const profile = new ProfileCard();
 
-                // Insert the component into the content slot (replaces any previous content)
+                // Mount the new component into the slot (replacing any previous content)
                 this.addToSlot('content', profile, 'replace');
-                this.loadedComponent = profile;
 
                 this.stateToggler.setActive('content');
             } catch (err) {
-                console.error('Failed to load ESM component:', err);
-                refs.errorState.textContent = `Failed to load: ${err.message}`;
+                errorState.textContent = `Failed to load: ${err.message}`;
                 this.stateToggler.setActive('error');
-                refs.loadBtn.disabled = false;
+                loadBtn.disabled = false;
                 this.clearSlotContent('content');
             }
-        };
-    }
-
-    disconnectedCallback() {
-        // Clean up when the component is removed
-        if (this.loadedComponent) {
-            this.loadedComponent.detachFromSlot();
-            this.loadedComponent = null;
-        }
-        this.stateToggler.clear(); // remove all items and prevent memory leaks
+        });
     }
 }
 ```
 
-**Why `Toggler` and not `SlotToggler`?**  
-- Here we only have one slot (`content`). The static UI states are simple DOM elements, not components. `Toggler` is perfect for toggling their visibility via CSS classes.  
-- `SlotToggler` is intended for switching between **multiple slots**, each potentially containing child components. It automatically mounts/unmounts components when switching, which is unnecessary in this single‑slot scenario.
+**Why `Toggler` and not `SlotToggler` in this case?**
 
-This pattern is ideal for lazy‑loading heavy components, code‑splitting, or handling asynchronous data fetching with clear error feedback.
+- **Single Slot:** We only have one slot (`content`). We aren’t switching between multiple placeholders.
+- **Static Elements:** UI states like “loading” and “error” are simple `div` elements already present in the layout, not separate `Component` instances.
+- **Visibility vs. Presence:** `Toggler` just toggles CSS classes (visibility). `SlotToggler` would be overkill here as it is designed to physically mount/unmount different components across multiple slots.
 
-> **Note:** A full runnable version of this example is available in [`examples/07-lazy-loading`](./examples/07-lazy-loading).
+---
+
+## Further Reading
+
+- [Lifecycle & Events](./04-lifecycle-events.md)
+- [Teleports](./05-teleports.md)

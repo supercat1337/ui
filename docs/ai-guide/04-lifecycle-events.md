@@ -241,7 +241,57 @@ class Parent extends Component {
 }
 
 // Mounting: Child connected → Parent connected
+// (Wait, I can see my child's refs in my connectedCallback! ✅)
 // Unmounting: Child disconnected → Parent disconnected
 ```
 
 > **Note:** The same order applies to the `'connect'` and `'disconnect'` events emitted by the component's event emitter.
+
+## Managing Subscriptions and Cleanup
+
+Components can emit custom events using `emit`, and you can subscribe to them with `on` or `once`. However, **subscriptions persist even after the component is unmounted**. This means that if you subscribe inside `connectedCallback`, and the component is later unmounted and remounted, you will accumulate duplicate subscriptions.
+
+### Best Practices
+
+- **Use `addDisposer` for subscriptions that should be tied to the component's mount state.** Register your unsubscribe function so it is automatically called when the component unmounts.
+    ```javascript
+    connectedCallback() {
+        const unsubscribe = this.on('some-event', () => { ... });
+        this.addDisposer(unsubscribe);
+    }
+    ```
+- **For permanent subscriptions (across mounts), subscribe in the constructor.** This ensures the subscription is created once and lasts for the entire lifetime of the component instance.
+    ```javascript
+    constructor() {
+        super();
+        this.on('global-event', () => { ... });
+    }
+    ```
+- **Use `once` when you only need to react to the first occurrence.** `once` automatically unsubscribes after the first emission, which is safe to use anywhere. Even with `once`, if you want to be 100% sure no references remain if the event never fires, you can still wrap it in `addDisposer`.
+- **For DOM events, always use `$on`.** It cleans up automatically when the component unmounts.
+
+### Why Not to Subscribe Inside `connectedCallback` Without Cleanup?
+
+If your component is dynamically mounted/unmounted (e.g., inside a `SlotToggler`), every mount will add a new subscription. The old subscriptions never disappear, leading to memory leaks and unintended multiple executions.
+
+**Example of a problem:**
+
+```javascript
+class MyComponent extends Component {
+    connectedCallback() {
+        // ❌ This adds a new subscription on every mount
+        this.on('refresh', () => this.update());
+    }
+}
+```
+
+**Correct approach with `addDisposer`:**
+
+```javascript
+class MyComponent extends Component {
+    connectedCallback() {
+        const unsubscribe = this.on('refresh', () => this.update());
+        this.addDisposer(unsubscribe);
+    }
+}
+```
