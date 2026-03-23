@@ -136,76 +136,101 @@ class TabbedApp extends Component {
 Slots can be used for dynamic content loading. In this example, we use a simple `Toggler` to switch between UI states because we are working with a single slot and static elements.
 
 ```js
-import { Component, html, Toggler } from '@supercat1337/ui';
+// @ts-check
+import { 
+    Component, 
+    html, 
+    Toggler, 
+    hideElements, 
+    showElements 
+} from '@supercat1337/ui';
 
-class LazyLoader extends Component {
+class App extends Component {
+    // 1. Define the layout with data-ref for elements and data-slot for dynamic content
     layout = html`
-        <div class="wrapper">
-            <button data-ref="loadBtn">Load Profile</button>
+        <div class="app-wrapper">
+            <h2>Async Module Loading</h2>
+            <button data-ref="loadBtn">Fetch Profile Module</button>
 
-            <div data-ref="loadingState" class="d-none">Loading...</div>
-            <div data-ref="errorState" class="d-none text-danger"></div>
-
-            <div data-slot="content"></div>
+            <div class="stage">
+                <div data-ref="emptyState">No profile loaded yet.</div>
+                <div data-ref="loadingState" class="d-none">
+                    <div class="loader">Fetching ESM module...</div>
+                </div>
+                <div data-ref="errorState" class="error-message d-none"></div>
+                
+                <div data-slot="content" data-ref="contentState" class="d-none"></div>
+            </div>
         </div>
     `;
 
     refsAnnotation = {
         loadBtn: HTMLButtonElement.prototype,
-        loadingState: HTMLDivElement.prototype,
-        errorState: HTMLDivElement.prototype,
+        emptyState: HTMLElement.prototype,
+        loadingState: HTMLElement.prototype,
+        errorState: HTMLElement.prototype,
+        contentState: HTMLElement.prototype,
     };
 
+    // Initialize Toggler instance to manage UI state transitions
+    stateToggler = new Toggler();
+
     connectedCallback() {
-        const { loadBtn, loadingState, errorState } = this.getRefs();
+        // 2. Destructure refs for cleaner access throughout the method
+        const { 
+            loadBtn, 
+            emptyState, 
+            loadingState, 
+            errorState, 
+            contentState 
+        } = this.getRefs();
 
-        // Use Toggler for simple visibility switching (CSS-based)
-        this.stateToggler = new Toggler();
+        // 3. Configure Toggler items using built-in visibility helpers
+        // This ensures only one state is visible at a time
         this.stateToggler
-            .addItem(
-                'idle',
-                () => {},
-                () => {}
-            )
-            .addItem(
-                'loading',
-                () => loadingState.classList.remove('d-none'),
-                () => loadingState.classList.add('d-none')
-            )
-            .addItem(
-                'error',
-                () => errorState.classList.remove('d-none'),
-                () => errorState.classList.add('d-none')
-            )
-            .addItem(
-                'content',
-                () => {},
-                () => {}
-            )
-            .init('idle');
+            .addItem('empty', () => showElements(emptyState), () => hideElements(emptyState))
+            .addItem('loading', () => showElements(loadingState), () => hideElements(loadingState))
+            .addItem('error', () => showElements(errorState), () => hideElements(errorState))
+            .addItem('content', () => showElements(contentState), () => hideElements(contentState))
+            .init('empty');
 
+        // 4. Use this.$on for event listening to ensure automatic unsubscription on unmount
         this.$on(loadBtn, 'click', async () => {
+            // Guard clause to prevent concurrent loading requests
+            if (loadBtn.disabled) return;
+
             this.stateToggler.setActive('loading');
             loadBtn.disabled = true;
 
             try {
-                // Dynamic import (ESM)
-                const { ProfileCard } = await import('./ProfileCard.js');
-                const profile = new ProfileCard();
+                // Dynamic ESM import of the component
+                const { UserProfile } = await import('./UserProfile.js');
+                const profile = new UserProfile();
 
-                // Mount the new component into the slot (replacing any previous content)
+                // 'replace' mode automatically disconnects any previous component in this slot
                 this.addToSlot('content', profile, 'replace');
 
+                // Switch to success state
                 this.stateToggler.setActive('content');
             } catch (err) {
+                console.error('Failed to load ESM component:', err);
+                
+                // Update error UI and switch state
                 errorState.textContent = `Failed to load: ${err.message}`;
                 this.stateToggler.setActive('error');
-                loadBtn.disabled = false;
+                
+                // Cleanup slot and allow retry
                 this.clearSlotContent('content');
+                loadBtn.disabled = false;
             }
         });
+
+        // 5. Register cleanup for the Toggler instance to prevent memory leaks
+        this.addDisposer(() => this.stateToggler.clear());
     }
 }
+
+export { App };
 ```
 
 **Why `Toggler` and not `SlotToggler` in this case?**

@@ -13,7 +13,7 @@ class App extends Component {
                 <div data-ref="loadingState" class="d-none">
                     <div class="loader">Fetching ESM module...</div>
                 </div>
-                <div data-ref="errorState" class="error-message" class="d-none"></div>
+                <div data-ref="errorState" class="error-message d-none"></div>
                 <div data-slot="content" data-ref="contentState" class="d-none"></div>
             </div>
         </div>
@@ -27,72 +27,57 @@ class App extends Component {
         contentState: HTMLElement.prototype,
     };
 
-    // Toggler for static UI states (empty, loading, error)
     stateToggler = new Toggler();
 
-    // Reference to the currently loaded component (if any)
-    loadedComponent = null;
-
     connectedCallback() {
-        const refs = this.getRefs();
+        const { loadBtn, emptyState, loadingState, errorState, contentState } = this.getRefs();
 
-        // Setup Toggler items for static states
         this.stateToggler
             .addItem(
                 'empty',
-                () => showElements(refs.emptyState),
-                () => hideElements(refs.emptyState)
+                () => showElements(emptyState),
+                () => hideElements(emptyState)
             )
             .addItem(
                 'loading',
-                () => showElements(refs.loadingState),
-                () => hideElements(refs.loadingState)
+                () => showElements(loadingState),
+                () => hideElements(loadingState)
             )
             .addItem(
                 'error',
-                () => showElements(refs.errorState),
-                () => hideElements(refs.errorState)
+                () => showElements(errorState),
+                () => hideElements(errorState)
             )
             .addItem(
                 'content',
-                () => showElements(refs.contentState),
-                () => hideElements(refs.contentState)
+                () => showElements(contentState),
+                () => hideElements(contentState)
             )
             .init('empty');
 
-        refs.loadBtn.onclick = async () => {
-            if (this.loadedComponent) return; // already loaded
+        this.$on(loadBtn, 'click', async () => {
+            if (loadBtn.disabled) return;
 
             this.stateToggler.setActive('loading');
-            refs.loadBtn.disabled = true;
+            loadBtn.disabled = true;
 
             try {
                 const { UserProfile } = await import('./UserProfile.js');
                 const profile = new UserProfile();
 
-                // Replace any existing content in the content slot
                 this.addToSlot('content', profile, 'replace');
-                this.loadedComponent = profile;
-
                 this.stateToggler.setActive('content');
             } catch (err) {
-                console.error('Failed to load ESM component:', err);
-                refs.errorState.textContent = `Failed to load: ${err.message}`;
+                console.error('Failed to load:', err);
+                errorState.textContent = `Error: ${err.message}`;
+
                 this.stateToggler.setActive('error');
-                refs.loadBtn.disabled = false;
                 this.clearSlotContent('content');
+                loadBtn.disabled = false;
             }
-        };
-    }
+        });
 
-    // Optional: cleanup when component unmounts
-    disconnectedCallback() {
-        if (this.loadedComponent) {
-            this.loadedComponent.detachFromSlot();
-            this.loadedComponent = null;
-        }
-
-        this.stateToggler.clear();
+        this.addDisposer(() => this.stateToggler.clear());
     }
 }
 
