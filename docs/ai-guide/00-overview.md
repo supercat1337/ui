@@ -44,10 +44,10 @@ npm install @supercat1337/ui
 ## Quick Start
 
 ```js
-import { Component, html } from '@supercat1337/ui';
+import { Component } from '@supercat1337/ui';
 
 class Hello extends Component {
-    layout = html`<h1 data-ref="title">Hello, World!</h1>`;
+    layout = `<h1 data-ref="title">Hello, World!</h1>`;
     refsAnnotation = { title: HTMLHeadingElement.prototype };
 
     connectedCallback() {

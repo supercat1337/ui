@@ -86,7 +86,7 @@ function DOMReady(callback, doc = window.document) {
  * @returns {string} The escaped string.
  */
 function escapeHtml(unsafe) {
-    if (!unsafe) return "";
+    if (!unsafe) return '';
     return unsafe.replace(/[&<>"']/g, function (m) {
         let charset = {
             '&': '&amp;',
@@ -265,7 +265,7 @@ function formatBytes(bytes, decimals = 2, lang, sizes) {
 /**
  * Copies the given text to the clipboard using the Clipboard API.
  * @param {string} text - The text to be copied to the clipboard.
- * @param {Window & typeof globalThis} [wnd=window] 
+ * @param {Window & typeof globalThis} [wnd=window]
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
 function copyToClipboard(text, wnd = window) {
@@ -430,7 +430,7 @@ function unsafeHTML(html) {
  * @param {...any} values - Dynamic values to interpolate.
  * @returns {DocumentFragment} A live DocumentFragment containing the parsed HTML.
  */
-function html(strings, ...values) {
+function htmlDOM(strings, ...values) {
     /** @type {string} */
     let rawResult = '';
 
@@ -517,7 +517,7 @@ function html(strings, ...values) {
 
 // 1. As a tagged template (with escaping and array support)
 const items = ['Apple', 'Banana'];
-const element = html`
+const element = htmlDOM`
     <ul>
         ${items.map(item => `<li>${item}</li>`)} 
         <li>${unsafeHTML('<span>Trusted info</span>')}</li>
@@ -525,7 +525,7 @@ const element = html`
 `;
 
 // 2. As a regular function
-const simple = html('<div>Static content</div>');
+const simple = htmlDOM('<div>Static content</div>');
 
 */
 
@@ -675,6 +675,80 @@ const unsubscribe = onClickOutside(modal, () => {
 // unsubscribe();
 
 */
+
+/**
+ * Tagged template literal for secure and high-performance HTML string generation.
+ * Automatically escapes dynamic values to prevent XSS attacks unless wrapped in `unsafeHTML`.
+ * Supports primitives (strings, numbers, booleans) and arrays of values.
+ *
+ * @example
+ * // Returns: "<div>Hello &lt;script&gt;</div>"
+ * const result = html`<div>Hello ${'<script>'}</div>`;
+ *
+ * @example
+ * // Returns: "<ul><li>1</li><li>2</li></ul>"
+ * const items = [1, 2];
+ * const list = html`<ul>${items.map(i => html`<li>${i}</li>`)}</ul>`;
+ *
+ * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
+ * @param {...any} values - Dynamic values to be escaped and interpolated.
+ * @returns {string} A sanitized HTML string.
+ */
+function html(strings, ...values) {
+    /** @type {string} */
+    let rawResult = '';
+
+    // 1. Handle raw string input (non-tagged usage)
+    // Allows the function to be used as a simple string trimmer/formatter
+    if (typeof strings === 'string') {
+        return strings.trim();
+    }
+
+    // 2. Build the HTML string from tagged template parts
+    // Initialize with the first static fragment of the template
+    rawResult = strings[0];
+
+    for (let i = 0; i < values.length; i++) {
+        let value = values[i];
+
+        // Normalization: convert null, undefined, or false to empty strings
+        // to avoid rendering "null" or "false" in the final HTML
+        if (value === null || value === undefined || value === false) {
+            value = '';
+        }
+
+        // Processing Logic: Handle nested arrays and complex types
+        if (Array.isArray(value)) {
+            // Recursively process array elements and join them into a single string
+            const joined = value
+                .map(item => {
+                    // Filter out falsy values within arrays
+                    if (item === null || item === undefined || item === false) return '';
+
+                    // If the item is already marked as SafeHTML, return it as is
+                    if (item instanceof SafeHTML) return item.toString();
+
+                    // Otherwise, escape the string representation of the item
+                    return escapeHtml(String(item));
+                })
+                .join('');
+
+            // Wrap the joined string in SafeHTML to prevent double-escaping
+            // during the final assembly
+            value = unsafeHTML(joined);
+        }
+
+        // Final assembly: Escape the value unless it is an instance of SafeHTML
+        const stringValue =
+            value instanceof SafeHTML ? value.toString() : escapeHtml(String(value));
+
+        // Append interpolated value and the next static string part
+        rawResult += stringValue + strings[i + 1];
+    }
+
+    // Return the trimmed result for cleaner output
+    return rawResult.trim();
+}
 
 
 
@@ -1651,6 +1725,7 @@ class Internals {
 
 
 
+
 /**
  *
  * @param {((component: any) => Node|string)|string|null|Node} layout
@@ -1668,13 +1743,13 @@ function resolveLayout(layout, ctx) {
         if (returnValue instanceof Config.window.Node) {
             template = returnValue;
         } else if (typeof returnValue === 'string') {
-            template = html(returnValue);
+            template = htmlDOM(returnValue);
         } else {
             throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
         }
     } else if (typeof layout === 'string') {
         // Static: parse the string via the html helper
-        template = html(layout.trim());
+        template = htmlDOM(layout.trim());
     } else if (layout instanceof window.Node) {
         template = layout;
     } else {
@@ -2111,6 +2186,8 @@ function findHydrationRoot(container, sid) {
 
 
 
+const sharedTemplates = new WeakMap();
+
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -2122,7 +2199,18 @@ class Component {
     /** @type {Internals} */
     $internals = new Internals();
 
-    /** @type {((component: this) => Node|string)|string|null|Node} */
+    /**
+     * Shared template for all instances of this class.
+     * Best for performance as it's cached globally.
+     * @type {string|undefined}
+     */
+    static layout;
+
+    /**
+     * Instance-specific layout. Overrides static layout.
+     * Use a function for dynamic structures or a string/Node for unique instances.
+     * @type {((component: any) => Node|string)|string|null|Node}
+     */
     layout = null;
 
     /** @type {TeleportList} */
@@ -2438,14 +2526,24 @@ class Component {
      * @returns {Element}
      */
     #render() {
-        //const layout = this.layout || `<html-fragment></html-fragment>`;
-        const layout = this.layout;
+        const ctor = /** @type {typeof Component} */ (this.constructor);
+
+        const layout = this.layout || ctor.layout;
         if (!layout) throw new Error('Layout is not defined.');
 
-        const isStatic = typeof layout !== 'function';
+        const isFunction = typeof layout === 'function';
         const shouldClone = this.$internals.cloneTemplateOnRender;
 
-        if (isStatic) {
+        if (!isFunction && layout === ctor.layout) {
+            let cached = sharedTemplates.get(ctor);
+            if (!cached) {
+                cached = resolveLayout(layout, this);
+                sharedTemplates.set(ctor, cached);
+            }
+            return /** @type {Element} */ (cached.cloneNode(true));
+        }
+
+        if (!isFunction) {
             const cached = getCloneFromCache(this.#cachedElement, shouldClone);
             if (cached) return cached;
         }
@@ -2459,7 +2557,7 @@ class Component {
         });
 
         // Cache the result ONLY if it was a static layout
-        if (isStatic && shouldClone) {
+        if (!isFunction && shouldClone) {
             this.#cachedElement = result;
             return /** @type {Element} */ (result.cloneNode(true));
         }
@@ -3310,4 +3408,4 @@ const fullHtml = `
 `;
 */
 
-export { Component, Config, DOMReady, SlotToggler, Toggler, UI_COMPONENT_SHEET, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, extractComponentStyles, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateManifest, getDefaultLanguage, hideElements, html, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, uniqueId, unixtime, unsafeHTML, withMinimumTime };
+export { Component, Config, DOMReady, SlotToggler, Toggler, UI_COMPONENT_SHEET, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, extractComponentStyles, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateManifest, getDefaultLanguage, hideElements, html, htmlDOM, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, uniqueId, unixtime, unsafeHTML, withMinimumTime };

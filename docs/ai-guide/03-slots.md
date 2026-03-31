@@ -10,7 +10,7 @@ Slots are placeholders in a component's layout where child components (or other 
 
 ```js
 class Parent extends Component {
-    layout = html`
+    layout = `
         <div class="card">
             <header data-slot="header"></header>
             <main data-slot="content"></main>
@@ -90,10 +90,10 @@ parentComponent.addToSlot('new-slot', this);
 ### Example: Tabbed Interface
 
 ```js
-import { Component, html, SlotToggler } from '@supercat1337/ui';
+import { Component, SlotToggler } from '@supercat1337/ui';
 
 class TabbedApp extends Component {
-    layout = html`
+    layout = `
         <div class="tabs-container">
             <nav class="tab-menu">
                 <button data-ref="tab1Btn">Dashboard</button>
@@ -147,7 +147,7 @@ import {
 
 class App extends Component {
     // 1. Define the layout with data-ref for elements and data-slot for dynamic content
-    layout = html`
+    layout = `
         <div class="app-wrapper">
             <h2>Async Module Loading</h2>
             <button data-ref="loadBtn">Fetch Profile Module</button>

@@ -20,6 +20,8 @@ import { scanRootsForRefs } from './internals/ref-utils.js';
 import { findComponentBySid, collectComponentAncestors } from './internals/tree-utils.js';
 import { validateMountArgs, findHydrationRoot } from './internals/mounting-utils.js';
 
+const sharedTemplates = new WeakMap();
+
 /**
  * @template {import("dom-scope").RefsAnnotation} [T=any]
  */
@@ -31,7 +33,18 @@ export class Component {
     /** @type {Internals} */
     $internals = new Internals();
 
-    /** @type {((component: this) => Node|string)|string|null|Node} */
+    /**
+     * Shared template for all instances of this class.
+     * Best for performance as it's cached globally.
+     * @type {string|undefined}
+     */
+    static layout;
+
+    /**
+     * Instance-specific layout. Overrides static layout.
+     * Use a function for dynamic structures or a string/Node for unique instances.
+     * @type {((component: any) => Node|string)|string|null|Node}
+     */
     layout = null;
 
     /** @type {import('./types.d.ts').TeleportList} */
@@ -347,14 +360,24 @@ export class Component {
      * @returns {Element}
      */
     #render() {
-        //const layout = this.layout || `<html-fragment></html-fragment>`;
-        const layout = this.layout;
+        const ctor = /** @type {typeof Component} */ (this.constructor);
+
+        const layout = this.layout || ctor.layout;
         if (!layout) throw new Error('Layout is not defined.');
 
-        const isStatic = typeof layout !== 'function';
+        const isFunction = typeof layout === 'function';
         const shouldClone = this.$internals.cloneTemplateOnRender;
 
-        if (isStatic) {
+        if (!isFunction && layout === ctor.layout) {
+            let cached = sharedTemplates.get(ctor);
+            if (!cached) {
+                cached = resolveLayout(layout, this);
+                sharedTemplates.set(ctor, cached);
+            }
+            return /** @type {Element} */ (cached.cloneNode(true));
+        }
+
+        if (!isFunction) {
             const cached = getCloneFromCache(this.#cachedElement, shouldClone);
             if (cached) return cached;
         }
@@ -368,7 +391,7 @@ export class Component {
         });
 
         // Cache the result ONLY if it was a static layout
-        if (isStatic && shouldClone) {
+        if (!isFunction && shouldClone) {
             this.#cachedElement = result;
             return /** @type {Element} */ (result.cloneNode(true));
         }

@@ -8,110 +8,172 @@ tags: [layout, refs, html, template]
 
 The `layout` property defines the component's appearance. **It is mandatory** – a component without a `layout` cannot be mounted or rendered.
 
-The `layout` can be:
+In BareDOM, you can define layouts at two levels: **Static (Class-level)** for maximum performance and **Instance-level** for maximum flexibility.
 
-- **String** – parsed as HTML.
-- **Function** – returns a `Node` or `string`. The function is re‑evaluated on every render.
-- **Node** – a `DocumentFragment`, `HTMLElement`, or any node.
+## Static vs Instance Layouts
 
-Use the `html` tagged template to create `DocumentFragment` efficiently.
+### Static Layout (Recommended)
 
-```js
-// Static layout
-layout = html`<div data-ref="box">Static</div>`;
+Defined using the `static` keyword. This is the **Blueprint** for all instances of the class.
 
-// Dynamic layout (re‑evaluated on every render)
-layout = () => html`<div>Time: ${new Date().toLocaleTimeString()}</div>`;
-
-// Direct element
-layout = document.createElement('div');
-```
-
-You can also set the layout programmatically with `setLayout(layout, annotation?)`.
-
-> **Note:** If `layout` is a function, it is called every time the component is rendered (e.g., after `rerender()`). This is useful for dynamic content that depends on external state.
-
-### Basic Usage
+- **Performance:** The HTML string is parsed into a `DocumentFragment` **only once** for the entire class and cached. Every new instance simply clones this fragment.
+- **Requirement:** Must be a **String** (usually created with the `html` tag). This requirement allows the engine to use a high-performance caching strategy. By providing a static string, the template is parsed into a `DocumentFragment` once and stored in a private global cache (using `WeakMap`). This "blueprint" is then cloned for every new instance, which is significantly faster than re-parsing or handling unique DOM nodes for every component.
+- **SSR:** Ideal for Server-Side Rendering as the structure is available without creating an instance.
 
 ```js
-import { html, unsafeHTML } from '@supercat1337/ui';
-
-// Strings are escaped by default
-const safe = html`<div>${'<script>alert("xss")</script>'}</div>`;
-// Result: <div>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</div>
-
-// Use unsafeHTML to insert raw HTML
-const raw = html`<div>${unsafeHTML('<strong>bold</strong>')}</div>`;
-// Result: <div><strong>bold</strong></div>
+class MyButton extends Component {
+    static layout = html`<button class="btn"><slot></slot></button>`;
+}
 ```
 
-### Handling Different Value Types
+### Instance Layout
 
-| Type                                  | Behaviour                                                                |
-| ------------------------------------- | ------------------------------------------------------------------------ |
-| `null`, `undefined`, `false`          | Converted to empty string (they produce no output).                      |
-| `number`, `boolean`, `string`         | Converted to string and escaped.                                         |
-| `Element` (e.g., `HTMLElement`)       | The element is inserted directly (its `outerHTML` is used).              |
-| `TextNode`, `CommentNode`             | Text nodes are inserted with escaped content; comment nodes are ignored. |
-| `DocumentFragment`                    | Its children are appended to the fragment being built.                   |
-| `SafeHTML` (returned by `unsafeHTML`) | The wrapped string is inserted as raw HTML (no escaping).                |
-| `Array`                               | Values are processed recursively. Falsy values are skipped.              |
+Defined as a regular property. It **overrides** the static layout for a specific instance.
 
-### Arrays and Falsy Values
+- **Flexibility:** Use this when a specific component needs a unique structure or dynamic generation.
+- **Types:** Can be a **String**, a **Function** (called on every render), or a **DOM Node**.
 
 ```js
-const items = ['a', false, null, undefined, 'b'];
-const list = html`<ul>
-    ${items.map(i => (i ? html`<li>${i}</li>` : ''))}
-</ul>`;
-// The falsy values become empty strings, so only 'a' and 'b' appear.
+// Unique layout for this specific instance
+const uniqueBtn = new MyButton();
+uniqueBtn.layout = html`<button class="special-btn">Special</button>`;
 ```
 
-You can also pass an array directly – the library will flatten it and process each item.
+---
 
-### Nested Fragments
+## Template Helpers
 
-`html` calls are composable – you can nest fragments inside each other.
+BareDOM provides specialized helpers to construct your layouts efficiently.
+
+### `html` (String-based)
+
+A tagged template literal that returns a **sanitized string**.
+
+- **Use case:** High-performance rendering and **SSR**.
+- **Behavior:** Automatically escapes values to prevent XSS.
+- **Recommendation:** Always prefer `html` for layouts. While `htmlDOM` is available, using it inside a layout function is usually unnecessary because the engine will eventually convert your string to DOM anyway. Using strings (`html`) is faster and ensures SSR compatibility.
 
 ```js
-const sub = html`<span>inner</span>`;
-const main = html`<div>${sub}</div>`;
-// main contains a <div> with a <span>
+const header = title => html`<h1>${title}</h1>`;
+// Returns a string: "<h1>...</h1>"
 ```
 
-### Inserting DOM Nodes
+### `htmlDOM` (Node-based)
 
-You can insert existing DOM nodes directly. Their `outerHTML` is used for the fragment.
+A helper that parses a template string and returns a live **DocumentFragment**.
+
+- **Use case:** Manual DOM manipulation or when you need to work with real nodes immediately.
+- **Behavior:** Internally uses `html` to build the string and then converts it to DOM nodes.
+- **SSR:** Not suitable for Server-Side Rendering because it produces DOM nodes.
 
 ```js
-const button = document.createElement('button');
-button.textContent = 'Click';
-const fragment = html`<div>${button}</div>`;
-// Result: <div><button>Click</button></div>
+const fragment = htmlDOM`<div>Live Node</div>`;
+document.body.appendChild(fragment);
 ```
 
-Text nodes are inserted as escaped text:
+### `unsafeHTML`
+
+Wraps a string in a `SafeHTML` object to bypass automatic escaping.
+
+- **Warning:** Use only for trusted content.
+
+---
+
+## Layout Resolution Priority
+
+When a component is rendered, the engine looks for the layout in the following order:
+
+1.  **Instance `layout`**: If defined (as string, function, or node), it is used.
+2.  **Static `layout`**: If no instance layout exists, the class-level static blueprint is used.
+3.  **Fallback**: If neither is defined, an error is thrown.
+
+---
+
+## Caching Mechanism (Under the Hood)
+
+To ensure peak performance, BareDOM uses a multi-level caching strategy:
+
+1.  **Global Cache (`WeakMap`):** Static layouts are parsed once and stored in a private `WeakMap` keyed by the class constructor. This prevents naming collisions between different component types and avoids memory leaks.
+2.  **Instance Cache:** If a static string is provided to an instance, it is cached locally after the first parse.
+3.  **No Cache for Functions:** If your `layout` is a function, it is **never cached**. It is re-executed on every render to ensure your UI stays in sync with the latest data.
+
+---
+
+## Server-Side Rendering (SSR) Considerations
+
+When building components that need to be rendered on the server (e.g., using Node.js or PHP), follow these guidelines to ensure compatibility and correct hydration.
+
+### 1. Prefer Static Layout
+
+- Always define `static layout` as a **string** (using `html` tag or plain string). This allows the server to extract the template without instantiating the component.
+- Static layouts are **deterministic** – they produce the same HTML on both server and client, avoiding hydration mismatches.
+
+### 2. Instance Layout for SSR
+
+If you need to override the layout for a specific instance on the server, ensure it is:
+
+- A **string** (e.g., `html` template)
+- A **function that returns a string**
+- **Safe to execute on the server**: no access to DOM APIs (`document`, `window`), no browser‑specific globals.
+
+You can detect the environment using `Config.isSSR` to conditionally avoid client‑only code:
 
 ```js
-const textNode = document.createTextNode('<b>not bold</b>');
-const fragment = html`<div>${textNode}</div>`;
-// Result: <div>&lt;b&gt;not bold&lt;/b&gt;</div>
+import { Config } from '@supercat1337/ui';
+
+class MyComponent extends Component {
+    layout = () => {
+        if (Config.isSSR) {
+            return html`<div>Server-side version</div>`;
+        }
+        return htmlDOM`<div>Client-side version</div>`;
+    };
+}
 ```
 
-Comment nodes are ignored (they produce no output).
+### 3. Avoid `htmlDOM` in SSR
 
-### SafeHTML and `unsafeHTML`
+- `htmlDOM` returns a `DocumentFragment` with live DOM nodes, which cannot be serialized to HTML on the server. Use `html` (string-based) instead.
 
-Use `unsafeHTML` to mark a string as safe – the library will insert it as raw HTML without escaping.
+### 4. Keep Layouts Pure
+
+- Layouts should describe **structure**, not behaviour. Event handlers, subscriptions, and data fetching belong in lifecycle methods (`connectedCallback`, etc.).
+- Inline event handlers (e.g., `onclick="..."`) are strongly discouraged – they break separation of concerns and make hydration error‑prone.
+
+### 5. Hydration Consistency
+
+- The HTML generated on the server must match the DOM structure produced by the client after hydration. Any difference (e.g., using a different layout on the client) can cause errors.
+- Always use the **same layout definition** (preferably static) on both sides for components that participate in SSR.
+
+### 6. BareDOM is a Thin Layer over HTML
+
+BareDOM does **not** provide built-in data binding or reactive templates (like Vue or React). The `{{name}}` syntax used in examples represents placeholders that should be replaced by your **server-side engine** (Node.js, PHP, Python) **before** the component reaches the browser. Once the component is mounted in the browser, all interactivity and dynamic updates must be handled manually within `connectedCallback` using Refs.
+
+### Example: SSR‑Safe Component
 
 ```js
-const safeString = unsafeHTML('<span class="special">Raw</span>');
-const fragment = html`<div>${safeString}</div>`;
-// Result: <div><span class="special">Raw</span></div>
+class UserCard extends Component {
+    static layout = html`
+        <div data-ref="card">
+            <h3>{{name}}</h3>
+            <p>{{email}}</p>
+            <button data-ref="deleteBtn">Delete</button>
+        </div>
+    `;
+
+    refsAnnotation = {
+        card: HTMLDivElement.prototype,
+        deleteBtn: HTMLButtonElement.prototype,
+    };
+
+    connectedCallback() {
+        const { deleteBtn } = this.getRefs();
+        deleteBtn.onclick = () => this.remove();
+    }
+}
 ```
 
-**Warning:** Only use `unsafeHTML` with trusted content. It bypasses XSS protection.
-> **Important:** The layout should only define the structure (HTML). Event listeners and interactive logic must be attached in lifecycle methods (like `connectedCallback`) using refs. Avoid inline event handlers such as `onclick="..."` in the layout – this mixes presentation with logic and breaks the separation of concerns. Instead, use `data-ref` to target elements and attach listeners programmatically.
+---
 
 ## Refs
 
@@ -153,6 +215,9 @@ If you modify the DOM after initial render (e.g., via `innerHTML`), call `update
 this.getRefs().container.innerHTML = '<span data-ref="newSpan">New</span>';
 this.updateRefs(); // now `newSpan` is available
 ```
+
+> **Important:** Since BareDOM is not reactive, if you manually change the structure of your component (e.g., by setting `innerHTML`), the existing refs will **not** update automatically. You must call `this.updateRefs()` to rescan the DOM and re‑bind your `refsAnnotation` to the new elements.
+> // now `newSpan` is available
 
 ### Runtime Ref Validation
 
@@ -206,3 +271,7 @@ When the library scans for `data-ref` elements, it only looks **within the curre
 - **Performance** – the scanner stops at boundaries, avoiding unnecessary traversals.
 
 If you need to access elements inside a child component (for example, a Web Component's shadow root), you can explicitly add those roots to `this.$internals.additionalRoots` as shown in the [Web Components Integration](./06-web-components.md) guide.
+
+```
+
+```

@@ -90,11 +90,11 @@ The main app manages the input field, the add button, and the slot where todo it
 
 ```js
 // TodoApp.js
-import { Component, html } from '@supercat1337/ui';
+import { Component } from '@supercat1337/ui';
 import { TodoItem } from './TodoItem.js';
 
 class TodoApp extends Component {
-    layout = html`
+    layout = `
         <div class="card shadow-sm mx-auto" style="width: 26rem;">
             <div class="card-header bg-white py-3">
                 <h5 class="mb-0 text-center text-primary">Task Manager</h5>

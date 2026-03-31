@@ -3,7 +3,7 @@ import test from 'ava';
 import { SlotManager } from '../../src/component/slot-manager.js';
 import { Component } from '../../src/component/component.js';
 import { Slot } from '../../src/component/slot.js';
-import { html } from '../../src/utils/utils.js';
+import { htmlDOM } from '../../src/utils/utils.js';
 
 /**
  * Factory to create a minimal Component mock
@@ -123,7 +123,7 @@ test('SlotManager: registerSlot handles duplicate names gracefully', t => {
 test('SlotManager: getSlotElement finds the correct DOM node', t => {
     const parent = new Component();
     parent.setLayout(
-        () => html`
+        () => htmlDOM`
             <div>
                 <header data-slot="header"></header>
                 <main data-slot="main"></main>
@@ -156,7 +156,7 @@ test('SlotManager: findChildBySid performs deep search after component integrati
 
     // 2. Define layouts so slots can be physically identified if needed
     parent.setLayout(
-        () => html`
+        () => htmlDOM`
             <div>
                 <div data-slot="left"></div>
                 <div data-slot="right"></div>

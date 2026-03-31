@@ -1,5 +1,5 @@
 // @ts-check
-import { Component, html } from '@supercat1337/ui';
+import { Component, htmlDOM } from '@supercat1337/ui';
 import { MessageSender } from './message-sender.js';
 
 export class App extends Component {
@@ -30,12 +30,12 @@ export class App extends Component {
         if (!this.isConnected) return;
 
         let refs = this.getRefs();
-        let items = this.state.log.map(item => html`<li>${item}</li>`);
+        let items = this.state.log.map(item => htmlDOM`<li>${item}</li>`);
 
         refs.list.replaceChildren(...items);
     }
 
-    layout = () => html`
+    layout = () => `
         <div class="app-container">
             <h1>Component Event Emitter</h1>
             <div data-slot="main"></div>

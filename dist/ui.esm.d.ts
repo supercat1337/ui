@@ -112,6 +112,12 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     static styles: string | CSSStyleSheet | null;
     static _stylesInjected: boolean;
     /**
+     * Shared template for all instances of this class.
+     * Best for performance as it's cached globally.
+     * @type {string|undefined}
+     */
+    static layout: string | undefined;
+    /**
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
      * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
@@ -123,8 +129,12 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     });
     /** @type {Internals} */
     $internals: Internals;
-    /** @type {((component: this) => Node|string)|string|null|Node} */
-    layout: ((component: this) => Node | string) | string | null | Node;
+    /**
+     * Instance-specific layout. Overrides static layout.
+     * Use a function for dynamic structures or a string/Node for unique instances.
+     * @type {((component: any) => Node|string)|string|null|Node}
+     */
+    layout: ((component: any) => Node | string) | string | null | Node;
     /** @type {TeleportList} */
     teleports: any;
     /** @type {T} */
@@ -582,13 +592,32 @@ export function getDefaultLanguage(): string;
  */
 export function hideElements(...elements: HTMLElement[]): void;
 /**
+ * Tagged template literal for secure and high-performance HTML string generation.
+ * Automatically escapes dynamic values to prevent XSS attacks unless wrapped in `unsafeHTML`.
+ * Supports primitives (strings, numbers, booleans) and arrays of values.
+ *
+ * @example
+ * // Returns: "<div>Hello &lt;script&gt;</div>"
+ * const result = html`<div>Hello ${'<script>'}</div>`;
+ *
+ * @example
+ * // Returns: "<ul><li>1</li><li>2</li></ul>"
+ * const items = [1, 2];
+ * const list = html`<ul>${items.map(i => html`<li>${i}</li>`)}</ul>`;
+ *
+ * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
+ * @param {...any} values - Dynamic values to be escaped and interpolated.
+ * @returns {string} A sanitized HTML string.
+ */
+export function html(strings: TemplateStringsArray | string, ...values: any[]): string;
+/**
  * Tagged template literal for high-performance HTML generation.
  * Handles strings, arrays, DOM nodes, and DocumentFragments safely.
  * * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
  * @param {...any} values - Dynamic values to interpolate.
  * @returns {DocumentFragment} A live DocumentFragment containing the parsed HTML.
  */
-export function html(strings: TemplateStringsArray | string, ...values: any[]): DocumentFragment;
+export function htmlDOM(strings: TemplateStringsArray | string, ...values: any[]): DocumentFragment;
 /**
  * Injects the core CSS styles into the document.
  * The core styles include support for the "d-none" class, which is commonly used in Bootstrap to hide elements.

@@ -6,7 +6,7 @@ import {
     renderManifestHTML,
 } from '../../src/component/ssr.js';
 import { Component } from '../../src/component/component.js';
-import { html } from '../../src/utils/utils.js';
+import { htmlDOM } from '../../src/utils/utils.js';
 
 /**
  * Factory for mock components with slot support

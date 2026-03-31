@@ -38,7 +38,7 @@ import { Component, Toggler, injectCoreStyles } from '@supercat1337/ui';
 injectCoreStyles();
 
 class SimpleTabs extends Component {
-    layout = html`
+    layout = `
         <div>
             <button data-ref="btn1">Tab 1</button>
             <button data-ref="btn2">Tab 2</button>
@@ -93,7 +93,7 @@ class SimpleTabs extends Component {
 import { Component, SlotToggler } from '@supercat1337/ui';
 
 class App extends Component {
-    layout = html`
+    layout = `
         <div data-slot="view1"></div>
         <div data-slot="view2"></div>
     `;

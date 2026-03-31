@@ -1,8 +1,9 @@
 // @ts-check
 
-import { html } from '../utils/utils.js';
+import { htmlDOM } from '../utils/utils.js';
 import { Component } from './component.js';
 import { Config } from './config.js';
+
 /**
  *
  * @param {((component: any) => Node|string)|string|null|Node} layout
@@ -20,13 +21,13 @@ export function resolveLayout(layout, ctx) {
         if (returnValue instanceof Config.window.Node) {
             template = returnValue;
         } else if (typeof returnValue === 'string') {
-            template = html(returnValue);
+            template = htmlDOM(returnValue);
         } else {
             throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
         }
     } else if (typeof layout === 'string') {
         // Static: parse the string via the html helper
-        template = html(layout.trim());
+        template = htmlDOM(layout.trim());
     } else if (layout instanceof window.Node) {
         template = layout;
     } else {

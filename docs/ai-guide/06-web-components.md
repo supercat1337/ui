@@ -26,7 +26,7 @@ class MyButton extends HTMLElement {
 customElements.define('my-button', MyButton);
 
 class Demo extends Component {
-    layout = html`<my-button></my-button>`;
+    layout = `<my-button></my-button>`;
 }
 ```
 
@@ -48,7 +48,7 @@ class ShadowDemo extends Component {
         shadowBtn: HTMLButtonElement.prototype, // inside <my-button> shadow DOM
     };
 
-    layout = html`
+    layout = `
         <div>
             <h1 data-ref="title">Host Content</h1>
             <my-button></my-button>

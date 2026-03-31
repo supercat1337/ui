@@ -4,7 +4,7 @@ import {
     escapeHtml,
     formatBytes,
     sleep,
-    html,
+    htmlDOM,
     unsafeHTML,
     withMinimumTime,
     DOMReady,
@@ -37,18 +37,18 @@ test('utils: escapeHtml replaces all sensitive characters including >', t => {
     t.is(safe, '&lt;div class=&quot;test&quot;&gt;&amp;&#39;&lt;/div&gt;');
 });
 
-test('utils: html should not double escape arrays of strings', t => {
+test('utils: htmlDOM should not double escape arrays of strings', t => {
     const items = ['<b>', '<i>'];
-    const fragment = html`<div>${items}</div>`;
+    const fragment = htmlDOM`<div>${items}</div>`;
     const div = fragment.querySelector('div');
 
     // Should be <div>&lt;b&gt;&lt;i&gt;</div>
     t.is(div.innerHTML, '&lt;b&gt;&lt;i&gt;');
 });
 
-test('utils: html should allow nested safe HTML in arrays', t => {
+test('utils: htmlDOM should allow nested safe HTML in arrays', t => {
     const items = [unsafeHTML('<span>1</span>'), '<span>2</span>'];
-    const fragment = html`<div>${items}</div>`;
+    const fragment = htmlDOM`<div>${items}</div>`;
     const div = fragment.querySelector('div');
 
     // Result: <span>1</span> &lt;span&gt;2&lt;/span&gt;
@@ -270,18 +270,18 @@ test('utils: animation calls do not throw', async t => {
  * Test for HTML utility edge cases.
  * Targets complex template nesting and sanitization.
  */
-test('Utils: html template complex nesting', t => {
+test('Utils: htmlDOM template complex nesting', t => {
     // 1. Targets nested arrays and falsy values (Lines 303-309)
     const items = ['a', null, undefined, false, 'b'];
-    const template = html`<ul>
-        ${items.map(i => (i ? html`<li>${i}</li>` : ''))}
+    const template = htmlDOM`<ul>
+        ${items.map(i => (i ? htmlDOM`<li>${i}</li>` : ''))}
     </ul>`;
 
     t.is(template.querySelectorAll('li').length, 2, 'Should filter out falsy values in arrays');
 
     // 2. Targets lines 322-336: Special character escaping or raw HTML insertion
     const unsafe = '<img src=x onerror=alert(1)>';
-    const safeTemplate = html`<div>${unsafe}</div>`;
+    const safeTemplate = htmlDOM`<div>${unsafe}</div>`;
 
     t.is(safeTemplate.textContent, unsafe, 'Should escape unsafe HTML strings by default');
 });
@@ -290,7 +290,7 @@ test('Utils: html template complex nesting', t => {
  * Test to trigger array-to-fragment conversion.
  * Targets lines 303-309 and 322-336 in utils.js.
  */
-test('Utils: html template flattens nested arrays of nodes', t => {
+test('Utils: htmlDOM template flattens nested arrays of nodes', t => {
     // Create actual DOM nodes to ensure the loop for Node types is triggered
     const li1 = document.createElement('li');
     li1.textContent = 'a';
@@ -298,7 +298,7 @@ test('Utils: html template flattens nested arrays of nodes', t => {
     li2.textContent = 'b';
 
     const items = [li1, li2];
-    const template = html`<ul>
+    const template = htmlDOM`<ul>
         ${items}
     </ul>`;
 
@@ -307,17 +307,17 @@ test('Utils: html template flattens nested arrays of nodes', t => {
     t.is(children.length, 2, 'Should find 2 <li> children injected from array');
 });
 
-test('Utils: html handles all edge cases and types', t => {
+test('Utils: htmlDOM handles all edge cases and types', t => {
     // 1. Nested templates (DocumentFragment)
-    const nested = html`<div>${[html`<span>1</span>`, html`<span>2</span>`]}</div>`;
+    const nested = htmlDOM`<div>${[htmlDOM`<span>1</span>`, htmlDOM`<span>2</span>`]}</div>`;
     t.is(
         nested.querySelectorAll('span').length,
         2,
-        'Should support nested html templates in arrays'
+        'Should support nested htmlDOM templates in arrays'
     );
 
     // 2. Falsy values in arrays (Targets lines 303-309)
-    const list = html`<ul>
+    const list = htmlDOM`<ul>
         ${['a', false, null, undefined, 'b']}
     </ul>`;
     t.is(list.textContent.trim(), 'ab', 'Should ignore falsy values in arrays');
@@ -326,15 +326,15 @@ test('Utils: html handles all edge cases and types', t => {
     const comment = document.createComment('test');
     const text = document.createTextNode('Hello');
 
-    const nodeContainer = html`<div>${comment}${text}</div>`;
+    const nodeContainer = htmlDOM`<div>${comment}${text}</div>`;
     t.is(nodeContainer.textContent, 'Hello', 'Should handle text nodes and ignore comments');
 
     // 4. SafeHTML vs Unsafe (XSS Prevention)
     const unsafeStr = '<img src=x onerror=alert(1)>';
-    const escaped = html`<div>${unsafeStr}</div>`;
+    const escaped = htmlDOM`<div>${unsafeStr}</div>`;
     t.is(escaped.querySelector('img'), null, 'Should escape strings by default');
 
-    const safe = html`<div>${unsafeHTML('<b>Safe</b>')}</div>`;
+    const safe = htmlDOM`<div>${unsafeHTML('<b>Safe</b>')}</div>`;
     t.truthy(safe.querySelector('b'), 'Should render raw HTML when wrapped in SafeHTML');
 });
 
@@ -342,21 +342,21 @@ test('Utils: html handles all edge cases and types', t => {
  * Test: HTML Utility Array & Falsy Handling
  * Targets lines 303-309 and 321-325 in utils.js
  */
-test('Utils: html handles falsy values and arrays correctly', t => {
+test('Utils: htmlDOM handles falsy values and arrays correctly', t => {
     // 1. Array with mixed types and falsy values
     const items = ['a', false, null, undefined, 'b'];
-    const list = html`<div>${items}</div>`;
+    const list = htmlDOM`<div>${items}</div>`;
 
     // We trim() to ignore any potential whitespace from the template literal
     t.is(list.textContent.trim(), 'ab', 'Should strictly ignore false, null, and undefined');
 
     // 2. Nested Fragment in Array
-    const nested = html`<div>${[html`<span>1</span>`, html`<span>2</span>`]}</div>`;
+    const nested = htmlDOM`<div>${[htmlDOM`<span>1</span>`, htmlDOM`<span>2</span>`]}</div>`;
     t.is(nested.querySelectorAll('span').length, 2, 'Should serialize nested fragments in arrays');
 
     // 3. DocumentFragment outside array
-    const singleFrag = html`<span>Single</span>`;
-    const container = html`<div>${singleFrag}</div>`;
+    const singleFrag = htmlDOM`<span>Single</span>`;
+    const container = htmlDOM`<div>${singleFrag}</div>`;
     t.is(container.querySelector('span').textContent, 'Single', 'Should handle single fragments');
 });
 
@@ -761,14 +761,14 @@ test.serial('Utils: throttle clears existing timeout when wait period expires', 
 });
 
 /**
- * Test for the html tagged template literal.
+ * Test for the htmlDOM tagged template literal.
  * Targets: null/false normalization, raw Element interpolation,
  * and Node/TextNode handling within arrays.
  */
 test('HTML: handles normalization and DOM node interpolation', t => {
     // 1. Target: Normalization of null, undefined, and false
     // Logic: if (value === null || value === undefined || value === false) { value = ''; }
-    const fragment1 = html`<div>${null}${undefined}${false}${0}</div>`;
+    const fragment1 = htmlDOM`<div>${null}${undefined}${false}${0}</div>`;
     // Note: 0 is a valid number and should NOT be normalized to an empty string
     t.is(
         fragment1.firstElementChild.innerHTML,
@@ -780,7 +780,7 @@ test('HTML: handles normalization and DOM node interpolation', t => {
     // Logic: else if (value instanceof Config.window.Element) { value = unsafeHTML(value.outerHTML); }
     const btn = document.createElement('button');
     btn.textContent = 'Click me';
-    const fragment2 = html`<nav>${btn}</nav>`;
+    const fragment2 = htmlDOM`<nav>${btn}</nav>`;
 
     t.is(
         fragment2.firstElementChild.innerHTML,
@@ -794,7 +794,7 @@ test('HTML: handles normalization and DOM node interpolation', t => {
     const commentNode = document.createComment('ignore me');
 
     // We pass an array containing a TextNode and a CommentNode
-    const fragment3 = html`<span>${[textNode, commentNode]}</span>`;
+    const fragment3 = htmlDOM`<span>${[textNode, commentNode]}</span>`;
 
     // The TextNode should be escaped, the CommentNode should return an empty string
     t.is(

@@ -177,7 +177,7 @@ import { autorun } from 'mobx';
 import Chart from 'chart.js/auto';
 
 class Dashboard extends Component {
-    layout = html`
+    layout = `
         <div>
             <canvas data-ref="canvas"></canvas>
             <div data-ref="status"></div>

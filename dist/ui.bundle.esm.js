@@ -220,7 +220,7 @@ var SafeHTML = class {
 function unsafeHTML(html2) {
   return new SafeHTML(html2);
 }
-function html(strings, ...values) {
+function htmlDOM(strings, ...values) {
   let rawResult = "";
   if (typeof strings === "string") {
     const tmpl2 = document.createElement("template");
@@ -348,6 +348,30 @@ function onClickOutside(element, callback) {
   return () => {
     document.removeEventListener("click", handler, true);
   };
+}
+function html(strings, ...values) {
+  let rawResult = "";
+  if (typeof strings === "string") {
+    return strings.trim();
+  }
+  rawResult = strings[0];
+  for (let i = 0; i < values.length; i++) {
+    let value = values[i];
+    if (value === null || value === void 0 || value === false) {
+      value = "";
+    }
+    if (Array.isArray(value)) {
+      const joined = value.map((item) => {
+        if (item === null || item === void 0 || item === false) return "";
+        if (item instanceof SafeHTML) return item.toString();
+        return escapeHtml(String(item));
+      }).join("");
+      value = unsafeHTML(joined);
+    }
+    const stringValue = value instanceof SafeHTML ? value.toString() : escapeHtml(String(value));
+    rawResult += stringValue + strings[i + 1];
+  }
+  return rawResult.trim();
 }
 
 // src/utils/date-time.js
@@ -1504,12 +1528,12 @@ function resolveLayout(layout, ctx) {
     if (returnValue instanceof Config.window.Node) {
       template = returnValue;
     } else if (typeof returnValue === "string") {
-      template = html(returnValue);
+      template = htmlDOM(returnValue);
     } else {
       throw new Error(`Invalid layout function return type: ${typeof returnValue}`);
     }
   } else if (typeof layout === "string") {
-    template = html(layout.trim());
+    template = htmlDOM(layout.trim());
   } else if (layout instanceof window.Node) {
     template = layout;
   } else {
@@ -1750,13 +1774,24 @@ function findHydrationRoot(container, sid) {
 }
 
 // src/component/component.js
+var sharedTemplates = /* @__PURE__ */ new WeakMap();
 var Component = class {
   /** @type {string | CSSStyleSheet | null} */
   static styles = null;
   static _stylesInjected = false;
   /** @type {Internals} */
   $internals = new Internals();
-  /** @type {((component: this) => Node|string)|string|null|Node} */
+  /**
+   * Shared template for all instances of this class.
+   * Best for performance as it's cached globally.
+   * @type {string|undefined}
+   */
+  static layout;
+  /**
+   * Instance-specific layout. Overrides static layout.
+   * Use a function for dynamic structures or a string/Node for unique instances.
+   * @type {((component: any) => Node|string)|string|null|Node}
+   */
   layout = null;
   /** @type {import('./types.d.ts').TeleportList} */
   teleports = {};
@@ -2018,11 +2053,26 @@ var Component = class {
    * @returns {Element}
    */
   #render() {
-    const layout = this.layout;
+    const ctor = (
+      /** @type {typeof Component} */
+      this.constructor
+    );
+    const layout = this.layout || ctor.layout;
     if (!layout) throw new Error("Layout is not defined.");
-    const isStatic = typeof layout !== "function";
+    const isFunction = typeof layout === "function";
     const shouldClone = this.$internals.cloneTemplateOnRender;
-    if (isStatic) {
+    if (!isFunction && layout === ctor.layout) {
+      let cached = sharedTemplates.get(ctor);
+      if (!cached) {
+        cached = resolveLayout(layout, this);
+        sharedTemplates.set(ctor, cached);
+      }
+      return (
+        /** @type {Element} */
+        cached.cloneNode(true)
+      );
+    }
+    if (!isFunction) {
       const cached = getCloneFromCache(this.#cachedElement, shouldClone);
       if (cached) return cached;
     }
@@ -2032,7 +2082,7 @@ var Component = class {
       sid: this.$internals.sid,
       isSSR: Config.isSSR
     });
-    if (isStatic && shouldClone) {
+    if (!isFunction && shouldClone) {
       this.#cachedElement = result;
       return (
         /** @type {Element} */
@@ -2703,6 +2753,7 @@ export {
   getDefaultLanguage,
   hideElements,
   html,
+  htmlDOM,
   injectCoreStyles,
   isDarkMode,
   local,

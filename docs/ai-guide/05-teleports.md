@@ -14,11 +14,11 @@ Add a `teleports` property to your component. It's an object where each key is a
 ```js
 class Modal extends Component {
     // Main layout (required) – the component's anchor in the DOM
-    layout = html`<div>Modal trigger</div>`;
+    layout = `<div>Modal trigger</div>`;
 
     teleports = {
         overlay: {
-            layout: () => html`
+            layout: () => `
                 <div class="modal-overlay" data-ref="overlay">
                     <div class="modal-content">
                         <h2 data-ref="title">Modal</h2>
@@ -70,7 +70,7 @@ export class ModalComponent extends Component {
         title: HTMLElement.prototype,
     };
 
-    layout = () => html`
+    layout = () => `
         <div>
             <button data-ref="openBtn">Open Modal</button>
         </div>
@@ -78,7 +78,7 @@ export class ModalComponent extends Component {
 
     teleports = {
         modal: {
-            layout: () => html`
+            layout: () => `
                 <div class="modal-overlay" data-ref="overlay" style="display:none">
                     <div class="modal-content">
                         <h2 data-ref="title">Settings</h2>
@@ -128,7 +128,7 @@ If the modal is opened by exactly one button (e.g., a settings modal), it’s of
 
 ```js
 class SettingsModal extends Component {
-    layout = () => html`<button data-ref="openBtn">Settings</button>`;
+    layout = () => `<button data-ref="openBtn">Settings</button>`;
     teleports = { /* modal content */ };
     // ...
 }
@@ -147,7 +147,7 @@ import { Component, html } from '@supercat1337/ui';
 export class EditModal extends Component {
     teleports = {
         modal: {
-            layout: () => html`
+            layout: () => `
                 <div class="modal-overlay" data-ref="overlay" style="display:none">
                     <div class="modal-content">
                         <form data-ref="form">
@@ -196,11 +196,11 @@ modal.mount(document.body); // mounts the teleport and the anchor (anchor is emp
 
 ```js
 // TableRow.js
-import { Component, html } from '@supercat1337/ui';
+import { Component } from '@supercat1337/ui';
 import { modal } from '../main.js'; // or pass it via props
 
 export class TableRow extends Component {
-    layout = html`<button data-ref="editBtn">Edit</button>`;
+    layout = `<button data-ref="editBtn">Edit</button>`;
 
     constructor(itemData) {
         super();

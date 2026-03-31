@@ -22,7 +22,7 @@ export function DOMReady(callback, doc = window.document) {
  * @returns {string} The escaped string.
  */
 export function escapeHtml(unsafe) {
-    if (!unsafe) return "";
+    if (!unsafe) return '';
     return unsafe.replace(/[&<>"']/g, function (m) {
         let charset = {
             '&': '&amp;',
@@ -201,7 +201,7 @@ export function formatBytes(bytes, decimals = 2, lang, sizes) {
 /**
  * Copies the given text to the clipboard using the Clipboard API.
  * @param {string} text - The text to be copied to the clipboard.
- * @param {Window & typeof globalThis} [wnd=window] 
+ * @param {Window & typeof globalThis} [wnd=window]
  * @returns {Promise<void>} A promise that resolves when the text has been successfully copied.
  */
 export function copyToClipboard(text, wnd = window) {
@@ -366,7 +366,7 @@ export function unsafeHTML(html) {
  * @param {...any} values - Dynamic values to interpolate.
  * @returns {DocumentFragment} A live DocumentFragment containing the parsed HTML.
  */
-export function html(strings, ...values) {
+export function htmlDOM(strings, ...values) {
     /** @type {string} */
     let rawResult = '';
 
@@ -453,7 +453,7 @@ export function html(strings, ...values) {
 
 // 1. As a tagged template (with escaping and array support)
 const items = ['Apple', 'Banana'];
-const element = html`
+const element = htmlDOM`
     <ul>
         ${items.map(item => `<li>${item}</li>`)} 
         <li>${unsafeHTML('<span>Trusted info</span>')}</li>
@@ -461,7 +461,7 @@ const element = html`
 `;
 
 // 2. As a regular function
-const simple = html('<div>Static content</div>');
+const simple = htmlDOM('<div>Static content</div>');
 
 */
 
@@ -611,3 +611,77 @@ const unsubscribe = onClickOutside(modal, () => {
 // unsubscribe();
 
 */
+
+/**
+ * Tagged template literal for secure and high-performance HTML string generation.
+ * Automatically escapes dynamic values to prevent XSS attacks unless wrapped in `unsafeHTML`.
+ * Supports primitives (strings, numbers, booleans) and arrays of values.
+ *
+ * @example
+ * // Returns: "<div>Hello &lt;script&gt;</div>"
+ * const result = html`<div>Hello ${'<script>'}</div>`;
+ *
+ * @example
+ * // Returns: "<ul><li>1</li><li>2</li></ul>"
+ * const items = [1, 2];
+ * const list = html`<ul>${items.map(i => html`<li>${i}</li>`)}</ul>`;
+ *
+ * @param {TemplateStringsArray | string} strings - Static parts of the template or a raw HTML string.
+ * @param {...any} values - Dynamic values to be escaped and interpolated.
+ * @returns {string} A sanitized HTML string.
+ */
+export function html(strings, ...values) {
+    /** @type {string} */
+    let rawResult = '';
+
+    // 1. Handle raw string input (non-tagged usage)
+    // Allows the function to be used as a simple string trimmer/formatter
+    if (typeof strings === 'string') {
+        return strings.trim();
+    }
+
+    // 2. Build the HTML string from tagged template parts
+    // Initialize with the first static fragment of the template
+    rawResult = strings[0];
+
+    for (let i = 0; i < values.length; i++) {
+        let value = values[i];
+
+        // Normalization: convert null, undefined, or false to empty strings
+        // to avoid rendering "null" or "false" in the final HTML
+        if (value === null || value === undefined || value === false) {
+            value = '';
+        }
+
+        // Processing Logic: Handle nested arrays and complex types
+        if (Array.isArray(value)) {
+            // Recursively process array elements and join them into a single string
+            const joined = value
+                .map(item => {
+                    // Filter out falsy values within arrays
+                    if (item === null || item === undefined || item === false) return '';
+
+                    // If the item is already marked as SafeHTML, return it as is
+                    if (item instanceof SafeHTML) return item.toString();
+
+                    // Otherwise, escape the string representation of the item
+                    return escapeHtml(String(item));
+                })
+                .join('');
+
+            // Wrap the joined string in SafeHTML to prevent double-escaping
+            // during the final assembly
+            value = unsafeHTML(joined);
+        }
+
+        // Final assembly: Escape the value unless it is an instance of SafeHTML
+        const stringValue =
+            value instanceof SafeHTML ? value.toString() : escapeHtml(String(value));
+
+        // Append interpolated value and the next static string part
+        rawResult += stringValue + strings[i + 1];
+    }
+
+    // Return the trimmed result for cleaner output
+    return rawResult.trim();
+}

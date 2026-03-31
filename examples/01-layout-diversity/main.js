@@ -1,11 +1,11 @@
 // @ts-check
-import { Component, html } from '@supercat1337/ui';
+import { Component, htmlDOM } from '@supercat1337/ui';
 
 /**
  * Header component – demonstrates static HTML with action button.
  */
 class Header extends Component {
-    layout = html`
+    layout = `
         <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
             <h2 class="h4 m-0 text-primary">Static Header</h2>
             <button data-ref="refreshBtn" class="btn btn-sm btn-outline-secondary">
@@ -33,7 +33,7 @@ class Header extends Component {
  */
 class DynamicBody extends Component {
     /** @returns {DocumentFragment} */
-    layout = () => html`
+    layout = () => htmlDOM`
         <div class="p-4 bg-white border rounded shadow-sm text-center">
             <p class="mb-1">This content is dynamically generated:</p>
             <code class="d-block mb-3 text-danger"> ${new Date().toLocaleTimeString()} </code>
@@ -46,7 +46,7 @@ class DynamicBody extends Component {
  * Footer component – demonstrates DocumentFragment layout.
  */
 class Footer extends Component {
-    layout = html`
+    static layout = `
         <footer class="mt-4 pt-2 border-top text-center">
             <span class="text-muted small">&copy; 2026 UI Framework Documentation</span>
         </footer>
@@ -57,7 +57,7 @@ class Footer extends Component {
  * Root component – orchestrates child components using slots.
  */
 class LayoutDemo extends Component {
-    layout = html`
+    static layout = `
         <div class="card shadow-lg" style="width: 24rem;">
             <div class="card-body">
                 <header data-slot="header-slot"></header>

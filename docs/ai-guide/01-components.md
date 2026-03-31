@@ -11,11 +11,11 @@ tags: [component, api, class]
 All components inherit from the base `Component` class. You can pass an optional `options` object to the constructor.
 
 ```js
-import { Component, html } from '@supercat1337/ui';
+import { Component } from '@supercat1337/ui';
 
 class MyComponent extends Component {
     // Every component must define a `layout` (see Layouts & Refs).
-    layout = html`<div>Hello</div>`;
+    layout = `<div>Hello</div>`;
 
     constructor() {
         super({ instanceId: 'my-id', sid: 'server-id' });
@@ -48,7 +48,7 @@ class Card extends Component {
         .card { border: 1px solid #ccc; padding: 1rem; }
         .card-title { font-size: 1.2rem; }
     `;
-    layout = html`<div class="card"><div class="card-title">Title</div></div>`;
+    layout = `<div class="card"><div class="card-title">Title</div></div>`;
 }
 ```
 
@@ -104,7 +104,7 @@ customElements.define('fancy-button', FancyButton);
 
 // Use it in a BareDOM component
 class MyApp extends Component {
-    layout = html`<fancy-button>Click me</fancy-button>`;
+    layout = `<fancy-button>Click me</fancy-button>`;
 }
 ```
 
