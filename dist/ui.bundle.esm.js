@@ -2097,6 +2097,7 @@ var Component = class {
    * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
    */
   mount(container, mode = "replace") {
+    if (Config.isSSR) return;
     if (this.isCollapsed) return;
     const resolvedContainer = this.#resolveTarget(container);
     validateMountArgs(resolvedContainer, mode, Config.window);
@@ -2697,7 +2698,8 @@ function generateManifest(...rootComponents) {
     const slots = {};
     component.slotManager.slots.forEach((slot, slotName) => {
       const childSids = [];
-      slot.components.forEach((child, index) => {
+      let components = slot.getComponents();
+      components.forEach((child, index) => {
         const childSid = `${sid}.${slotName}.${index}`;
         childSids.push(childSid);
         register(child, childSid);

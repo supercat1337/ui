@@ -405,6 +405,8 @@ export class Component {
      * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
      */
     mount(container, mode = 'replace') {
+        // Prevent `mount` from executing in SSR environment (early return when Config.isSSR is true)
+        if (Config.isSSR) return;
         if (this.isCollapsed) return;
 
         // Resolve the container to a guaranteed Element before validation

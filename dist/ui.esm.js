@@ -2571,6 +2571,8 @@ class Component {
      * @param {"replace"|"append"|"prepend"|"hydrate"} mode - The mounting strategy.
      */
     mount(container, mode = 'replace') {
+        // Prevent `mount` from executing in SSR environment (early return when Config.isSSR is true)
+        if (Config.isSSR) return;
         if (this.isCollapsed) return;
 
         // Resolve the container to a guaranteed Element before validation
@@ -3314,7 +3316,9 @@ function generateManifest(...rootComponents) {
             /** @type {string[]} */
             const childSids = [];
 
-            slot.components.forEach((child, index) => {
+            let components = slot.getComponents();
+
+            components.forEach((child, index) => {
                 // Construct the child SID based on the current component's SID
                 const childSid = `${sid}.${slotName}.${index}`;
 

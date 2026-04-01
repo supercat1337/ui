@@ -1,7 +1,7 @@
 ---
 title: BareDOM – Slots & Composition
 version: 2.0.0
-tags: [slots, composition, addToSlot, SlotToggler, Toggler]
+tags: [slots, composition, addToSlot, SlotToggler, Toggler, slotManager]
 ---
 
 # Slots
@@ -10,7 +10,7 @@ Slots are placeholders in a component's layout where child components (or other 
 
 ```js
 class Parent extends Component {
-    layout = `
+    static layout = `
         <div class="card">
             <header data-slot="header"></header>
             <main data-slot="content"></main>
@@ -27,7 +27,7 @@ class Parent extends Component {
 
 ## Adding Child Components
 
-Use `addToSlot(slotName, componentOrComponents, mode?)`.
+Use `addToSlot(slotName, componentOrComponents, mode?)` to insert child components (or other content) into a slot.
 
 - `slotName`: the name of the slot (value of `data-slot`).
 - `componentOrComponents`: a single `Component` instance or an array.
@@ -50,7 +50,39 @@ this.addToSlot('content', new NewContent(), 'replace');
 this.addToSlot('a', compA).addToSlot('b', compB);
 ```
 
-## Managing Slots
+### ⚠️ SSR‑Safe Slot Population
+
+When a component participates in Server‑Side Rendering, **the contents of its slots must be known during the construction phase** so they can be serialised into the manifest and appear in the final HTML.
+
+Therefore, for **static slot content** (components that should always be present in the slot, even before client‑side hydration), **add them in the constructor**, not in `connectedCallback`:
+
+```js
+class Parent extends Component {
+    static layout = `
+        <div class="card">
+            <header data-slot="header"></header>
+            <main data-slot="content"></main>
+        </div>
+    `;
+
+    constructor() {
+        super();
+        // ✅ Correct: slot content is added during construction
+        this.addToSlot('header', new HeaderComponent());
+        this.addToSlot('content', new ContentComponent());
+    }
+}
+```
+
+If you add slot content only in `connectedCallback`, those components will **not** be included in the server‑rendered HTML. This is acceptable for content that is loaded dynamically on the client, but it will break hydration if the server expects those components to be present.
+
+> **Rule of thumb:**  
+> - Use **constructor** for slot content that must be present in the initial HTML (SSR).  
+> - Use **`connectedCallback`** (or later) for content that is added dynamically after the component is mounted (e.g., user‑triggered additions, lazy loading).
+
+## Managing Slots (High‑level API)
+
+The component itself provides several convenient methods to inspect and manipulate slots:
 
 | Method                       | Description                                                                                                                                    |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -76,6 +108,65 @@ this.detachFromSlot();
 parentComponent.addToSlot('new-slot', this);
 ```
 
+## SlotManager API (Low‑level)
+
+For advanced use cases where you need fine‑grained control over slot contents (e.g., iterating over child components, moving components between slots, or directly accessing the internal slot structures), each component has a `slotManager` property. The `slotManager` provides methods that mirror the high‑level ones but with additional introspection capabilities.
+
+### Accessing SlotManager
+
+```js
+const slotManager = this.slotManager;
+```
+
+### SlotManager Methods
+
+| Method | Description |
+|--------|-------------|
+| `hasSlot(slotName)` | Returns `true` if the slot exists in the component’s layout. |
+| `getSlot(slotName)` | Returns the `Slot` object for the given slot name, or `null` if it doesn't exist. |
+| `getSlotElement(slotName)` | Returns the DOM element that acts as the slot container. |
+| `getComponents(slotName)` | Returns an array of child components currently in the slot. |
+| `getSlotLength(slotName)` | Returns the number of child components in the slot. |
+| `attachToSlot(slotName, components, mode?)` | Inserts components into the slot (similar to `addToSlot`). |
+| `removeComponent(component)` | Removes a specific child component from whichever slot it belongs to. |
+| `clearSlotContent(slotName)` | Removes all child components from a slot. |
+| `mountSlot(slotName)` | Mounts all child components in the slot to the DOM. |
+| `unmountSlot(slotName)` | Unmounts all child components in the slot from the DOM. |
+| `mountAllSlots()` | Mounts all slots. |
+| `unmountAll()` | Unmounts all slots. |
+| `registerSlot(slotName)` | Programmatically creates a slot (if not already present). |
+| `removeSlot(slotName)` | Removes a slot and unmounts its children. |
+
+### Example: Iterating Over Slot Children
+
+```js
+const items = this.slotManager.getComponents('items');
+items.forEach((item, index) => {
+    item.setIndex(index);
+});
+```
+
+### Example: Moving a Component to Another Slot
+
+```js
+const component = this.slotManager.getComponents('oldSlot')[0];
+this.slotManager.removeComponent(component);          // detach from old slot
+otherComponent.slotManager.attachToSlot('newSlot', [component]);
+```
+
+### The `Slot` Object
+
+Each slot is represented by a `Slot` instance with the following methods:
+
+- `attach(component, mode?)` – adds a component to the slot.
+- `detach(component)` – removes a component from the slot.
+- `clear()` – removes all components.
+- `mount()` – mounts all components.
+- `unmount()` – unmounts all components.
+- `getComponents()` – returns the array of child components.
+
+You rarely need to work with `Slot` objects directly; the `slotManager` provides a higher‑level interface.
+
 ---
 
 ## `SlotToggler`
@@ -93,7 +184,7 @@ parentComponent.addToSlot('new-slot', this);
 import { Component, SlotToggler } from '@supercat1337/ui';
 
 class TabbedApp extends Component {
-    layout = `
+    static layout = `
         <div class="tabs-container">
             <nav class="tab-menu">
                 <button data-ref="tab1Btn">Dashboard</button>
@@ -109,25 +200,30 @@ class TabbedApp extends Component {
         tab2Btn: HTMLButtonElement.prototype,
     };
 
+    constructor() {
+        super();
+        // Add components to slots during construction (so they are available for SSR)
+        this.addToSlot('dashboard', new HeavyDashboard());
+        this.addToSlot('settings', new SettingsForm());
+    }
+
     connectedCallback() {
         const { tab1Btn, tab2Btn } = this.getRefs();
 
         // 1. Initialize SlotToggler with the component and slot names
         this.slotToggler = new SlotToggler(this, ['dashboard', 'settings']);
 
-        // 2. Add components to slots (they will be managed by the toggler)
-        this.addToSlot('dashboard', new HeavyDashboard());
-        this.addToSlot('settings', new SettingsForm());
-
-        // 3. Setup navigation using $on for automatic cleanup
+        // 2. Setup navigation using $on for automatic cleanup
         this.$on(tab1Btn, 'click', () => this.slotToggler.toggle('dashboard'));
         this.$on(tab2Btn, 'click', () => this.slotToggler.toggle('settings'));
 
-        // 4. Set initial active slot
+        // 3. Set initial active slot (the components are already in place)
         this.slotToggler.init(); // activates the first slot (dashboard)
     }
 }
 ```
+
+> **Note:** In this example, the slot content (the `HeavyDashboard` and `SettingsForm` components) is added in the **constructor**, ensuring that they are part of the server‑rendered HTML if SSR is used. The `SlotToggler` then manages which slot is visible and automatically mounts/unmounts components accordingly.
 
 ---
 

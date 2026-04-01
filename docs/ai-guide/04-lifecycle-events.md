@@ -30,6 +30,40 @@ class MyComponent extends Component {
 }
 ```
 
+### ⚠️ SSR Considerations
+
+When using Server‑Side Rendering (SSR), **lifecycle methods are not executed on the server**. The server only generates the initial HTML structure; all lifecycle hooks are called exclusively in the browser after hydration.
+
+- `connectedCallback` and `disconnectedCallback` are **never invoked** during SSR.
+- `restoreCallback` is only called on the client during hydration, not on the server.
+- The `mount()` method is also a no‑op when `Config.isSSR` is `true`. Attempting to mount a component on the server will have no effect, as DOM manipulation is not available.
+
+If you need to perform data fetching or initialisation that should happen on the server (e.g., to embed data in the HTML), do it **outside** the component lifecycle – for instance, in a dedicated method that you call manually during the build phase, or by passing data directly to the component constructor.
+
+**Example:** Since `connectedCallback` runs only in the browser, you can safely place client‑only logic directly inside it without any environment check:
+
+```js
+connectedCallback() {
+    // This code runs only in the browser (never on the server)
+    const { button } = this.getRefs();
+    button.addEventListener('click', () => this.handleClick());
+}
+```
+
+If for any reason you need to conditionally execute code on the client inside a method that _could_ be called on the server (e.g., a custom helper), you can detect the environment using `Config.isSSR`:
+
+```js
+import { Config } from '@supercat1337/ui';
+
+doSomething() {
+    if (!Config.isSSR) {
+        // Client‑only logic
+    }
+}
+```
+
+> **Note:** Even though lifecycle methods are not called on the server, the component's `layout` and slot contents **are** processed during SSR. Therefore, any static HTML structure you define (including `data-ref` and `data-slot`) will be present in the server‑generated output.
+
 ## Lifecycle Events
 
 You can also subscribe to lifecycle events using the built‑in event emitter.

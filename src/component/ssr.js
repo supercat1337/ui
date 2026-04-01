@@ -35,7 +35,9 @@ export function generateManifest(...rootComponents) {
             /** @type {string[]} */
             const childSids = [];
 
-            slot.components.forEach((child, index) => {
+            let components = slot.getComponents();
+
+            components.forEach((child, index) => {
                 // Construct the child SID based on the current component's SID
                 const childSid = `${sid}.${slotName}.${index}`;
 
