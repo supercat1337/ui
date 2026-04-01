@@ -27,7 +27,7 @@ export type TeleportStrategy = "append" | "prepend" | "replace";
  */
 export interface TeleportConfig {
     /** A function that returns a markup fragment for teleportation. */
-    layout: () => DocumentFragment;
+    layout: ((component: any) => Node|string)|string|null|Node;
     /** A target element, selector, or function that returns an element. */
     target: Element | string | (() => Element | null);
     /** Insertion strategy (default is "append"). */
@@ -252,6 +252,12 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * Disconnects the component from the DOM and removes the root element.
      */
     unmount(): void;
+    /**
+     * Returns the AbortSignal that aborts when the component is unmounted.
+     * Use this to cancel async operations (fetch, timers, etc.) automatically.
+     * @returns {AbortSignal}
+     */
+    getUnmountSignal(): AbortSignal;
     /**
      * Rerenders the component.
      * If the component is connected, it unmounts and mounts the component again.

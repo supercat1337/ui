@@ -61,7 +61,7 @@ class TodoItem extends Component {
         this.text = text;
     }
 
-    layout = () => html`
+    static layout = () => html`
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <span>${this.text}</span>
             <button class="btn btn-sm btn-outline-danger" data-ref="removeBtn">&times;</button>
@@ -94,7 +94,7 @@ import { Component } from '@supercat1337/ui';
 import { TodoItem } from './TodoItem.js';
 
 class TodoApp extends Component {
-    layout = `
+    static layout = `
         <div class="card shadow-sm mx-auto" style="width: 26rem;">
             <div class="card-header bg-white py-3">
                 <h5 class="mb-0 text-center text-primary">Task Manager</h5>

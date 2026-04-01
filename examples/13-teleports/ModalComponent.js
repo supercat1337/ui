@@ -10,7 +10,8 @@ export class ModalComponent extends Component {
     };
 
     // 1. Every component MUST have a layout (the "anchor" in the DOM)
-    layout = () => html`
+    //    Use `html` tagged template to return a string – SSR‑friendly.
+    static layout = html`
         <div class="modal-wrapper">
             <button data-ref="openBtn">Open Modal</button>
         </div>
@@ -19,7 +20,8 @@ export class ModalComponent extends Component {
     // 2. The teleported part that lives elsewhere (e.g., document.body)
     teleports = {
         overlay: {
-            layout: () => html`
+            // ✅ Return a string (via html) – works on server and client.
+            layout: html`
                 <div class="modal-overlay" data-ref="overlay">
                     <div class="modal-content">
                         <h2 data-ref="title">Settings</h2>
@@ -27,21 +29,24 @@ export class ModalComponent extends Component {
                     </div>
                 </div>
             `,
-            target: () => document.body,
+            // ✅ Use a CSS selector (string) instead of a function that returns a DOM element.
+            //    This makes the component usable in SSR without a DOM.
+            target: 'body',
             strategy: /** @type {const} */ ('append'),
         },
     };
 
     connectedCallback() {
-        // All refs (from main layout AND teleports) are merged here!
-        const refs = this.getRefs();
+        // All refs (from main layout AND teleports) are merged here.
+        // Destructure for cleaner access.
+        const { openBtn, closeBtn, overlay } = this.getRefs();
 
-        refs.openBtn.onclick = () => this.show();
-        refs.closeBtn.onclick = () => this.hide();
-
-        refs.overlay.onclick = e => {
-            if (e.target === refs.overlay) this.hide();
-        };
+        // ✅ Use $on for automatic cleanup when component unmounts.
+        this.$on(openBtn, 'click', () => this.show());
+        this.$on(closeBtn, 'click', () => this.hide());
+        this.$on(overlay, 'click', e => {
+            if (e.target === overlay) this.hide();
+        });
     }
 
     show() {

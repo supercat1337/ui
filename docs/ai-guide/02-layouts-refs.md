@@ -101,65 +101,85 @@ To ensure peak performance, BareDOM uses a multi-level caching strategy:
 
 ## Server-Side Rendering (SSR) Considerations
 
-When building components that need to be rendered on the server (e.g., using Node.js or PHP), follow these guidelines to ensure compatibility and correct hydration.
+When building components that need to be rendered on the server (e.g., using Node.js without JSDOM), follow these guidelines to ensure compatibility and correct hydration.
 
-### 1. Prefer Static Layout
+### 1. Prefer Static Layout for Structure‑Independent Components
 
-- Always define `static layout` as a **string** (using `html` tag or plain string). This allows the server to extract the template without instantiating the component.
-- Static layouts are **deterministic** – they produce the same HTML on both server and client, avoiding hydration mismatches.
-
-### 2. Instance Layout for SSR
-
-If you need to override the layout for a specific instance on the server, ensure it is:
-
-- A **string** (e.g., `html` template)
-- A **function that returns a string**
-- **Safe to execute on the server**: no access to DOM APIs (`document`, `window`), no browser‑specific globals.
-
-You can detect the environment using `Config.isSSR` to conditionally avoid client‑only code:
+If your component’s structure does **not** depend on instance data, use `static layout` (string) for optimal performance and caching.
 
 ```js
-import { Config } from '@supercat1337/ui';
-
-class MyComponent extends Component {
-    layout = () => {
-        if (Config.isSSR) {
-            return html`<div>Server-side version</div>`;
-        }
-        return htmlDOM`<div>Client-side version</div>`;
-    };
+class StaticCard extends Component {
+    static layout = `<div class="card"><h3></h3><p></p></div>`;
 }
 ```
 
-### 3. Avoid `htmlDOM` in SSR
+### 2. Using Instance Layout for Data‑Driven Components
 
-- `htmlDOM` returns a `DocumentFragment` with live DOM nodes, which cannot be serialized to HTML on the server. Use `html` (string-based) instead.
-
-### 4. Keep Layouts Pure
-
-- Layouts should describe **structure**, not behaviour. Event handlers, subscriptions, and data fetching belong in lifecycle methods (`connectedCallback`, etc.).
-- Inline event handlers (e.g., `onclick="..."`) are strongly discouraged – they break separation of concerns and make hydration error‑prone.
-
-### 5. Hydration Consistency
-
-- The HTML generated on the server must match the DOM structure produced by the client after hydration. Any difference (e.g., using a different layout on the client) can cause errors.
-- Always use the **same layout definition** (preferably static) on both sides for components that participate in SSR.
-
-### 6. BareDOM is a Thin Layer over HTML
-
-BareDOM does **not** provide built-in data binding or reactive templates (like Vue or React). The `{{name}}` syntax used in examples represents placeholders that should be replaced by your **server-side engine** (Node.js, PHP, Python) **before** the component reaches the browser. Once the component is mounted in the browser, all interactivity and dynamic updates must be handled manually within `connectedCallback` using Refs.
-
-### Example: SSR‑Safe Component
+If the component’s structure depends on data that is known only at runtime (e.g., user‑specific content), you can use an **instance layout as a function** that returns an HTML string. This function is executed on both the server and the client, ensuring consistency.
 
 ```js
 class UserCard extends Component {
-    static layout = html`
-        <div data-ref="card">
-            <h3>{{name}}</h3>
-            <p>{{email}}</p>
-            <button data-ref="deleteBtn">Delete</button>
-        </div>
-    `;
+    constructor(user) {
+        super();
+        this.user = user;
+        // Instance layout as a function – called on server and client
+        this.layout = () => html`
+            <div class="card">
+                <h3>${this.user.name}</h3>
+                <p>${this.user.email}</p>
+            </div>
+        `;
+    }
+}
+```
+
+**Why this works:**
+
+- On the server (Node.js), the layout function runs without a DOM and returns a string, which is embedded in the final HTML.
+- On the client, the same function runs during hydration, producing identical DOM nodes.
+
+**⚠️ Important:**
+
+- The layout function must be **pure** and must **not** rely on browser‑only APIs (`document`, `window`, etc.).
+- Function‑based layouts are **not cached** – they run on every render. For many instances, consider whether a static layout with later data injection (via `connectedCallback`) would be more efficient.
+- Ensure the function produces **identical HTML** on the server and client to avoid hydration mismatches.
+
+### 3. SSR and Lifecycle Methods
+
+Lifecycle methods (`connectedCallback`, `disconnectedCallback`, `restoreCallback`) are **not executed** on the server. They run only in the browser after hydration. Use them for client‑only logic (event listeners, animations, third‑party libraries).
+
+```js
+connectedCallback() {
+    // This runs only in the browser
+    this.getRefs().deleteBtn.onclick = () => this.remove();
+}
+```
+
+If you need to perform server‑side data fetching that must be embedded in the HTML, do it **outside** the component lifecycle (e.g., fetch data and pass it to the constructor).
+
+### 4. Hydration Consistency
+
+The HTML generated on the server must exactly match the DOM structure produced by the client after hydration. Any difference (e.g., using a different layout on the client) can cause errors. Use the **same layout definition** (static or instance function) on both sides.
+
+### 5. Future Extensibility: Placeholders
+
+While not currently built‑in, you may later introduce placeholder syntax (e.g., `{{name}}`) and replace them server‑side if you need to support SSR in other languages (PHP, Python). BareDOM does not impose any restrictions on this pattern.
+
+### Example: SSR‑Safe Component with Instance Layout
+
+```js
+class UserCard extends Component {
+    constructor(user) {
+        super();
+        this.user = user;
+        this.layout = () => html`
+            <div data-ref="card">
+                <h3>${this.user.name}</h3>
+                <p>${this.user.email}</p>
+                <button data-ref="deleteBtn">Delete</button>
+            </div>
+        `;
+    }
 
     refsAnnotation = {
         card: HTMLDivElement.prototype,
@@ -186,7 +206,7 @@ class MyComponent extends Component {
         submitBtn: HTMLButtonElement.prototype,
     };
 
-    layout = html`
+    static layout = html`
         <input data-ref="searchInput" type="text" />
         <button data-ref="submitBtn">Submit</button>
     `;
@@ -271,7 +291,3 @@ When the library scans for `data-ref` elements, it only looks **within the curre
 - **Performance** – the scanner stops at boundaries, avoiding unnecessary traversals.
 
 If you need to access elements inside a child component (for example, a Web Component's shadow root), you can explicitly add those roots to `this.$internals.additionalRoots` as shown in the [Web Components Integration](./06-web-components.md) guide.
-
-```
-
-```

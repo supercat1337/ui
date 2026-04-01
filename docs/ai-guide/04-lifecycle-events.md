@@ -152,12 +152,14 @@ this.$on(this.getRefs().myButton, 'click', () => {
 
 The `$on` method returns an unsubscribe function if you need to remove the listener earlier.
 
-For advanced scenarios, you can also use the component's internal `AbortController`:
+For advanced scenarios where you need to manage multiple listeners or integrate with other APIs that accept an AbortSignal, you can use the component's built‑in unmount signal:
 
 ```js
-const signal = this.$internals.disconnectController.signal;
+const signal = this.getUnmountSignal();
 element.addEventListener('click', handler, { signal });
 ```
+
+The `getUnmountSignal()` method returns an AbortSignal that aborts when the component is unmounted, ensuring that any listeners attached with this signal are automatically removed.
 
 > **Important:** If you use `addEventListener` directly without the component’s built‑in helpers, you must manually remove the listener in `disconnectedCallback` to avoid memory leaks. The `$on` method (and the `AbortController` signal) handle this automatically.
 

@@ -18,6 +18,7 @@ class Modal extends Component {
 
     teleports = {
         overlay: {
+            // ✅ layout returns a string (SSR‑friendly)
             layout: () => `
                 <div class="modal-overlay" data-ref="overlay">
                     <div class="modal-content">
@@ -26,36 +27,36 @@ class Modal extends Component {
                     </div>
                 </div>
             `,
-            target: document.body,
+            // ✅ use a CSS selector (string) – works on both server and client
+            target: 'body',
             strategy: 'append',
         },
     };
 }
 ```
 
-When the component is mounted (e.g., `new Modal().mount(...)`), the teleport is created and inserted into the target. When the component is unmounted, the teleport is automatically removed.
-
 ### `TeleportConfig` Properties
 
-| Property   | Type                                             | Description                                                                    |
-| ---------- | ------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `layout`   | `() => DocumentFragment`                         | A function that returns the content to teleport.                               |
-| `target`   | `Element` \| `string` \| `() => Element \| null` | Where to insert the content. Can be an element, a CSS selector, or a function. |
-| `strategy` | `'append'` \| `'prepend'` \| `'replace'`         | How to insert the content relative to existing children of the target.         |
+| Property   | Type                                             | Description                                                                                                                        |
+| ---------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `layout`   | `() => string \| DocumentFragment`               | A function that returns the content to teleport. **Prefer returning a string** for SSR compatibility.                              |
+| `target`   | `Element` \| `string` \| `() => Element \| null` | Where to insert the content. **Use a CSS selector (string) when possible** – this makes the component usable in SSR without a DOM. |
+| `strategy` | `'append'` \| `'prepend'` \| `'replace'`         | How to insert the content relative to existing children of the target.                                                             |
 
 > **Note:** Teleports are initialized just before `connectedCallback`. This guarantees that when you access `this.getRefs()` inside `connectedCallback`, any refs inside teleports are already available.
 
 ## Accessing Teleported Refs
 
-All `data-ref` elements inside teleports become part of the component's refs object, just like in the main layout.
+All `data-ref` elements inside teleports become part of the component's refs object, just like in the main layout. Use destructuring for cleaner access.
 
 ```js
 connectedCallback() {
-    const refs = this.getRefs();
-    refs.closeBtn.onclick = () => this.hide();
-    refs.overlay.onclick = (e) => {
-        if (e.target === refs.overlay) this.hide();
-    };
+    const { closeBtn, overlay } = this.getRefs();
+    // ✅ use $on for automatic cleanup
+    this.$on(closeBtn, 'click', () => this.hide());
+    this.$on(overlay, 'click', (e) => {
+        if (e.target === overlay) this.hide();
+    });
 }
 ```
 
@@ -86,18 +87,18 @@ export class ModalComponent extends Component {
                     </div>
                 </div>
             `,
-            target: () => document.body,
+            target: 'body',
             strategy: 'append',
         },
     };
 
     connectedCallback() {
-        const refs = this.getRefs();
-        refs.openBtn.onclick = () => this.show();
-        refs.closeBtn.onclick = () => this.hide();
-        refs.overlay.onclick = e => {
-            if (e.target === refs.overlay) this.hide();
-        };
+        const { openBtn, closeBtn, overlay } = this.getRefs();
+        this.$on(openBtn, 'click', () => this.show());
+        this.$on(closeBtn, 'click', () => this.hide());
+        this.$on(overlay, 'click', e => {
+            if (e.target === overlay) this.hide();
+        });
     }
 
     show() {
@@ -128,8 +129,10 @@ If the modal is opened by exactly one button (e.g., a settings modal), it’s of
 
 ```js
 class SettingsModal extends Component {
-    layout = () => `<button data-ref="openBtn">Settings</button>`;
-    teleports = { /* modal content */ };
+    static layout = () => `<button data-ref="openBtn">Settings</button>`;
+    teleports = {
+        /* modal content */
+    };
     // ...
 }
 ```
@@ -157,25 +160,25 @@ export class EditModal extends Component {
                     </div>
                 </div>
             `,
-            target: document.body,
+            target: 'body',
         },
     };
 
     open(itemData) {
         const { nameInput, overlay } = this.getRefs();
         nameInput.value = itemData.name;
-        overlay.classList.toggle('d-none');
+        overlay.style.display = '';
     }
 
     close() {
         const { overlay } = this.getRefs();
-        overlay.classList.toggle('d-none');
+        overlay.style.display = 'none';
     }
 
     connectedCallback() {
         const { saveBtn, overlay } = this.getRefs();
         this.$on(saveBtn, 'click', () => this.close());
-        this.$on(overlay, 'click', (e) => {
+        this.$on(overlay, 'click', e => {
             if (e.target === overlay) this.close();
         });
     }
@@ -208,7 +211,8 @@ export class TableRow extends Component {
     }
 
     connectedCallback() {
-        this.$on(this.getRefs().editBtn, 'click', () => {
+        const { editBtn } = this.getRefs();
+        this.$on(editBtn, 'click', () => {
             modal.open(this.itemData);
         });
     }
@@ -221,3 +225,29 @@ export class TableRow extends Component {
 - **Clean separation** – the modal handles its own DOM and teleport; triggers only need a reference.
 - **Resource efficient** – only one modal instance exists, regardless of how many triggers.
 
+## Server‑Side Rendering (SSR) and Teleports
+
+When using teleports in a component that participates in SSR, follow these guidelines:
+
+1. **Always return a string from the teleport’s `layout` function.**  
+   This allows the server to generate the teleported HTML without a DOM. Example:
+
+    ```js
+    layout: () => `<div class="modal">...</div>`;
+    ```
+
+2. **Use a CSS selector (string) for `target`.**  
+   Avoid passing a direct DOM element (e.g., `document.body`) because that element doesn’t exist on the server. A selector like `'body'` is safe – the client will resolve it after hydration.
+
+    ```js
+    target: 'body'; // ✅ works on server and client
+    // target: document.body  // ❌ would break on server
+    ```
+
+3. **Teleported content will be part of the server‑generated HTML.**  
+   The server will embed the teleported markup at the location of the teleport definition. On the client, the teleport is reconciled during hydration – no extra work is required.
+
+4. **Lifecycle methods are not executed on the server.**  
+   Any client‑only setup (e.g., showing/hiding logic) must be placed inside `connectedCallback` (which runs only in the browser).
+
+By following these practices, your teleport‑based components will work seamlessly in both server‑rendered and client‑only environments.

@@ -138,24 +138,29 @@ this.slotToggler = new SlotToggler(this, ['tab1', 'tab2']);
 
 ## 8. Returning a String from a Function‑based Layout
 
-**Problem:** The layout function returns a plain string, but the component doesn’t render correctly or loses its `data-ref` bindings.  
-**Cause:** BareDOM expects a `Node` (preferably a `DocumentFragment`) when the layout is a function. Returning a raw string will cause it to be treated as a text node.  
-**Solution:** Always wrap strings with `html` tagged template.
+**Problem:** The layout function returns a string, but the component doesn’t render correctly or loses its `data-ref` bindings.  
+**Cause:** This is rarely a problem. However, if the returned string is not valid HTML, or if you forget to include the necessary `data-ref` attributes, the component may not behave as expected.  
+**Solution:** Ensure your function returns a valid HTML string. Using the `html` helper is recommended because it automatically escapes values and makes your intent clear, but returning a plain string is also perfectly acceptable.
 
 ```js
-// ❌ Wrong: returns a string
+// ✅ Works: returns a valid HTML string (plain)
 layout = () => '<div>Hello</div>';
 
-// ✅ Correct: returns a DocumentFragment
+// ✅ Also works: returns an HTML string via `html`
 layout = () => html`<div>Hello</div>`;
+
+// ✅ Works: returns a DocumentFragment (e.g., from htmlDOM)
+layout = () => htmlDOM`<div>Hello</div>`;
 ```
+
+> **Note:** If your function returns a `DocumentFragment`, it will be used directly. If it returns a string, the string is parsed as HTML. The `html` helper is preferred for dynamic content because it provides built‑in escaping against XSS attacks.
 
 ---
 
 ## 9. Using `rerender()` Unnecessarily
 
-**Problem:** The entire component flashes or re‑creates child components, losing their state.  
-**Cause:** `rerender()` destroys and recreates the whole component tree, including all children.  
+**Problem:** The entire component flashes or re‑creates child components, losing their state.
+**Cause:** `rerender()` destroys and recreates the whole component tree, including all children.
 **Solution:** Update only the specific `refs` that need to change. Use `rerender()` only when the entire layout must be rebuilt (e.g., after a language switch that affects many static texts).
 
 ```js
@@ -194,16 +199,16 @@ class MyComponent extends Component {
 
 ---
 
-## 12. Missing `instanceId` for SSR Hydration
+## 12. Missing `sid` for SSR Hydration
 
 **Problem:** Hydration fails; the component does not restore state.  
-**Cause:** The server‑rendered HTML contains `data-component-root` with an ID, but the client‑side component lacks the same `instanceId` or `sid`.  
-**Solution:** Ensure the component is instantiated with the same `instanceId` (or `sid`) that was used on the server.
+**Cause:** The server‑rendered HTML contains `data-component-root` with a `data-sid`, but the client‑side component lacks the same `sid`.  
+**Solution:** Ensure the component is instantiated with the same `sid` that was used on the server, and mount it with `mode: 'hydrate'`.
 
 ```js
 // Server: component rendered with sid='profile-card'
 // Client: use the same sid
-const widget = new HydratedWidget({ sid: 'profile-card' });
+const widget = new Widget({ sid: 'profile-card' });
 widget.mount(document.getElementById('profile-card'), 'hydrate');
 ```
 
@@ -213,16 +218,78 @@ widget.mount(document.getElementById('profile-card'), 'hydrate');
 
 **Problem:** Event listeners keep firing even after the component is removed.  
 **Cause:** Adding listeners manually with `addEventListener` without cleaning them up.  
-**Solution:** Always use `$on` or attach the listener with an `AbortSignal` from the component’s internal `disconnectController`.
+**Solution:** Always use `$on` or attach the listener with an `AbortSignal` from the component’s internal disconnect controller. The `getUnmountSignal()` method provides a convenient way to obtain the signal.
 
 ```js
 // ❌ Wrong: leaks memory
 window.addEventListener('resize', this.onResize);
 
-// ✅ Correct: auto‑cleaned on unmount
+// ✅ Correct: auto‑cleaned on unmount (using $on)
 this.$on(window, 'resize', this.onResize);
+
+// ✅ Also correct: using the unmount signal directly
+const signal = this.getUnmountSignal();
+window.addEventListener('resize', this.onResize, { signal });
 ```
 
 ---
 
-This list covers the most frequent mistakes users encounter. If you run into an issue not listed here, consult the [API Reference](./01-components.md) or open an issue on GitHub.
+## 14. Placing SSR‑Critical Logic in `connectedCallback`
+
+**Problem:** Server‑Side Rendering (SSR) produces HTML without calling `connectedCallback`, so data fetched inside it will not be included in the server output.  
+**Cause:** Lifecycle methods like `connectedCallback` are **not executed** on the server.  
+**Solution:** If you need to load data that must be present in the initial HTML (e.g., for SEO), do it **outside** the component lifecycle – for instance, in a dedicated method called manually during the build phase, or by passing data directly to the constructor. Use `connectedCallback` only for client‑side initialization.
+
+```js
+class MyComponent extends Component {
+    constructor(data) {
+        super();
+        // ✅ Data passed in – works on both server and client
+        this.data = data;
+    }
+
+    connectedCallback() {
+        // ❌ This will not run on the server
+        fetch('/api/data').then(...);
+    }
+}
+```
+
+---
+
+## 15. Using Instance Layout for SSR
+
+**Problem:** A component that uses an instance‑specific layout (function or DOM node) cannot be reliably rendered on the server if not done correctly.  
+**Cause:** The server needs a string representation of the layout; functions that return nodes or rely on browser APIs will fail.  
+**Solution:** For SSR, you can use an **instance layout as a function that returns a string**. This function will be called on both the server and client, ensuring consistency.
+
+```js
+// ✅ Works on server: instance layout as function returning string
+class MyComponent extends Component {
+    constructor(data) {
+        super();
+        this.data = data;
+        this.layout = () => html`<div>${this.data.title}</div>`;
+    }
+}
+
+// ❌ Breaks on server: instance layout as DOM node
+class MyComponent extends Component {
+    constructor() {
+        super();
+        this.layout = document.createElement('div');
+    }
+}
+```
+
+**Important:**
+
+- The layout function must be pure and avoid browser APIs.
+- Function‑based layouts are **not cached** – they run on every render. For many instances, consider using static layout with later client‑side data injection if performance is a concern.
+- Ensure the function produces **identical HTML** on server and client to avoid hydration mismatches.
+
+For components with structure that does **not** depend on data, prefer `static layout` for better performance and caching.
+
+```
+
+```

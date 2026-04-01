@@ -25,6 +25,18 @@ class MyComponent extends Component {
 
 > **Important:** A component without a `layout` cannot be mounted or rendered. The `layout` property is mandatory and defines the component's DOM structure.
 
+### Static Layout (Recommended for Performance & SSR)
+
+For components that should have the same structure for all instances, define `static layout` as a string. This layout is parsed once and cached, making it very efficient. It is also a good choice for components that participate in Server‑Side Rendering (SSR) when their structure does not depend on instance data.
+
+```js
+class MyButton extends Component {
+    static layout = `<button class="btn">Click me</button>`;
+}
+```
+
+If you need to render components on the server with data‑dependent layouts, see the [SSR Considerations](./02-layouts-refs.md#server-side-rendering-ssr-considerations) section in the Layouts guide.
+
 ### Options
 
 | Option       | Type     | Description                                                      |
@@ -191,15 +203,18 @@ All native approaches (1–3) work without any build step, making them ideal for
 
 ### Lifecycle & Events
 
-| Method                          | Description                                                                                                               |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `connectedCallback()`           | Lifecycle hook called after the component is mounted. Override to add event listeners, fetch data, etc.                   |
-| `disconnectedCallback()`        | Lifecycle hook called just before unmounting. Override to clean up external resources.                                    |
-| `restoreCallback(data)`         | Lifecycle hook called during hydration with server‑provided data (before the DOM is ready).                               |
-| `on(event, callback)`           | Subscribes to a custom or lifecycle event. Returns an unsubscribe function.                                               |
-| `once(event, callback)`         | Subscribes to an event for one invocation only. Returns an unsubscribe function.                                          |
-| `emit(event, context)`          | Emits an event with optional context data.                                                                                |
-| `$on(element, event, callback)` | Attaches a DOM event listener that is automatically removed when the component unmounts. Returns an unsubscribe function. |
+| Method                          | Description                                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `connectedCallback()`           | Lifecycle hook called after the component is mounted. Override to add event listeners, fetch data, etc.                     |
+| `disconnectedCallback()`        | Lifecycle hook called just before unmounting. Override to clean up external resources.                                      |
+| `restoreCallback(data)`         | Lifecycle hook called during hydration with server‑provided data (before the DOM is ready).                                 |
+| `on(event, callback)`           | Subscribes to a custom or lifecycle event. Returns an unsubscribe function.                                                 |
+| `once(event, callback)`         | Subscribes to an event for one invocation only. Returns an unsubscribe function.                                            |
+| `emit(event, context)`          | Emits an event with optional context data.                                                                                  |
+| `$on(element, event, callback)` | Attaches a DOM event listener that is automatically removed when the component unmounts. Returns an unsubscribe function.   |
+| `getUnmountSignal()`            | Returns an `AbortSignal` that aborts when the component unmounts. Useful for cancelling fetch, timers, and event listeners. |
+
+> **SSR Note:** When a component is rendered on the server (e.g., with Node.js without a DOM), lifecycle methods such as `connectedCallback`, `disconnectedCallback`, and `restoreCallback` are **not executed**. The server only generates the initial HTML structure. All client‑side logic should be placed inside these hooks, which will run in the browser after hydration. For server‑side data fetching, use separate methods or pass data through the constructor.
 
 ### Utilities
 
@@ -239,3 +254,34 @@ Removes the component from the DOM and cleans up all resources (event listeners,
 ### `rerender()`
 
 Forces a full re‑render of the component. Use with caution – usually you should update only specific refs instead.
+
+### `getUnmountSignal()`
+
+Returns an `AbortSignal` that is aborted when the component is unmounted. This is a convenient way to automatically cancel asynchronous operations without manual cleanup.
+
+```js
+async connectedCallback() {
+    const signal = this.getUnmountSignal();
+    try {
+        const response = await fetch('/api/data', { signal });
+        // ...
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            // Request aborted because component unmounted
+            return;
+        }
+        // handle other errors
+    }
+}
+```
+
+You can also use it with `addEventListener`:
+
+```js
+connectedCallback() {
+    const signal = this.getUnmountSignal();
+    window.addEventListener('resize', this.handleResize, { signal });
+}
+```
+
+> **Note:** For simpler DOM event binding, consider using `$on` – it automatically handles cleanup.

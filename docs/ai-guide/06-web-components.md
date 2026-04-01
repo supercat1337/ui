@@ -48,7 +48,7 @@ class ShadowDemo extends Component {
         shadowBtn: HTMLButtonElement.prototype, // inside <my-button> shadow DOM
     };
 
-    layout = `
+    static layout = `
         <div>
             <h1 data-ref="title">Host Content</h1>
             <my-button></my-button>

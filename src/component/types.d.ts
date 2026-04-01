@@ -27,7 +27,7 @@ export type TeleportStrategy = "append" | "prepend" | "replace";
  */
 export interface TeleportConfig {
     /** A function that returns a markup fragment for teleportation. */
-    layout: () => DocumentFragment;
+    layout: ((component: any) => Node|string)|string|null|Node;
     /** A target element, selector, or function that returns an element. */
     target: Element | string | (() => Element | null);
     /** Insertion strategy (default is "append"). */

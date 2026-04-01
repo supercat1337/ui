@@ -2681,6 +2681,15 @@ class Component {
     }
 
     /**
+     * Returns the AbortSignal that aborts when the component is unmounted.
+     * Use this to cancel async operations (fetch, timers, etc.) automatically.
+     * @returns {AbortSignal}
+     */
+    getUnmountSignal() {
+        return this.$internals.disconnectController.signal;
+    }
+
+    /**
      * Rerenders the component.
      * If the component is connected, it unmounts and mounts the component again.
      * If the component is not connected, it mounts the component to the parent component's slot.
