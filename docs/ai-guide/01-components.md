@@ -60,7 +60,7 @@ class Card extends Component {
         .card { border: 1px solid #ccc; padding: 1rem; }
         .card-title { font-size: 1.2rem; }
     `;
-    layout = `<div class="card"><div class="card-title">Title</div></div>`;
+    static layout = `<div class="card"><div class="card-title">Title</div></div>`;
 }
 ```
 
@@ -148,14 +148,60 @@ class Card extends Component {
 **Pros:** Scoped class names, no runtime overhead, works with existing tooling.  
 **Cons:** Requires a build step; not suitable for pure ESM environments without bundlers.
 
+### 5. `@scope` Rule (Native Style Encapsulation)
+
+For modern browsers, you can use the native CSS `@scope` rule to limit styles to the current component without leaking into child components. This approach requires no build tools and leverages BareDOM’s `data-component-root` attribute as a scope boundary.
+
+```js
+class ScopedCard extends Component {
+    static layout = `
+        <div class="card">
+            <h2 data-ref="title">Title</h2>
+            <div data-slot="content"></div>
+        </div>
+    `;
+
+    static styles = `
+        @scope ([data-component-root]) to ([data-component-root]) {
+            .card {
+                border: 1px solid #ccc;
+                padding: 1rem;
+            }
+            h2 {
+                color: darkblue;
+            }
+        }
+    `;
+}
+```
+
+**How it works:**
+
+- `[data-component-root]` – upper boundary (the component’s root element).
+- `to ([data-component-root])` – lower boundary. Styles apply to all elements inside the root **except** the root elements of any nested components (including those inserted into slots). This guarantees that parent styles never affect child components.
+
+**Advantages:**
+
+- Fully native – no runtime overhead, no build step.
+- Works seamlessly with BareDOM’s component tree and slot system.
+- Styles are automatically cleaned up when the component is unmounted (the `<style>` tag is injected once and reused).
+
+**Disadvantages:**
+
+- Browser support: Chrome 118+, Safari 17.4+, Firefox 146+. Older browsers will ignore the `@scope` rule (styles become global). Use a fallback or polyfill if you need to support legacy browsers.
+- Does not prevent external global styles from affecting the component (same as any light‑DOM styling).
+
+> **Tip:** For maximum isolation, always use `to ([data-component-root])` as the lower boundary. If you want to also exclude the slot containers themselves, you can use `to ([data-slot], [data-component-root])`.
+
 ### Which Approach Should You Choose?
 
-- **For simple components that don't need isolation:** Use `static styles` or a `<style>` tag in the layout (global styles).
-- **For components with per‑instance theming:** Use `instanceId` to generate unique class names/IDs.
-- **For reusable widgets that must be fully isolated:** Consider using a Web Component with Shadow DOM inside your BareDOM component.
-- **If you already have a bundler and want scoped CSS:** CSS Modules are a great fit.
-
-All native approaches (1–3) work without any build step, making them ideal for projects that avoid complex tooling.
+| Approach                                     | Isolation                              | Complexity | Browser Support                        |
+| -------------------------------------------- | -------------------------------------- | ---------- | -------------------------------------- |
+| Global styles (`static styles` or `<style>`) | None (global)                          | Low        | All                                    |
+| Instance‑specific classes (`instanceId`)     | Per‑instance (by unique class names)   | Medium     | All                                    |
+| Shadow DOM (Web Component)                   | Full encapsulation (styles don’t leak) | High       | All modern                             |
+| CSS Modules (build‑time)                     | Scoped class names                     | Medium     | All (requires bundler)                 |
+| **`@scope` with `data-component-root`**      | **No leak into child components**      | **Low**    | **Chrome 118+, Safari 17.4+, FF 146+** |
 
 ---
 
