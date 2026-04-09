@@ -207,9 +207,9 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
     /**
      * Emits an event with the given arguments.
      * @param {ComponentEvent} event - The name of the event to emit.
-     * @param {any} data - The data object to be passed to the event handlers.
+     * @param {any} [data={}] - The data object to be passed to the event handlers.
      */
-    emit(event: any, data: any): void;
+    emit(event: any, data?: any): void;
     /**
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.

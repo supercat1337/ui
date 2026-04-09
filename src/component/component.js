@@ -269,9 +269,9 @@ export class Component {
     /**
      * Emits an event with the given arguments.
      * @param {import('./types.d.ts').ComponentEvent} event - The name of the event to emit.
-     * @param {any} data - The data object to be passed to the event handlers.
+     * @param {any} [data={}] - The data object to be passed to the event handlers.
      */
-    emit(event, data) {
+    emit(event, data = {}) {
         return this.$internals.eventEmitter.emit(event, data, this);
     }
 
