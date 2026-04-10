@@ -10,6 +10,9 @@ export class Slot {
     /** @type {Component} */
     #ownerComponent;
 
+    /** @type {string | ((component: Component) => string) | null} */
+    #defaultLayout = null;
+
     /**
      * Initializes a new instance of the Slot class.
      * @param {string} name - The name of the slot.
@@ -18,6 +21,22 @@ export class Slot {
     constructor(name, component) {
         this.name = name;
         this.#ownerComponent = component;
+    }
+
+    /**
+     * Sets the default layout for the slot.
+     * @param {string | ((component: Component) => string) | null} layout
+     */
+    setDefaultLayout(layout) {
+        this.#defaultLayout = layout;
+    }
+
+    /**
+     * Checks if the slot has a default layout defined.
+     * @returns {boolean} True if default layout exists.
+     */
+    hasDefaultLayout() {
+        return this.#defaultLayout !== null;
     }
 
     /**
@@ -111,11 +130,21 @@ export class Slot {
             return;
         }
 
-        //slotRoot.replaceChildren();
-        
-        this.#components.forEach(childComponent => {
-            childComponent.mount(slotRoot, 'append');
-        });
+        if (this.#components.length > 0) {
+            // Remove default content if components are present
+            slotRoot.replaceChildren();
+            this.#components.forEach(childComponent => {
+                childComponent.mount(slotRoot, 'append');
+            });
+        } else if (this.#defaultLayout) {
+            // Apply default layout if slot is empty
+            const layout =
+                typeof this.#defaultLayout === 'function'
+                    ? this.#defaultLayout(this.#ownerComponent)
+                    : this.#defaultLayout;
+
+            slotRoot.innerHTML = layout;
+        }
     }
 
     /**
@@ -158,5 +187,13 @@ export class Slot {
     getComponents() {
         //return [...this.#components];
         return this.#components;
+    }
+    
+    /*
+     * Returns true if the slot has attached components.
+     * @returns {boolean}
+     */
+    hasComponents() {
+        return this.#components.length > 0;
     }
 }

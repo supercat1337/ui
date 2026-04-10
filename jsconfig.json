@@ -1,7 +1,6 @@
 {
     "compilerOptions": {
         "skipLibCheck": true,
-        "baseUrl": ".",
         "target": "ESNext",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",

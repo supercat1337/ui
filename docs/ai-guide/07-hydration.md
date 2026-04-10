@@ -109,3 +109,7 @@ widget.mount(document.getElementById('ssr-widget'), 'hydrate');
 ## Example
 
 See `examples/05-hydration` and `examples/06-ssr-generator` for complete runnable examples.
+
+### Slot Hydration
+
+BareDOM handles slot content seamlessly during hydration. If a slot contains server-rendered HTML, the client-side component will preserve that content as the slot's **default layout**. If you later call `addToSlot(name, component, 'replace')`, the library will cleanly swap the server-rendered default content for the new live component.

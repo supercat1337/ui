@@ -148,60 +148,93 @@ class Card extends Component {
 **Pros:** Scoped class names, no runtime overhead, works with existing tooling.  
 **Cons:** Requires a build step; not suitable for pure ESM environments without bundlers.
 
-### 5. `@scope` Rule (Native Style Encapsulation)
+### 5. Native Style Encapsulation (`@scope`)
 
-For modern browsers, you can use the native CSS `@scope` rule to limit styles to the current component without leaking into child components. This approach requires no build tools and leverages BareDOM’s `data-component-root` attribute as a scope boundary.
+BareDOM allows you to isolate component styles using the native CSS `@scope` rule. This ensures that your styles only apply to the current component and do not "leak" to the rest of the page or into nested child components.
 
-```js
+#### Automatic Scoping with `cssScope`
+
+When you set `static cssScope = true`, BareDOM automatically handles the encapsulation infrastructure:
+
+1.  **Unique Identifier:** Every component class is assigned a unique ID (e.g., `bd-1`, `bd-2`) via an internal counter.
+2.  **DOM Marking:** This ID is automatically added as a `data-cid` attribute to the component's root element.
+3.  **Placeholder Replacement:** You can use the `:scope` placeholder in your `static styles`. BareDOM will replace it with the correct attribute selector (e.g., `[data-cid="bd-1"]`).
+
+```javascript
 class ScopedCard extends Component {
-    static layout = `
+    static cssScope = true; // Enables automatic encapsulation
+
+    static layout = html`
         <div class="card">
-            <h2 data-ref="title">Title</h2>
+            <h2>Component Title</h2>
             <div data-slot="content"></div>
         </div>
     `;
 
     static styles = `
-        @scope ([data-component-root]) to ([data-component-root]) {
+        /* :scope is automatically replaced by [data-cid="bd-N"] */
+        @scope (:scope) to ([data-component-root]) {
             .card {
-                border: 1px solid #ccc;
-                padding: 1rem;
+                border: 1px solid #ddd;
+                padding: 20px;
             }
             h2 {
-                color: darkblue;
+                color: midnightblue;
             }
         }
     `;
 }
 ```
 
-**How it works:**
+### Accessing the Class Identifier Programmatically
 
-- `[data-component-root]` – upper boundary (the component’s root element).
-- `to ([data-component-root])` – lower boundary. Styles apply to all elements inside the root **except** the root elements of any nested components (including those inserted into slots). This guarantees that parent styles never affect child components.
+BareDOM provides a way to retrieve the unique component identifier via code. This is useful for integration with 3rd-party libraries, global themes, or automated testing.
 
-**Advantages:**
+- **`static get classId`**: Returns the CID for the component class.
+- **`get classId`**: An instance-level shortcut to the class CID.
 
-- Fully native – no runtime overhead, no build step.
-- Works seamlessly with BareDOM’s component tree and slot system.
-- Styles are automatically cleaned up when the component is unmounted (the `<style>` tag is injected once and reused).
+```js
+// Static access
+console.log(MyComponent.classId); // e.g., "bd-4"
 
-**Disadvantages:**
+// Instance access
+const card = new MyComponent();
+console.log(card.classId); // "bd-4"
+```
 
-- Browser support: Chrome 118+, Safari 17.4+, Firefox 146+. Older browsers will ignore the `@scope` rule (styles become global). Use a fallback or polyfill if you need to support legacy browsers.
-- Does not prevent external global styles from affecting the component (same as any light‑DOM styling).
+#### Use Cases:
 
-> **Tip:** For maximum isolation, always use `to ([data-component-root])` as the lower boundary. If you want to also exclude the slot containers themselves, you can use `to ([data-slot], [data-component-root])`.
+1.  **Testing:** Target components reliably in Playwright or Vitest using the attribute selector: `[data-cid="${MyComponent.classId}"]`.
+2.  **Global Styling:** Apply styles to all instances of a specific component type from a global CSS-in-JS manager.
+3.  **Debugging:** Easily filter or identify components in the browser's Elements panel by their stable `data-cid`.
+
+---
+
+#### Key Benefits
+
+- **Boundary Control:** By using `to ([data-component-root])`, you define a "lower boundary". Styles will apply to your component but **not** to any children placed inside its slots.
+- **Simple Selectors:** You no longer need complex naming conventions (like BEM). You can safely style tags like `h2`, `p`, or `.button` knowing they are scoped.
+- **Performance:** This utilizes native browser behavior. There is no runtime overhead of a Virtual DOM or the complexity of Shadow DOM.
+
+---
+
+### Summary of the Implementation Logic
+
+For the internal engine, the workflow is now solidified:
+
+1.  **Check `cssScope`:** If `true`, get/create the class ID (using `bd-` prefix).
+2.  **Render:** Always append `data-cid="bd-N"` to the root element.
+3.  **Style Injection:** Replace `:scope` in the `styles` string with `[data-cid="bd-N"]` before injecting the stylesheet into the document.
 
 ### Which Approach Should You Choose?
 
-| Approach                                     | Isolation                              | Complexity | Browser Support                        |
-| -------------------------------------------- | -------------------------------------- | ---------- | -------------------------------------- |
-| Global styles (`static styles` or `<style>`) | None (global)                          | Low        | All                                    |
-| Instance‑specific classes (`instanceId`)     | Per‑instance (by unique class names)   | Medium     | All                                    |
-| Shadow DOM (Web Component)                   | Full encapsulation (styles don’t leak) | High       | All modern                             |
-| CSS Modules (build‑time)                     | Scoped class names                     | Medium     | All (requires bundler)                 |
-| **`@scope` with `data-component-root`**      | **No leak into child components**      | **Low**    | **Chrome 118+, Safari 17.4+, FF 146+** |
+| Approach                     | Isolation                 | Complexity | Browser Support                        |
+| :--------------------------- | :------------------------ | :--------- | :------------------------------------- |
+| Global styles                | None (global)             | Low        | All                                    |
+| Instance‑specific classes    | Per‑instance              | Medium     | All                                    |
+| Shadow DOM                   | Full encapsulation        | High       | All modern                             |
+| CSS Modules                  | Scoped class names        | Medium     | All (requires bundler)                 |
+| **`@scope` with `cssScope`** | **No leak into children** | **Low**    | **Chrome 118+, Safari 17.4+, FF 128+** |
 
 ---
 

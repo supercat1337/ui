@@ -779,6 +779,8 @@ var Slot = class {
   #components = [];
   /** @type {Component} */
   #ownerComponent;
+  /** @type {string | ((component: Component) => string) | null} */
+  #defaultLayout = null;
   /**
    * Initializes a new instance of the Slot class.
    * @param {string} name - The name of the slot.
@@ -787,6 +789,20 @@ var Slot = class {
   constructor(name, component) {
     this.name = name;
     this.#ownerComponent = component;
+  }
+  /**
+   * Sets the default layout for the slot.
+   * @param {string | ((component: Component) => string) | null} layout
+   */
+  setDefaultLayout(layout) {
+    this.#defaultLayout = layout;
+  }
+  /**
+   * Checks if the slot has a default layout defined.
+   * @returns {boolean} True if default layout exists.
+   */
+  hasDefaultLayout() {
+    return this.#defaultLayout !== null;
   }
   /**
    * Attaches a component to the slot.
@@ -865,9 +881,15 @@ var Slot = class {
       );
       return;
     }
-    this.#components.forEach((childComponent) => {
-      childComponent.mount(slotRoot, "append");
-    });
+    if (this.#components.length > 0) {
+      slotRoot.replaceChildren();
+      this.#components.forEach((childComponent) => {
+        childComponent.mount(slotRoot, "append");
+      });
+    } else if (this.#defaultLayout) {
+      const layout = typeof this.#defaultLayout === "function" ? this.#defaultLayout(this.#ownerComponent) : this.#defaultLayout;
+      slotRoot.innerHTML = layout;
+    }
   }
   /**
    * Unmounts all children components of the slot from the DOM.
@@ -902,6 +924,13 @@ var Slot = class {
   getComponents() {
     return this.#components;
   }
+  /*
+   * Returns true if the slot has attached components.
+   * @returns {boolean}
+   */
+  hasComponents() {
+    return this.#components.length > 0;
+  }
 };
 
 // src/component/slot-manager.js
@@ -922,13 +951,18 @@ var SlotManager = class {
    * If the slot already exists, it is returned as is.
    * Otherwise, a new slot is created and added to the component's internal maps.
    * @param {string} slotName - The name of the slot to add.
+   * @param {Object} [options={}]
+   * @param {string | ((component: Component) => string)} [options.defaultLayout]
    * @returns {Slot} Returns the slot.
    */
-  registerSlot(slotName) {
+  registerSlot(slotName, options = {}) {
     let slot = this.slots.get(slotName);
     if (!slot) {
       slot = new Slot(slotName, this.#ownerComponent);
       this.slots.set(slotName, slot);
+    }
+    if (options.defaultLayout !== void 0) {
+      slot.setDefaultLayout(options.defaultLayout);
     }
     return slot;
   }
@@ -1446,6 +1480,17 @@ var EventEmitter = class extends EventEmitterLite {
 };
 
 // src/component/internals.js
+var classIdMap = /* @__PURE__ */ new WeakMap();
+var classCounter = 0;
+function getComponentClassId(ctor) {
+  let id = classIdMap.get(ctor);
+  if (!id) {
+    classCounter++;
+    id = `bd-${classCounter}`;
+    classIdMap.set(ctor, id);
+  }
+  return id;
+}
 var Internals = class _Internals {
   /** * Private storage for the lazy instance ID.
    * @type {string|null}
@@ -1865,6 +1910,24 @@ var Component = class {
       this.refsAnnotation = annotation;
     }
   }
+  /**
+   * Returns the unique class identifier (CID) for this component type.
+   * Useful for external styling or testing.
+   * @returns {string}
+   */
+  static get classId() {
+    return getComponentClassId(this);
+  }
+  /**
+   * Shortcut to get the component class identifier.
+   * @returns {string}
+   */
+  get classId() {
+    return (
+      /** @type {typeof Component} */
+      this.constructor.classId
+    );
+  }
   #ensureStylesInjected() {
     const ctor = (
       /** @type {typeof Component} */
@@ -2061,28 +2124,31 @@ var Component = class {
     if (!layout) throw new Error("Layout is not defined.");
     const isFunction = typeof layout === "function";
     const shouldClone = this.$internals.cloneTemplateOnRender;
+    let result;
     if (!isFunction && layout === ctor.layout) {
       let cached = sharedTemplates.get(ctor);
       if (!cached) {
         cached = resolveLayout(layout, this);
         sharedTemplates.set(ctor, cached);
       }
-      return (
-        /** @type {Element} */
-        cached.cloneNode(true)
-      );
-    }
-    if (!isFunction) {
+      result = /** @type {Element} */
+      cached.cloneNode(true);
+    } else if (!isFunction) {
       const cached = getCloneFromCache(this.#cachedElement, shouldClone);
-      if (cached) return cached;
+      result = cached || resolveLayout(layout, this);
+    } else {
+      result = resolveLayout(layout, this);
     }
-    const result = resolveLayout(layout, this);
-    prepareRenderResult(result, {
+    this.$internals.root = prepareRenderResult(result, {
       instanceId: this.instanceId,
       sid: this.$internals.sid,
       isSSR: Config.isSSR
     });
-    if (!isFunction && shouldClone) {
+    if (ctor.cssScope) {
+      result.setAttribute("data-cid", getComponentClassId(ctor));
+    }
+    this.#initDefaultSlots(layout, result);
+    if (!isFunction && shouldClone && !this.#cachedElement) {
       this.#cachedElement = result;
       return (
         /** @type {Element} */
@@ -2411,6 +2477,97 @@ var Component = class {
     return this;
   }
   /**
+   * SSR strategy: Parses HTML string to find slot contents.
+   * @param {string} html
+   */
+  #captureFromHTMLString(html2) {
+    const slotNamesMatch = html2.matchAll(/data-slot=["']([^"']+)["']/g);
+    for (const match of slotNamesMatch) {
+      const slotName = match[1];
+      const slot = this.slotManager.registerSlot(slotName);
+      if (!slot.hasDefaultLayout()) {
+        const content = this.#extractBalancedContent(html2, slotName);
+        if (content) {
+          slot.setDefaultLayout(content);
+        }
+      }
+    }
+  }
+  /**
+   * Extracts innerHTML from a string by balancing tags.
+   * @param {string} html
+   * @param {string} slotName
+   */
+  #extractBalancedContent(html2, slotName) {
+    const attr = `data-slot="${slotName}"`;
+    const idx = html2.indexOf(attr);
+    if (idx === -1) return null;
+    const openStart = html2.lastIndexOf("<", idx);
+    const tagMatch = html2.substring(openStart + 1).match(/^[a-z0-9-]+/i);
+    if (!tagMatch) return null;
+    const tagName = tagMatch[0];
+    const openTagPrefix = `<${tagName}`;
+    const closeTag = `</${tagName}>`;
+    const firstOpenEnd = html2.indexOf(">", idx) + 1;
+    let depth = 1;
+    let cursor = firstOpenEnd;
+    while (depth > 0) {
+      const nextOpen = html2.indexOf(openTagPrefix, cursor);
+      const nextClose = html2.indexOf(closeTag, cursor);
+      if (nextClose === -1) break;
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        cursor = nextOpen + openTagPrefix.length;
+      } else {
+        depth--;
+        if (depth === 0) {
+          return html2.substring(firstOpenEnd, nextClose).trim();
+        }
+        cursor = nextClose + closeTag.length;
+      }
+    }
+    return null;
+  }
+  /**
+   * Dispatcher for capturing default slot content.
+   * @param {any} layout - The raw layout (string, function, or Node).
+   * @param {Element} resultElement - The resolved DOM element.
+   */
+  #initDefaultSlots(layout, resultElement) {
+    if (Config.isSSR) {
+      let htmlString = "";
+      if (typeof layout === "string") {
+        htmlString = layout;
+      } else if (typeof layout === "function") {
+        const res = layout(this);
+        if (typeof res === "string") htmlString = res;
+      }
+      if (htmlString) {
+        this.#captureFromHTMLString(htmlString);
+      }
+    } else {
+      this.#captureFromDOM(resultElement);
+    }
+  }
+  /**
+   * Browser-side strategy: uses DOM API to find and capture slot content.
+   * @param {Element} root
+   */
+  #captureFromDOM(root) {
+    const slotElements = root.querySelectorAll("[data-slot]");
+    slotElements.forEach((el) => {
+      const slotName = el.getAttribute("data-slot");
+      if (!slotName) return;
+      const slot = this.slotManager.registerSlot(slotName);
+      if (!slot.hasDefaultLayout()) {
+        const content = el.innerHTML.trim();
+        if (content) {
+          slot.setDefaultLayout(content);
+        }
+      }
+    });
+  }
+  /**
    * Returns the parent component of the current component, or null if the current component is a root component.
    * @returns {Component | null} The parent component of the current component, or null if the current component is a root component.
    */
@@ -2449,6 +2606,9 @@ var Component = class {
    */
   #getElementsByTagName(tagName) {
     if (!this.#isConnected) {
+      throw new Error("Component is not connected to the DOM");
+    }
+    if (!this.$internals.root) {
       throw new Error("Component is not connected to the DOM");
     }
     return filterElementsByTagName(this.$internals.root, tagName, walkDomScope, {

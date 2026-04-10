@@ -76,9 +76,58 @@ class Parent extends Component {
 
 If you add slot content only in `connectedCallback`, those components will **not** be included in the server‑rendered HTML. This is acceptable for content that is loaded dynamically on the client, but it will break hydration if the server expects those components to be present.
 
-> **Rule of thumb:**  
-> - Use **constructor** for slot content that must be present in the initial HTML (SSR).  
+> **Rule of thumb:**
+>
+> - Use **constructor** for slot content that must be present in the initial HTML (SSR).
 > - Use **`connectedCallback`** (or later) for content that is added dynamically after the component is mounted (e.g., user‑triggered additions, lazy loading).
+
+### Default Slot Content
+
+Slots can have fallback content that is displayed only if no components are attached to that slot. BareDOM supports three ways to define this content.
+
+#### 1. Declarative (HTML-based)
+
+The most straightforward way is to place HTML directly inside the element marked with `data-slot`. The library captures this content and uses it as the default.
+
+```javascript
+class ProfileCard extends Component {
+    static layout = html`
+        <div class="card">
+            <div data-slot="avatar">
+                <img src="default-user.png" alt="Default avatar" />
+            </div>
+            <div data-slot="bio"></div>
+        </div>
+    `;
+}
+```
+
+#### 2. Programmatic (Constructor-based)
+
+If your default content needs to be dynamic or you want to enforce a specific default across all instances regardless of the layout string, use `registerSlot` in the constructor. **This method takes priority over HTML-based content.**
+
+```javascript
+constructor() {
+    super();
+    this.slotManager.registerSlot('bio', {
+        defaultLayout: (comp) => html`<p>No bio provided for ${comp.instanceId}</p>`
+    });
+}
+```
+
+#### 3. Automatic Capture (SSR & Hydration)
+
+When using Server-Side Rendering, the library uses a **tag-balancing algorithm** to extract default content from the layout string without needing a heavy DOM parser like JSDOM. On the client side, during hydration, the library automatically "claims" the existing innerHTML of the slot as its default state.
+
+---
+
+### Rendering Priority
+
+When a component is mounted, BareDOM determines what to show in a slot using this hierarchy:
+
+1. **Attached Components:** Anything added via `addToSlot()`.
+2. **JS Default:** The `defaultLayout` provided in `registerSlot()`.
+3. **HTML Default:** The original innerHTML found within the `data-slot` tag.
 
 ## Managing Slots (High‑level API)
 
@@ -120,22 +169,22 @@ const slotManager = this.slotManager;
 
 ### SlotManager Methods
 
-| Method | Description |
-|--------|-------------|
-| `hasSlot(slotName)` | Returns `true` if the slot exists in the component’s layout. |
-| `getSlot(slotName)` | Returns the `Slot` object for the given slot name, or `null` if it doesn't exist. |
-| `getSlotElement(slotName)` | Returns the DOM element that acts as the slot container. |
-| `getComponents(slotName)` | Returns an array of child components currently in the slot. |
-| `getSlotLength(slotName)` | Returns the number of child components in the slot. |
-| `attachToSlot(slotName, components, mode?)` | Inserts components into the slot (similar to `addToSlot`). |
-| `removeComponent(component)` | Removes a specific child component from whichever slot it belongs to. |
-| `clearSlotContent(slotName)` | Removes all child components from a slot. |
-| `mountSlot(slotName)` | Mounts all child components in the slot to the DOM. |
-| `unmountSlot(slotName)` | Unmounts all child components in the slot from the DOM. |
-| `mountAllSlots()` | Mounts all slots. |
-| `unmountAll()` | Unmounts all slots. |
-| `registerSlot(slotName)` | Programmatically creates a slot (if not already present). |
-| `removeSlot(slotName)` | Removes a slot and unmounts its children. |
+| Method                                      | Description                                                                       |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `hasSlot(slotName)`                         | Returns `true` if the slot exists in the component’s layout.                      |
+| `getSlot(slotName)`                         | Returns the `Slot` object for the given slot name, or `null` if it doesn't exist. |
+| `getSlotElement(slotName)`                  | Returns the DOM element that acts as the slot container.                          |
+| `getComponents(slotName)`                   | Returns an array of child components currently in the slot.                       |
+| `getSlotLength(slotName)`                   | Returns the number of child components in the slot.                               |
+| `attachToSlot(slotName, components, mode?)` | Inserts components into the slot (similar to `addToSlot`).                        |
+| `removeComponent(component)`                | Removes a specific child component from whichever slot it belongs to.             |
+| `clearSlotContent(slotName)`                | Removes all child components from a slot.                                         |
+| `mountSlot(slotName)`                       | Mounts all child components in the slot to the DOM.                               |
+| `unmountSlot(slotName)`                     | Unmounts all child components in the slot from the DOM.                           |
+| `mountAllSlots()`                           | Mounts all slots.                                                                 |
+| `unmountAll()`                              | Unmounts all slots.                                                               |
+| `registerSlot(slotName)`                    | Programmatically creates a slot (if not already present).                         |
+| `removeSlot(slotName)`                      | Removes a slot and unmounts its children.                                         |
 
 ### Example: Iterating Over Slot Children
 
@@ -150,7 +199,7 @@ items.forEach((item, index) => {
 
 ```js
 const component = this.slotManager.getComponents('oldSlot')[0];
-this.slotManager.removeComponent(component);          // detach from old slot
+this.slotManager.removeComponent(component); // detach from old slot
 otherComponent.slotManager.attachToSlot('newSlot', [component]);
 ```
 
@@ -233,13 +282,7 @@ Slots can be used for dynamic content loading. In this example, we use a simple 
 
 ```js
 // @ts-check
-import { 
-    Component, 
-    html, 
-    Toggler, 
-    hideElements, 
-    showElements 
-} from '@supercat1337/ui';
+import { Component, html, Toggler, hideElements, showElements } from '@supercat1337/ui';
 
 class App extends Component {
     // 1. Define the layout with data-ref for elements and data-slot for dynamic content
@@ -273,21 +316,31 @@ class App extends Component {
 
     connectedCallback() {
         // 2. Destructure refs for cleaner access throughout the method
-        const { 
-            loadBtn, 
-            emptyState, 
-            loadingState, 
-            errorState, 
-            contentState 
-        } = this.getRefs();
+        const { loadBtn, emptyState, loadingState, errorState, contentState } = this.getRefs();
 
         // 3. Configure Toggler items using built-in visibility helpers
         // This ensures only one state is visible at a time
         this.stateToggler
-            .addItem('empty', () => showElements(emptyState), () => hideElements(emptyState))
-            .addItem('loading', () => showElements(loadingState), () => hideElements(loadingState))
-            .addItem('error', () => showElements(errorState), () => hideElements(errorState))
-            .addItem('content', () => showElements(contentState), () => hideElements(contentState))
+            .addItem(
+                'empty',
+                () => showElements(emptyState),
+                () => hideElements(emptyState)
+            )
+            .addItem(
+                'loading',
+                () => showElements(loadingState),
+                () => hideElements(loadingState)
+            )
+            .addItem(
+                'error',
+                () => showElements(errorState),
+                () => hideElements(errorState)
+            )
+            .addItem(
+                'content',
+                () => showElements(contentState),
+                () => hideElements(contentState)
+            )
             .init('empty');
 
         // 4. Use this.$on for event listening to ensure automatic unsubscription on unmount
@@ -310,11 +363,11 @@ class App extends Component {
                 this.stateToggler.setActive('content');
             } catch (err) {
                 console.error('Failed to load ESM component:', err);
-                
+
                 // Update error UI and switch state
                 errorState.textContent = `Failed to load: ${err.message}`;
                 this.stateToggler.setActive('error');
-                
+
                 // Cleanup slot and allow retry
                 this.clearSlotContent('content');
                 loadBtn.disabled = false;

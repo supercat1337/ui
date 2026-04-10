@@ -118,6 +118,12 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      */
     static layout: string | undefined;
     /**
+     * Returns the unique class identifier (CID) for this component type.
+     * Useful for external styling or testing.
+     * @returns {string}
+     */
+    static get classId(): string;
+    /**
      * Initializes a new instance of the Component class.
      * @param {Object} [options] - An object with the following optional properties:
      * @param {string} [options.instanceId] - The instance ID of the component. If not provided, a unique ID will be generated.
@@ -167,6 +173,11 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * The function is called with the component instance as the this value.
      */
     setLayout(layout: ((component: this) => Node | string) | string, annotation?: T): void;
+    /**
+     * Shortcut to get the component class identifier.
+     * @returns {string}
+     */
+    get classId(): string;
     /**
      * Returns the refs object.
      * The refs object is a map of HTML elements with the keys specified in the refsAnnotation object.
@@ -851,9 +862,13 @@ declare class SlotManager {
      * If the slot already exists, it is returned as is.
      * Otherwise, a new slot is created and added to the component's internal maps.
      * @param {string} slotName - The name of the slot to add.
+     * @param {Object} [options={}]
+     * @param {string | ((component: Component) => string)} [options.defaultLayout]
      * @returns {Slot} Returns the slot.
      */
-    registerSlot(slotName: string): Slot;
+    registerSlot(slotName: string, options?: {
+        defaultLayout?: string | ((component: Component) => string);
+    }): Slot;
     /**
      * @param {string} slotName
      * @returns {Slot | null}
@@ -1009,6 +1024,16 @@ declare class Slot {
     /** @type {string} */
     name: string;
     /**
+     * Sets the default layout for the slot.
+     * @param {string | ((component: Component) => string) | null} layout
+     */
+    setDefaultLayout(layout: string | ((component: Component) => string) | null): void;
+    /**
+     * Checks if the slot has a default layout defined.
+     * @returns {boolean} True if default layout exists.
+     */
+    hasDefaultLayout(): boolean;
+    /**
      * Attaches a component to the slot.
      * This method sets the given component's parent component and parent slot name,
      * and adds the component to the slot's internal array of components.
@@ -1056,6 +1081,7 @@ declare class Slot {
      * @returns {Component[]}
      */
     getComponents(): Component[];
+    hasComponents(): boolean;
     #private;
 }
 export {};

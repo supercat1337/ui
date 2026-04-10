@@ -22,14 +22,22 @@ export class SlotManager {
      * If the slot already exists, it is returned as is.
      * Otherwise, a new slot is created and added to the component's internal maps.
      * @param {string} slotName - The name of the slot to add.
+     * @param {Object} [options={}]
+     * @param {string | ((component: Component) => string)} [options.defaultLayout]
      * @returns {Slot} Returns the slot.
      */
-    registerSlot(slotName) {
+    registerSlot(slotName, options = {}) {
         let slot = this.slots.get(slotName);
+
         if (!slot) {
             slot = new Slot(slotName, this.#ownerComponent);
             this.slots.set(slotName, slot);
         }
+
+        if (options.defaultLayout !== undefined) {
+            slot.setDefaultLayout(options.defaultLayout);
+        }
+
         return slot;
     }
 
