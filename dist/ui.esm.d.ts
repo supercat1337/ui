@@ -592,6 +592,20 @@ export function formatDate(unix_timestamp: number): string;
  */
 export function formatDateTime(unix_timestamp: number): string;
 /**
+ * Generates a unique ID with the specified prefix using an auto-incrementing counter.
+ * The counter is maintained per prefix, ensuring uniqueness for each prefix independently.
+ * Ideal for creating IDs for HTML elements (e.g., `btn-1`, `modal-2`).
+ *
+ * @param {string} prefix - The prefix for the generated ID. Should be a valid HTML ID prefix.
+ * @returns {string} A unique ID string in the format `${prefix}-${counter}`.
+ *
+ * @example
+ * generateId('btn'); // "btn-1"
+ * generateId('btn'); // "btn-2"
+ * generateId('modal'); // "modal-1"
+ */
+export function generateId(prefix?: string): string;
+/**
  * Generates a flat map of the component tree for SSR hydration.
  * * @param {...Component} rootComponents - The starting root components of the tree.
  * @returns {Record<string, ComponentMetadata>} A flat dictionary of component metadata indexed by SID.
@@ -763,13 +777,6 @@ export function ui_button_status_waiting_off_html(el: HTMLButtonElement, html: s
  * @param {string} text - The text to be shown in the button while it is waiting.
  */
 export function ui_button_status_waiting_on(el: HTMLButtonElement, text: string): void;
-/**
- * Generates a unique ID with an optional prefix.
- *
- * @param {string} [prefix=''] - The prefix to prepend to the ID.
- * @returns {string} The generated unique ID.
- */
-export function uniqueId(prefix?: string): string;
 /**
  * Returns the current Unix time in seconds.
  * @param {Date} [dateObject=new Date()] - The date object to get the Unix time from. Defaults to the current date and time.

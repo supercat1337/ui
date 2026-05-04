@@ -27,7 +27,7 @@ The library includes a collection of runnable examples in the `examples/` folder
 | `15-nested-portals`         | Nested Portals                        | Rendering components with portals inside portals.              |
 | `16-web-components`         | Web Components Integration            | Using custom elements with Shadow DOM.                         |
 | `17-i18n`                   | Internationalization                  | Dynamic text updates without re‑rendering.                     |
-| `18-utilities`              | Utility Functions                     | Debounce, throttle, uniqueId, onClickOutside, storage wrapper. |
+| `18-utilities`              | Utility Functions                     | Debounce, throttle, generateId, onClickOutside, storage wrapper. |
 | `19-moving-components`      | Moving Components (Same Parent)       | Moving a component between slots.                              |
 | `20-moving-between-parents` | Moving Components (Different Parents) | Transferring a component between parents.                      |
 

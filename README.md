@@ -578,7 +578,7 @@ The library exports the following standalone utilities:
 | `ui_button_status_waiting_off(button, text)`                                         | Restores button after waiting.                                                          |
 | `ui_button_status_waiting_off_html(button, html)`                                    | Restores with HTML content.                                                             |
 | `ui_button_status_waiting_on(button, text)`                                          | Disables button and shows spinner.                                                      |
-| `uniqueId(prefix?)`                                                                  | Generates a unique ID with an optional prefix.                                          |
+| `generateId(prefix?)`                                                                  | Generates a unique ID with an optional prefix.                                          |
 | `unixtime(dateObject?)`                                                              | Returns current Unix time in seconds.                                                   |
 | `unsafeHTML(html)`                                                                   | Marks string as safe HTML (bypasses escaping).                                          |
 | `withMinimumTime(promise, minTime)`                                                  | Ensures promise takes at least `minTime` ms.                                            |
@@ -618,7 +618,7 @@ Explore the [examples directory](./examples) for complete, runnable demos. Each 
 | `15-nested-portals`         | Nested Portals                        | Rendering components with portals inside portals.                                                                              |
 | `16-web-components`         | **Web Components Integration**        | Using custom elements with Shadow DOM inside BareDOM components and accessing their internal refs via the unified refs system. |
 | `17-i18n`                   | Internationalization                  | Dynamic text updates without re‑rendering.                                                                                     |
-| `18-utilities`              | Utility Functions                     | Debounce, throttle, uniqueId, onClickOutside, storage wrapper.                                                                 |
+| `18-utilities`              | Utility Functions                     | Debounce, throttle, generateId, onClickOutside, storage wrapper.                                                                 |
 | `19-moving-components`      | Moving Components (Same Parent)       | Moving a component between slots.                                                                                              |
 | `20-moving-between-parents` | Moving Components (Different Parents) | Transferring a component between parents.                                                                                      |
 

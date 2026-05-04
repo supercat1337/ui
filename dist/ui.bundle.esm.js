@@ -455,10 +455,12 @@ function renderPaginationElement(currentPageNumber, totalPages, itemUrlRenderer,
 }
 
 // src/utils/unique-id.js
-var idCounter = 0;
-function uniqueId(prefix = "") {
-  const id = ++idCounter;
-  return prefix ? `${prefix}${id}` : String(id);
+var counterMap = /* @__PURE__ */ new Map();
+function generateId(prefix = "el") {
+  const currentCount = counterMap.get(prefix) ?? 0;
+  const nextCount = currentCount + 1;
+  counterMap.set(prefix, nextCount);
+  return `${prefix}-${nextCount}`;
 }
 
 // src/utils/storage.js
@@ -2919,6 +2921,7 @@ export {
   formatBytes,
   formatDate,
   formatDateTime,
+  generateId,
   generateManifest,
   getDefaultLanguage,
   hideElements,
@@ -2941,7 +2944,6 @@ export {
   ui_button_status_waiting_off,
   ui_button_status_waiting_off_html,
   ui_button_status_waiting_on,
-  uniqueId,
   unixtime,
   unsafeHTML,
   withMinimumTime

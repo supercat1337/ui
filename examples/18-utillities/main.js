@@ -5,7 +5,7 @@ import {
     html,
     debounce,
     throttle,
-    uniqueId,
+    generateId,
     onClickOutside,
     local,
 } from '@supercat1337/ui';
@@ -54,8 +54,8 @@ class DemoApp extends Component {
         this.addToSlot('log-slot', this.logger);
 
         // Unique ID generation
-        this.inputId = uniqueId('input-');
-        this.buttonId = uniqueId('btn-');
+        this.inputId = generateId('input-');
+        this.buttonId = generateId('btn-');
     }
 
     layout = () => html`
@@ -189,7 +189,7 @@ class DemoApp extends Component {
         };
         overlay.onclick = () => this.hideModal(); // also close on overlay click
 
-        // --- uniqueId already used in template ---
+        // --- generateId already used in template ---
         this.logger.log(`Generated input ID: ${this.inputId}, button ID: ${this.buttonId}`);
     }
 

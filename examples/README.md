@@ -23,7 +23,7 @@ This directory contains a curated set of examples designed to demonstrate the po
 | `15-nested-portals` | **Nested Portals** | Rendering components with portals inside portals, preserving logical hierarchy and unified refs across multiple DOM targets. |
 | `16-web-components` | **Web Components Integration** | Using custom elements with Shadow DOM inside BareDOM components and accessing their internal refs via the unified refs system. |
 | `17-i18n` | **Internationalization** | Dynamic text updates using `setTextUpdateFunction` and `reloadText`, integration with external i18n libraries, language switching without re‑rendering. |
-| `18-utilities` | **Utility Functions** | Collection of helper utilities: debounce, throttle, uniqueId, onClickOutside, and localStorage/sessionStorage wrapper with change subscriptions. |
+| `18-utilities` | **Utility Functions** | Collection of helper utilities: debounce, throttle, generateId, onClickOutside, and localStorage/sessionStorage wrapper with change subscriptions. |
 | `19-moving-components` | **Moving Components (Same Parent)** | Moving a component between slots within the same parent or to an external container without unmounting, preserving state. |
 | `20-moving-between-parents` | **Moving Components (Different Parents)** | Transferring a component from one parent component to another, preserving internal state and event listeners. |
 
@@ -63,7 +63,7 @@ This directory contains a curated set of examples designed to demonstrate the po
 ### 17–18: Developer Experience
 
 - **Internationalization**: Dynamic text updates without re-rendering using `setTextUpdateFunction` and `reloadText`. Integrate any i18n library (i18next, FormatJS, etc.) effortlessly.
-- **Utility Functions**: A set of reusable helpers: debounce, throttle, uniqueId, onClickOutside, and a storage wrapper (localStorage/sessionStorage) with change subscriptions.
+- **Utility Functions**: A set of reusable helpers: debounce, throttle, generateId, onClickOutside, and a storage wrapper (localStorage/sessionStorage) with change subscriptions.
 
 ### 19–20: Dynamic Component Relocation
 
