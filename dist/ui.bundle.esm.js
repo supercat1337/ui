@@ -373,6 +373,9 @@ function html(strings, ...values) {
   }
   return rawResult.trim();
 }
+function getError(e) {
+  return e instanceof Error ? e : new Error(String(e));
+}
 
 // src/utils/date-time.js
 function formatDateTime(unix_timestamp) {
@@ -1159,7 +1162,7 @@ var SlotManager = class {
 var ORIGINAL = /* @__PURE__ */ Symbol("original");
 var EventEmitterLite = class {
   /**
-   * @type {Object.<Events extends string ? Events : keyof Events, Function[]>}
+   * @type {Object.<Events extends string | symbol ? Events : keyof Events, Function[]>}
    */
   events = /* @__PURE__ */ Object.create(null);
   /**
@@ -1169,7 +1172,7 @@ var EventEmitterLite = class {
   logErrors = true;
   /**
    * on is used to add a callback function that's going to be executed when the event is triggered
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    * @returns {() => void}
@@ -1182,7 +1185,7 @@ var EventEmitterLite = class {
   }
   /**
    * Add a one-time listener
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    * @returns {()=>void}
@@ -1197,7 +1200,7 @@ var EventEmitterLite = class {
   }
   /**
    * off is an alias for removeListener
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    */
@@ -1206,7 +1209,7 @@ var EventEmitterLite = class {
   }
   /**
    * Remove an event listener from an event
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    */
@@ -1222,7 +1225,7 @@ var EventEmitterLite = class {
   }
   /**
    * emit is used to trigger an event
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {...any} args
    */
@@ -1263,7 +1266,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * on is used to add a callback function that's going to be executed when the event is triggered
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    */
@@ -1278,7 +1281,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * Remove an event listener from an event
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {Function} listener
    */
@@ -1317,7 +1320,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * emit is used to trigger an event
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol ? Events : keyof Events} K
    * @param {K} event
    * @param {...any} args
    */
@@ -1369,7 +1372,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * Wait for a specific event to be emitted.
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string | symbol? Events : keyof Events} K
    * @param {K} event - The event to wait for.
    * @param {number} [max_wait_ms=0] - Maximum time to wait in ms. If 0, waits indefinitely.
    * @returns {Promise<boolean>} - Resolves with true if event emitted, false on timeout.
@@ -1379,7 +1382,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * Wait for any of the specified events to be emitted.
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string  | symbol? Events : keyof Events} K
    * @param {K[]} events - Array of event names.
    * @param {number} [max_wait_ms=0] - Maximum time to wait in ms.
    * @returns {Promise<boolean>} - Resolves with true if any event emitted, false on timeout.
@@ -1435,7 +1438,7 @@ var EventEmitter = class extends EventEmitterLite {
   }
   /**
    * Clears all listeners for a specified event.
-   * @template {Events extends string ? Events : keyof Events} K
+   * @template {Events extends string  | symbol? Events : keyof Events} K
    * @param {K} event
    */
   clearEventListeners(event) {
@@ -2924,6 +2927,7 @@ export {
   generateId,
   generateManifest,
   getDefaultLanguage,
+  getError,
   hideElements,
   html,
   htmlDOM,

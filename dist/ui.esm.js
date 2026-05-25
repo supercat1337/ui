@@ -750,6 +750,15 @@ function html(strings, ...values) {
     return rawResult.trim();
 }
 
+/**
+ * Returns Error instance
+ * @param {*} e
+ * @returns {Error}
+ */
+function getError(e) {
+    return e instanceof Error ? e : new Error(String(e));
+}
+
 
 
 /**
@@ -3651,4 +3660,4 @@ const fullHtml = `
 `;
 */
 
-export { Component, Config, DOMReady, SlotToggler, Toggler, UI_COMPONENT_SHEET, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, extractComponentStyles, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateId, generateManifest, getDefaultLanguage, hideElements, html, htmlDOM, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime, unsafeHTML, withMinimumTime };
+export { Component, Config, DOMReady, SlotToggler, Toggler, UI_COMPONENT_SHEET, copyToClipboard, createManifestScript, createPaginationArray, createStorage, debounce, delegateEvent, escapeHtml, extractComponentStyles, fadeIn, fadeOut, formatBytes, formatDate, formatDateTime, generateId, generateManifest, getDefaultLanguage, getError, hideElements, html, htmlDOM, injectCoreStyles, isDarkMode, local, onClickOutside, removeSpinnerFromButton, renderManifestHTML, renderPaginationElement, scrollToBottom, scrollToTop, session, showElements, showSpinnerInButton, sleep, throttle, ui_button_status_waiting_off, ui_button_status_waiting_off_html, ui_button_status_waiting_on, unixtime, unsafeHTML, withMinimumTime };

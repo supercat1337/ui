@@ -685,3 +685,12 @@ export function html(strings, ...values) {
     // Return the trimmed result for cleaner output
     return rawResult.trim();
 }
+
+/**
+ * Returns Error instance
+ * @param {*} e
+ * @returns {Error}
+ */
+export function getError(e) {
+    return e instanceof Error ? e : new Error(String(e));
+}

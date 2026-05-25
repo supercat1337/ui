@@ -618,6 +618,12 @@ export function generateManifest(...rootComponents: Component[]): Record<string,
  */
 export function getDefaultLanguage(): string;
 /**
+ * Returns Error instance
+ * @param {*} e
+ * @returns {Error}
+ */
+export function getError(e: any): Error;
+/**
  * Adds the "d-none" class to the given elements, hiding them from view.
  * @param {...HTMLElement} elements - The elements to hide.
  */
