@@ -71,3 +71,4 @@ app.mount(document.body);
 - [Utility Functions](./08-utilities.md)
 - [Examples & Tutorials](./09-examples.md)
 - [Common Pitfalls](./10-common-pitfalls.md)
+- [Component Authoring Guide](./11-component-authoring-guide.md)
