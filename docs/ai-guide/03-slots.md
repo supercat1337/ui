@@ -393,4 +393,4 @@ export { App };
 ## Further Reading
 
 - [Lifecycle & Events](./04-lifecycle-events.md)
-- [Teleports](./05-teleports.md)
+- [Teleports](./10-teleports.md)

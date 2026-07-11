@@ -130,8 +130,8 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * @param {string} [options.sid]
      */
     constructor(options?: {
-        instanceId?: string;
-        sid?: string;
+        instanceId?: string | undefined;
+        sid?: string | undefined;
     });
     /** @type {Internals} */
     $internals: Internals;
@@ -225,11 +225,11 @@ export class Component<T extends import("dom-scope").RefsAnnotation = any> {
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.
-     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+     * @param {keyof HTMLElementEventMap | string} event - The name of the event to listen to.
      * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
      * @returns {() => void} A function that can be called to remove the event listener.
      */
-    $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap, callback: EventListenerOrEventListenerObject): () => void;
+    $on(element: HTMLElement | Element, event: keyof HTMLElementEventMap | string, callback: EventListenerOrEventListenerObject): () => void;
     /**
      * This method is called when the component is connected to the DOM.
      * It is an empty method and is intended to be overridden by the user.
@@ -759,8 +759,8 @@ export function sleep(ms: number): Promise<void>;
  * @returns {T & { cancel(): void }} A new throttled function with a `cancel` method.
  */
 export function throttle<T extends Function>(func: T, wait: number, options?: {
-    leading?: boolean;
-    trailing?: boolean;
+    leading?: boolean | undefined;
+    trailing?: boolean | undefined;
 }): T & {
     cancel(): void;
 };
@@ -807,8 +807,8 @@ export function unsafeHTML(html: string): SafeHTML;
 export function withMinimumTime<T>(promise: Promise<T>, minTime: number): Promise<T>;
 declare class Internals {
     /** @type {number} */
-    static "__#private@#instanceIdCounter": number;
-    static "__#private@#sessionPrefix": string;
+    static #instanceIdCounter: number;
+    static #sessionPrefix: string;
     /**
      * Generates a unique instance ID.
      * @returns {string} The unique instance ID.
@@ -880,7 +880,7 @@ declare class SlotManager {
      * @returns {Slot} Returns the slot.
      */
     registerSlot(slotName: string, options?: {
-        defaultLayout?: string | ((component: Component) => string);
+        defaultLayout?: string | ((component: Component) => string) | undefined;
     }): Slot;
     /**
      * @param {string} slotName

@@ -33,6 +33,8 @@ src/App/YourFeature/
 
 ## 2. Importing HTML Templates
 
+> **This is the recommended pattern for all real‑world applications.** Keep your templates in separate `.html` files and import them as strings. The following steps show how to set this up.
+
 BareDOM components can use `static layout = template` where `template` is an imported HTML string.
 
 **Step 1**: Declare a module for `.html` files in your `types.d.ts` (or `src/types.d.ts`):
@@ -60,6 +62,27 @@ export class YourScreen extends Component {
 - The template is a plain string – works with SSR and hydration.
 - No need to embed HTML inside JavaScript, improving readability and editor support.
 - The build tool (e.g., esbuild) inlines the HTML content during bundling.
+
+### Build Setup with esbuild
+
+To import `.html` files as strings, configure **esbuild** with a plugin that loads HTML as text. Here is a minimal plugin:
+
+```js
+// esbuild.config.js
+import fs from 'fs';
+
+export const htmlPlugin = () => ({
+    name: 'html',
+    setup(build) {
+        build.onLoad({ filter: /\.html$/ }, async args => {
+            const contents = await fs.promises.readFile(args.path, 'utf8');
+            return { contents: JSON.stringify(contents), loader: 'text' };
+        });
+    },
+});
+```
+
+Add this plugin to your esbuild configuration. Then all `.html` imports will return the raw HTML string, ready for use as `static layout` or `instance layout` (as a function, if you need interpolation). Remember that static layouts are plain strings and do **not** support `${...}` interpolation — use `data-ref` and `connectedCallback` for dynamic content.
 
 ## 3. Localisation with `ComponentLocalization`
 
@@ -389,7 +412,7 @@ export class DownloadingScreen extends Component {
 
 ## Next Steps
 
-Now that you understand the real‑world patterns, explore the [examples](./09-examples.md) folder for complete runnable demos, and refer to the [Common Pitfalls](./10-common-pitfalls.md) guide to avoid typical mistakes.
+Now that you understand the real‑world patterns, explore the [examples](./07-examples.md) folder for complete runnable demos, and refer to the [Common Pitfalls](./08-common-pitfalls.md) guide to avoid typical mistakes.
 
 ```
 

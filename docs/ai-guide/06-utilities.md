@@ -8,6 +8,20 @@ tags: [utilities, helpers, dom, Toggler, SlotToggler]
 
 BareDOM ships with a collection of pure helper functions that you can import and use anywhere.
 
+## Localization (i18n)
+
+For internationalisation, the library provides a separate package: [`@supercat1337/ui-localization`](https://github.com/supercat1337/ui-localization). It offers:
+
+- Framework‑agnostic core (`Localization`) – works in Node.js, browser, or any JS environment.
+- BareDOM integration (`ComponentLocalization`) – auto‑updates UI on language change and when components mount.
+- Pluralisation using `Intl.PluralRules` – supports any language.
+- Named placeholders (`"Hello, {name}!"`).
+- Number and date formatting via `Intl`.
+
+See the [Component Authoring Guide](./09-component-authoring-guide.md#localisation-with-componentlocalization) for a complete example.
+
+> **Note:** This package is not included in the core `@supercat1337/ui` bundle – install it separately when you need i18n.
+
 ## DOM Helpers
 
 | Function                                                 | Description                                        |

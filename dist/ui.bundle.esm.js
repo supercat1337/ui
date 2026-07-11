@@ -1846,10 +1846,14 @@ var Component = class {
   /** @type {import('./types.d.ts').TeleportList} */
   teleports = {};
   /** @type {T} */
-  refsAnnotation;
+  refsAnnotation = (
+    /** @type {T} */
+    {}
+  );
   #isConnected = false;
   slotManager = new SlotManager(this);
   #isCollapsed = false;
+  /** @type {Element|null} */
   #cachedElement = null;
   /** @type {Function[]} */
   #disposers = [];
@@ -1954,6 +1958,7 @@ var Component = class {
    * @returns
    */
   #injectStaticStyles(styles) {
+    if (!styles) return;
     const sheet = createComponentStyleSheet(styles, UI_COMPONENT_SHEET, Config.window);
     if (sheet) {
       injectSheet(document, sheet);
@@ -2049,7 +2054,7 @@ var Component = class {
    * Attaches an event listener to the specified element.
    * The event listener is automatically removed when the component is unmounted.
    * @param {HTMLElement|Element} element - The element to attach the event listener to.
-   * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+   * @param {keyof HTMLElementEventMap | string} event - The name of the event to listen to.
    * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
    * @returns {() => void} A function that can be called to remove the event listener.
    */
@@ -2672,7 +2677,7 @@ var Component = class {
     const fragment = this.#renderTeleport(name, config);
     const resolvedTarget = this.#resolveTarget(config.target);
     const rootElement = this.#insertToDOM(fragment, resolvedTarget, config.strategy);
-    this.#registerRemoteRoot(name, rootElement);
+    if (rootElement) this.#registerRemoteRoot(name, rootElement);
   }
   /**
    * Resolves a target (string, function, or Element) into a guaranteed HTMLElement.

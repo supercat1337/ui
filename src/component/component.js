@@ -70,7 +70,7 @@ export class Component {
     teleports = {};
 
     /** @type {T} */
-    refsAnnotation;
+    refsAnnotation = /** @type {T} */ ({});
 
     #isConnected = false;
 
@@ -78,6 +78,7 @@ export class Component {
 
     #isCollapsed = false;
 
+    /** @type {Element|null} */
     #cachedElement = null;
 
     /** @type {Function[]} */
@@ -102,7 +103,7 @@ export class Component {
         if (sid) {
             this.$internals.sid = sid;
 
-            this.once('restore', data => {
+            this.once('restore', (/** @type {Object} */ data) => {
                 this.restoreCallback(data);
             });
         }
@@ -198,6 +199,8 @@ export class Component {
      * @returns
      */
     #injectStaticStyles(styles) {
+        if (!styles) return;
+
         // Use the utility to create the sheet
         const sheet = createComponentStyleSheet(styles, UI_COMPONENT_SHEET, Config.window);
 
@@ -315,7 +318,7 @@ export class Component {
      * Attaches an event listener to the specified element.
      * The event listener is automatically removed when the component is unmounted.
      * @param {HTMLElement|Element} element - The element to attach the event listener to.
-     * @param {keyof HTMLElementEventMap} event - The name of the event to listen to.
+     * @param {keyof HTMLElementEventMap | string} event - The name of the event to listen to.
      * @param {EventListenerOrEventListenerObject} callback - The function to be called when the event is triggered.
      * @returns {() => void} A function that can be called to remove the event listener.
      */
@@ -1064,7 +1067,7 @@ export class Component {
 
         // Now #insertToDOM only deals with Element and Fragment
         const rootElement = this.#insertToDOM(fragment, resolvedTarget, config.strategy);
-        this.#registerRemoteRoot(name, rootElement);
+        if (rootElement) this.#registerRemoteRoot(name, rootElement);
     }
 
     /**

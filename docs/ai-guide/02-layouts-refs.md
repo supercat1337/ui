@@ -16,6 +16,8 @@ In BareDOM, you can define layouts at two levels: **Static (Class-level)** for m
 
 Defined using the `static` keyword. This is the **Blueprint** for all instances of the class.
 
+> **Tip:** For real‑world projects, we recommend keeping your static layouts in separate `.html` files and importing them as strings. This approach is described in the [Components documentation](./01-components.md#recommended-external-html-templates) and works perfectly with esbuild. Note that static layouts (strings) do **not** support interpolation — use `data-ref` and `connectedCallback` for dynamic content.
+
 - **Performance:** The HTML string is parsed into a `DocumentFragment` **only once** for the entire class and cached. Every new instance simply clones this fragment.
 - **Requirement:** Must be a **String** (usually created with the `html` tag). This requirement allows the engine to use a high-performance caching strategy. By providing a static string, the template is parsed into a `DocumentFragment` once and stored in a private global cache (using `WeakMap`). This "blueprint" is then cloned for every new instance, which is significantly faster than re-parsing or handling unique DOM nodes for every component.
 - **SSR:** Ideal for Server-Side Rendering as the structure is available without creating an instance.
@@ -214,11 +216,11 @@ class MyComponent extends Component {
     connectedCallback() {
         // You can either use the refs object directly...
         const refs = this.getRefs();
-        refs.submitBtn.onclick = () => console.log(refs.searchInput.value);
+        this.$on(refs.submitBtn, 'click', () => console.log(refs.searchInput.value));
 
         // ...or destructure for a cleaner look (especially when using many refs)
         const { searchInput, submitBtn } = this.getRefs();
-        submitBtn.onclick = () => console.log(searchInput.value);
+        this.$on(submitBtn, 'click', () => console.log(searchInput.value));
     }
 }
 ```
@@ -226,6 +228,8 @@ class MyComponent extends Component {
 > **Note:** The `refsAnnotation` expects a mapping where the value is the **prototype** of the expected DOM element (e.g., `HTMLButtonElement.prototype`, `HTMLInputElement.prototype`). This enables both static type checking (in your editor) and runtime validation (if enabled).
 
 If a ref is missing, the library throws an error. Use `hasRef(refName)` to check.
+
+> **Important:** Do not add JSDoc type annotations to `refsAnnotation` – TypeScript will infer the correct types from the prototypes you provide. This ensures that `this.getRefs()` returns a properly typed object without extra noise. See the [Components guide](./01-components.md#important-do-not-type-refsannotation-with-jsdoc) for details.
 
 ### Updating Refs Dynamically
 
@@ -252,7 +256,7 @@ import { Config } from '@supercat1337/ui';
 Config.checkRefsFlag = false;
 ```
 
-Even with validation disabled, static typing (via `refsAnnotation`) continues to work in your IDE, so you still get autocompletion and type checking during development. Runtime validation only adds a safeguard that can be safely turned off in production.
+> Even with validation disabled, **static typing via `refsAnnotation` continues to work** – your IDE will still provide autocompletion and type checking, because the types are inferred directly from the prototypes.
 
 ## How Refs Are Collected (Scope Boundaries)
 
@@ -290,4 +294,4 @@ When the library scans for `data-ref` elements, it only looks **within the curre
 - **Encapsulation** – child components are black boxes; their internals don't leak.
 - **Performance** – the scanner stops at boundaries, avoiding unnecessary traversals.
 
-If you need to access elements inside a child component (for example, a Web Component's shadow root), you can explicitly add those roots to `this.$internals.additionalRoots` as shown in the [Web Components Integration](./06-web-components.md) guide.
+If you need to access elements inside a child component (for example, a Web Component's shadow root), you can explicitly add those roots to `this.$internals.additionalRoots` as shown in the [Web Components Integration](./11-web-components.md) guide.

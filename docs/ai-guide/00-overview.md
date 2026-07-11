@@ -32,6 +32,7 @@ BareDOM is a **non‑invasive** framework. It doesn’t try to replace the entir
 - **Animations:** The library provides direct access to real DOM nodes. Pass any `ref` to **GSAP**, **Anime.js**, or **Motion** immediately after the component is mounted.
 - **Styling:** BareDOM works with standard `class` and `style` attributes. Use **Tailwind CSS**, **Bootstrap**, **CSS Modules**, or any **CSS‑in‑JS** solution without conflict.
 - **Third‑party Widgets:** Any library that requires a “target” DOM element (like **Chart.js**, **Google Maps**, or **Select2**) can be easily initialised within `connectedCallback` using the component’s `refs`.
+- **Localization:** For internationalisation (i18n) with pluralisation, date/number formatting, and seamless integration with BareDOM components, use the companion package [`@supercat1337/ui-localization`](https://github.com/supercat1337/ui-localization). It provides a framework‑agnostic `Localization` class and a `ComponentLocalization` wrapper that automatically updates your UI on language change and component mount. See the [Component Authoring Guide](./09-component-authoring-guide.md#localisation-with-componentlocalization) for usage examples.
 
 This openness makes BareDOM a great choice for projects that already rely on a specific set of tools.
 
@@ -44,10 +45,11 @@ npm install @supercat1337/ui
 ## Quick Start
 
 ```js
-import { Component } from '@supercat1337/ui';
+// hello.template.html: `<h1 data-ref="title">Hello, World!</h1>`
+import template from './hello.template.html';
 
 class Hello extends Component {
-    layout = `<h1 data-ref="title">Hello, World!</h1>`;
+    static layout = template;
     refsAnnotation = { title: HTMLHeadingElement.prototype };
 
     connectedCallback() {
@@ -61,14 +63,15 @@ app.mount(document.body);
 
 ## Where to Go Next
 
-- [Components](./01-components.md)
-- [Layouts & Refs](./02-layouts-refs.md)
-- [Slots & Composition](./03-slots.md)
-- [Lifecycle & Events](./04-lifecycle-events.md)
-- [Teleports](./05-teleports.md)
-- [Web Components Integration](./06-web-components.md)
-- [Hydration (SSR)](./07-hydration.md)
-- [Utility Functions](./08-utilities.md)
-- [Examples & Tutorials](./09-examples.md)
-- [Common Pitfalls](./10-common-pitfalls.md)
-- [Component Authoring Guide](./11-component-authoring-guide.md)
+- [Components](./01-components.md) – core API, properties, methods.
+- [Layouts & Refs](./02-layouts-refs.md) – defining structure, using `data-ref`.
+- [Slots & Composition](./03-slots.md) – composition with slots and `SlotToggler`.
+- [Lifecycle & Events](./04-lifecycle-events.md) – lifecycle hooks, event handling.
+- [Styling Components](./05-styling.md) – all about styling: `static styles`, `@scope`, CSS Modules, Shadow DOM.
+- [Utilities](./06-utilities.md) – helpers, `Toggler`, `SlotToggler`, debounce, storage, and more.
+- [Examples & Tutorials](./07-examples.md) – runnable examples and a Todo app tutorial.
+- [Common Pitfalls](./08-common-pitfalls.md) – avoid typical mistakes.
+- [Component Authoring Guide](./09-component-authoring-guide.md) – real‑world patterns (localisation, store, services).
+- [Teleports](./10-teleports.md) – rendering to external DOM nodes.
+- [Web Components Integration](./11-web-components.md) – using custom elements with Shadow DOM.
+- [Hydration (SSR)](./12-hydration.md) – server‑side rendering and client hydration.

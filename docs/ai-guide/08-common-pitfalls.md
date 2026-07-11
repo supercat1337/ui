@@ -118,7 +118,7 @@ refsAnnotation = {
 };
 ```
 
----
+## **Additional note:** Even when using the correct prototype values, **avoid** adding JSDoc type annotations to `refsAnnotation`. This can break TypeScript’s inference. Let the compiler infer the type from the values themselves.
 
 ## 7. Misusing `SlotToggler` vs `Toggler`
 
@@ -195,7 +195,7 @@ class MyComponent extends Component {
 
 **Problem:** The parent component cannot access `data-ref` elements that belong to a child component.  
 **Cause:** BareDOM isolates refs per component to prevent naming collisions.  
-**Solution:** If you need to access a child’s internal elements, consider lifting the ref up (e.g., by making the child expose a method) or use the [Web Components integration](./06-web-components.md) pattern to merge additional roots.
+**Solution:** If you need to access a child’s internal elements, consider lifting the ref up (e.g., by making the child expose a method) or use the [Web Components integration](./11-web-components.md) pattern to merge additional roots.
 
 ---
 

@@ -48,195 +48,67 @@ If you need to render components on the server with data‑dependent layouts, se
 
 ## Styling Components
 
-BareDOM components render **light DOM** (no shadow root by default). This gives you full flexibility to style your components using standard CSS. You have several options, each with different levels of encapsulation.
+BareDOM provides multiple ways to style your components – from global CSS to fully encapsulated Shadow DOM. These are now covered in a dedicated guide:
 
-### 1. Global Styles (All Instances)
+👉 **[Styling Components](./05-styling.md)** – learn about `static styles`, `@scope` with `cssScope`, CSS Modules, Shadow DOM, and more.
 
-You can assign a CSS string or a `CSSStyleSheet` object to the static `styles` property. The styles are injected once (when the first instance is created) and apply to **all instances** of that component class.
+## Recommended: External HTML Templates for Layouts
 
-```js
-class Card extends Component {
-    static styles = `
-        .card { border: 1px solid #ccc; padding: 1rem; }
-        .card-title { font-size: 1.2rem; }
-    `;
-    static layout = `<div class="card"><div class="card-title">Title</div></div>`;
-}
-```
+For better maintainability and separation of concerns, it is strongly recommended to store your component layouts in separate `.html` files and import them as strings. This approach works seamlessly with both server‑side rendering (SSR) and client‑side hydration.
 
-**Pros:** Simple, works without extra tooling.  
-**Cons:** Styles are global – you must use unique class names to avoid collisions with other components or page styles.
+**Example:**
 
-### 2. Instance‑Specific Styles
-
-If you need styles that differ per instance (e.g., theming), you can generate unique class names or IDs using the component’s `instanceId` inside the layout.
-
-```js
-class ThemedCard extends Component {
-    layout = () => html`
-        <style>
-            .card-${this.instanceId} {
-                border: 1px solid ${this.theme.borderColor};
-                padding: 1rem;
-            }
-        </style>
-        <div class="card-${this.instanceId}">${this.content}</div>
-    `;
-
-    constructor({ theme, content }) {
-        super();
-        this.theme = theme;
-        this.content = content;
-    }
-}
-```
-
-**Pros:** Full control over per‑instance styling, no global pollution.  
-**Cons:** Slightly more verbose; you must ensure the injected `<style>` element is removed when the component unmounts (BareDOM automatically removes any elements added during rendering, but if you dynamically add `<style>` elsewhere, you'd need to manage cleanup).
-
-### 3. Shadow DOM (Full Encapsulation)
-
-If you need complete style isolation (styles that never leak out or in), you can use a native Web Component with Shadow DOM inside your BareDOM component. This is especially useful for reusable widgets.
-
-```js
-// Define a custom element with Shadow DOM
-class FancyButton extends HTMLElement {
-    constructor() {
-        super();
-        const shadow = this.attachShadow({ mode: 'open' });
-        shadow.innerHTML = `
-            <style>
-                button { background: blue; color: white; }
-            </style>
-            <button><slot></slot></button>
-        `;
-    }
-}
-customElements.define('fancy-button', FancyButton);
-
-// Use it in a BareDOM component
-class MyApp extends Component {
-    layout = `<fancy-button>Click me</fancy-button>`;
-}
-```
-
-**Pros:** Complete style encapsulation; styles inside the shadow root do not affect the outer page, and outer styles do not affect the shadow root.  
-**Cons:** Requires defining a Web Component; the `data-ref` system can still access shadow DOM elements (as shown in [Web Components Integration](./06-web-components.md)). This approach works natively in all modern browsers.
-
-### 4. CSS Modules (Build‑Time Encapsulation)
-
-If you are already using a bundler (like Vite, Webpack, or Rollup), you can use CSS Modules to scope styles to a component class.
-
-```css
-/* Card.module.css */
-.card {
-    border: 1px solid #ccc;
-}
-.title {
-    font-size: 1.2rem;
-}
+```html
+<!-- MyComponent.template.html -->
+<div class="card" data-ref="card">
+    <h2 data-ref="title"></h2>
+    <div data-slot="content"></div>
+</div>
 ```
 
 ```js
-import styles from './Card.module.css';
+// MyComponent.js
+import template from './MyComponent.template.html';
 
-class Card extends Component {
-    layout = html`<div class="${styles.card}"><div class="${styles.title}">Title</div></div>`;
+class MyComponent extends Component {
+    static layout = template;
+    // ...
 }
 ```
 
-**Pros:** Scoped class names, no runtime overhead, works with existing tooling.  
-**Cons:** Requires a build step; not suitable for pure ESM environments without bundlers.
+### Important: Static Layout Does Not Support Interpolation
 
-### 5. Native Style Encapsulation (`@scope`)
+A static `layout` (whether defined inline as a string or imported from a `.html` file) is **not** a template function — it does **not** support JavaScript interpolation (`${...}`). It is a plain HTML string. To insert dynamic content, either use `data-ref` and update it in `connectedCallback`, or use an instance layout as a function (see [Layouts & Refs](./02-layouts-refs.md)).
 
-BareDOM allows you to isolate component styles using the native CSS `@scope` rule. This ensures that your styles only apply to the current component and do not "leak" to the rest of the page or into nested child components.
+### Build Setup with esbuild
 
-#### Automatic Scoping with `cssScope`
-
-When you set `static cssScope = true`, BareDOM automatically handles the encapsulation infrastructure:
-
-1.  **Unique Identifier:** Every component class is assigned a unique ID (e.g., `bd-1`, `bd-2`) via an internal counter.
-2.  **DOM Marking:** This ID is automatically added as a `data-cid` attribute to the component's root element.
-3.  **Placeholder Replacement:** You can use the `:scope` placeholder in your `static styles`. BareDOM will replace it with the correct attribute selector (e.g., `[data-cid="bd-1"]`).
-
-```javascript
-class ScopedCard extends Component {
-    static cssScope = true; // Enables automatic encapsulation
-
-    static layout = html`
-        <div class="card">
-            <h2>Component Title</h2>
-            <div data-slot="content"></div>
-        </div>
-    `;
-
-    static styles = `
-        /* :scope is automatically replaced by [data-cid="bd-N"] */
-        @scope (:scope) to ([data-component-root]) {
-            .card {
-                border: 1px solid #ddd;
-                padding: 20px;
-            }
-            h2 {
-                color: midnightblue;
-            }
-        }
-    `;
-}
-```
-
-### Accessing the Class Identifier Programmatically
-
-BareDOM provides a way to retrieve the unique component identifier via code. This is useful for integration with 3rd-party libraries, global themes, or automated testing.
-
-- **`static get classId`**: Returns the CID for the component class.
-- **`get classId`**: An instance-level shortcut to the class CID.
+To enable importing `.html` files as strings, configure **esbuild** with a simple plugin:
 
 ```js
-// Static access
-console.log(MyComponent.classId); // e.g., "bd-4"
+// esbuild.config.js
+import fs from 'fs';
 
-// Instance access
-const card = new MyComponent();
-console.log(card.classId); // "bd-4"
+export const htmlPlugin = () => ({
+    name: 'html',
+    setup(build) {
+        build.onLoad({ filter: /\.html$/ }, async args => {
+            const contents = await fs.promises.readFile(args.path, 'utf8');
+            return { contents: JSON.stringify(contents), loader: 'text' };
+        });
+    },
+});
 ```
 
-#### Use Cases:
+Add this plugin to your esbuild configuration. Then all `.html` imports will return the raw HTML string, ready to be used as `layout` (whether static or instance‑level).
 
-1.  **Testing:** Target components reliably in Playwright or Vitest using the attribute selector: `[data-cid="${MyComponent.classId}"]`.
-2.  **Global Styling:** Apply styles to all instances of a specific component type from a global CSS-in-JS manager.
-3.  **Debugging:** Easily filter or identify components in the browser's Elements panel by their stable `data-cid`.
+**Why this is recommended:**
 
----
+- Keeps HTML separate from JavaScript logic.
+- Improves readability and editor support (syntax highlighting, formatting).
+- Works identically on server and client – the string is parsed by the BareDOM engine.
+- Easy to cache and optimise with esbuild’s build pipeline.
 
-#### Key Benefits
-
-- **Boundary Control:** By using `to ([data-component-root])`, you define a "lower boundary". Styles will apply to your component but **not** to any children placed inside its slots.
-- **Simple Selectors:** You no longer need complex naming conventions (like BEM). You can safely style tags like `h2`, `p`, or `.button` knowing they are scoped.
-- **Performance:** This utilizes native browser behavior. There is no runtime overhead of a Virtual DOM or the complexity of Shadow DOM.
-
----
-
-### Summary of the Implementation Logic
-
-For the internal engine, the workflow is now solidified:
-
-1.  **Check `cssScope`:** If `true`, get/create the class ID (using `bd-` prefix).
-2.  **Render:** Always append `data-cid="bd-N"` to the root element.
-3.  **Style Injection:** Replace `:scope` in the `styles` string with `[data-cid="bd-N"]` before injecting the stylesheet into the document.
-
-### Which Approach Should You Choose?
-
-| Approach                     | Isolation                 | Complexity | Browser Support                        |
-| :--------------------------- | :------------------------ | :--------- | :------------------------------------- |
-| Global styles                | None (global)             | Low        | All                                    |
-| Instance‑specific classes    | Per‑instance              | Medium     | All                                    |
-| Shadow DOM                   | Full encapsulation        | High       | All modern                             |
-| CSS Modules                  | Scoped class names        | Medium     | All (requires bundler)                 |
-| **`@scope` with `cssScope`** | **No leak into children** | **Low**    | **Chrome 118+, Safari 17.4+, FF 128+** |
-
----
+> **Note:** You may also use this technique with other bundlers (Webpack, Rollup, Vite) using similar loaders/plugins.
 
 ## Other Properties & Methods
 
@@ -282,16 +154,16 @@ For the internal engine, the workflow is now solidified:
 
 ### Lifecycle & Events
 
-| Method                          | Description                                                                                                                 |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `connectedCallback()`           | Lifecycle hook called after the component is mounted. Override to add event listeners, fetch data, etc.                     |
-| `disconnectedCallback()`        | Lifecycle hook called just before unmounting. Override to clean up external resources.                                      |
-| `restoreCallback(data)`         | Lifecycle hook called during hydration with server‑provided data (before the DOM is ready).                                 |
-| `on(event, callback)`           | Subscribes to a custom or lifecycle event. Returns an unsubscribe function.                                                 |
-| `once(event, callback)`         | Subscribes to an event for one invocation only. Returns an unsubscribe function.                                            |
-| `emit(event, context)`          | Emits an event with optional context data.                                                                                  |
-| `$on(element, event, callback)` | Attaches a DOM event listener that is automatically removed when the component unmounts. Returns an unsubscribe function.   |
-| `getUnmountSignal()`            | Returns an `AbortSignal` that aborts when the component unmounts. Useful for cancelling fetch, timers, and event listeners. |
+| Method                          | Description                                                                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectedCallback()`           | Lifecycle hook called after the component is mounted. Override to add event listeners, fetch data, etc.                                                                   |
+| `disconnectedCallback()`        | Lifecycle hook called just before unmounting. Override to clean up external resources.                                                                                    |
+| `restoreCallback(data)`         | Lifecycle hook called during hydration with server‑provided data (before the DOM is ready).                                                                               |
+| `on(event, callback)`           | Subscribes to a custom or lifecycle event. Returns an unsubscribe function.                                                                                               |
+| `once(event, callback)`         | Subscribes to an event for one invocation only. Returns an unsubscribe function.                                                                                          |
+| `emit(event, context)`          | Emits an event with optional context data.                                                                                                                                |
+| `$on(element, event, callback)` | Attaches a DOM event listener that is automatically removed when the component unmounts. `event` can be any string (standard or custom). Returns an unsubscribe function. |
+| `getUnmountSignal()`            | Returns an `AbortSignal` that aborts when the component unmounts. Useful for cancelling fetch, timers, and event listeners.                                               |
 
 > **SSR Note:** When a component is rendered on the server (e.g., with Node.js without a DOM), lifecycle methods such as `connectedCallback`, `disconnectedCallback`, and `restoreCallback` are **not executed**. The server only generates the initial HTML structure. All client‑side logic should be placed inside these hooks, which will run in the browser after hydration. For server‑side data fetching, use separate methods or pass data through the constructor.
 
@@ -364,3 +236,33 @@ connectedCallback() {
 ```
 
 > **Note:** For simpler DOM event binding, consider using `$on` – it automatically handles cleanup.
+
+### Important: Do Not Type `refsAnnotation` with JSDoc
+
+When defining `refsAnnotation`, **do not** add a JSDoc type annotation (e.g., `@type {Record<string, ...>}`). TypeScript will automatically infer the precise type from the provided prototypes (e.g., `HTMLInputElement.prototype`). This gives you full type safety for `this.getRefs()` without any extra annotations.
+
+✅ Correct:
+
+```js
+class MyComponent extends Component {
+    refsAnnotation = {
+        input: HTMLInputElement.prototype,
+        button: HTMLButtonElement.prototype,
+    };
+    // The type of refs is inferred as { input: HTMLInputElement, button: HTMLButtonElement }
+}
+```
+
+❌ Wrong:
+
+```js
+class MyComponent extends Component {
+    /** @type {Record<string, any>} */ // unnecessary and breaks inference
+    refsAnnotation = {
+        input: HTMLInputElement.prototype,
+        button: HTMLButtonElement.prototype,
+    };
+}
+```
+
+The same rule applies when using TypeScript – avoid explicit type annotations for `refsAnnotation`.
