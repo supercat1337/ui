@@ -53,7 +53,8 @@ class Hello extends Component {
     refsAnnotation = { title: HTMLHeadingElement.prototype };
 
     connectedCallback() {
-        this.getRefs().title.style.color = 'coral';
+        let refs = this.getRefs();
+        refs.title.style.color = 'coral';
     }
 }
 

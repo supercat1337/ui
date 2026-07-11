@@ -102,11 +102,13 @@ export class ModalComponent extends Component {
     }
 
     show() {
-        this.getRefs().overlay.style.display = '';
+        let refs = this.getRefs();
+        refs.overlay.style.display = '';
     }
 
     hide() {
-        this.getRefs().overlay.style.display = 'none';
+        let refs = this.getRefs();
+        refs.overlay.style.display = 'none';
     }
 }
 ```

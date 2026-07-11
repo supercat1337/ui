@@ -145,7 +145,9 @@ this.on('mount', (ctx, component) => {
 Use `$on(element, event, callback)` to attach DOM event listeners that are automatically removed when the component unmounts. This is the **recommended** way to add event listeners inside your component, as it prevents memory leaks and eliminates the need for manual cleanup in `disconnectedCallback`.
 
 ```js
-this.$on(this.getRefs().myButton, 'click', () => {
+let refs = this.getRefs();
+        
+this.$on(refs.myButton, 'click', () => {
     alert('Clicked!');
 });
 ```

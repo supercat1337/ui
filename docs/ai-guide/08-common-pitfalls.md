@@ -39,7 +39,8 @@ class MyComponent extends Component {
 
     // ✅ Correct: use connectedCallback
     connectedCallback() {
-        this.getRefs().myButton.textContent = 'Click me';
+        let refs = this.getRefs();
+        refs.myButton.textContent = 'Click me';
     }
 }
 ```
@@ -169,7 +170,8 @@ this.count++;
 this.rerender();
 
 // ✅ Surgical update
-this.getRefs().counterSpan.textContent = this.count;
+let refs = this.getRefs();    
+refs.counterSpan.textContent = this.count;
 ```
 
 ---

@@ -153,7 +153,8 @@ Lifecycle methods (`connectedCallback`, `disconnectedCallback`, `restoreCallback
 ```js
 connectedCallback() {
     // This runs only in the browser
-    this.getRefs().deleteBtn.onclick = () => this.remove();
+    let refs = this.getRefs();
+    refs.deleteBtn.onclick = () => this.remove();
 }
 ```
 
@@ -236,7 +237,8 @@ If a ref is missing, the library throws an error. Use `hasRef(refName)` to check
 If you modify the DOM after initial render (e.g., via `innerHTML`), call `updateRefs()` to rescan for `data-ref` elements.
 
 ```js
-this.getRefs().container.innerHTML = '<span data-ref="newSpan">New</span>';
+let refs = this.getRefs();
+refs.container.innerHTML = '<span data-ref="newSpan">New</span>';
 this.updateRefs(); // now `newSpan` is available
 ```
 
